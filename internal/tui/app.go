@@ -665,14 +665,9 @@ func (m App) viewNormal() tea.View {
 	// --- Apply selection highlight confined to the output pane ---
 	sel := m.output.Selection()
 	if sel.Active && !sel.IsEmpty() {
-		// Compute output pane bounds in terminal-absolute coordinates.
-		sidebarRenderedW := lipgloss.Width(sidebarView)
-		outputLeft := layoutMarginLeft + sidebarRenderedW + gap + layoutBorderSize
-		outputRight := outputLeft + clamp(contentW, 1)
-		outputTop := layoutMarginTop + metaRenderedH + layoutBorderSize
-		outputBottom := outputTop + outputContentH
+		bTop, bBottom, bLeft, bRight := m.outputPaneBounds()
 		content = applySelectionHighlight(content, sel, m.deps.Styles,
-			outputTop, outputBottom, outputLeft, outputRight)
+			bTop, bBottom, bLeft, bRight)
 	}
 
 	return tea.NewView(content)
@@ -813,6 +808,39 @@ func (m App) translateMouseForOutput(msg tea.Msg) tea.Msg {
 // extractSelectionFromView extracts plain text from the selection using
 // the full rendered terminal view. Terminal-absolute coordinates map
 // directly to rows/columns in the rendered content.
+// outputPaneBounds computes the output pane's terminal-absolute bounds.
+func (m App) outputPaneBounds() (top, bottom, left, right int) {
+	gap := 1
+	borderSize := layoutBorderSize * 2
+	innerW := clamp(m.width-layoutMarginLeft, 1)
+	sw := sidebarWidth(innerW)
+	rightW := clamp(innerW-sw-borderSize-gap, 1)
+	contentW := clamp(rightW-borderSize, 1)
+	panelRows := clamp(m.height-layoutMarginTop-1-layoutMarginBottom, 1)
+	sidebarContentH := clamp(panelRows-borderSize-1, 3)
+
+	sidebarView := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		PaddingLeft(1).
+		Width(sw).
+		Height(sidebarContentH).
+		Render("")
+	sidebarRenderedW := lipgloss.Width(sidebarView)
+
+	metaContent := metadata.Render(m.selected, m.selCat, contentW, m.copiedFlash, m.deps.Styles)
+	metaView := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(contentW).Render(metaContent)
+	metaRenderedH := lipgloss.Height(metaView)
+	sidebarRenderedH := sidebarContentH + borderSize
+	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
+	outputContentH := clamp(outputTotalH-borderSize, 1)
+
+	left = layoutMarginLeft + sidebarRenderedW + gap + layoutBorderSize
+	right = left + clamp(contentW, 1)
+	top = layoutMarginTop + metaRenderedH + layoutBorderSize
+	bottom = top + outputContentH
+	return
+}
+
 func (m App) extractSelectionFromView() string {
 	sel := m.output.Selection()
 	if !sel.Active || sel.IsEmpty() {
@@ -822,8 +850,19 @@ func (m App) extractSelectionFromView() string {
 	view := m.viewNormal()
 	content := view.Content
 	startX, startY, endX, endY := sel.Bounds()
-	lines := strings.Split(content, "\n")
 
+	// Confine extraction to output pane bounds.
+	bTop, bBottom, bLeft, bRight := m.outputPaneBounds()
+	if startY < bTop {
+		startY = bTop
+		startX = bLeft
+	}
+	if endY > bBottom {
+		endY = bBottom
+		endX = bRight
+	}
+
+	lines := strings.Split(content, "\n")
 	var result []string
 	for i := startY; i <= endY; i++ {
 		if i < 0 || i >= len(lines) {
@@ -831,17 +870,16 @@ func (m App) extractSelectionFromView() string {
 		}
 		lineWidth := ansi.StringWidth(lines[i])
 		if lineWidth == 0 {
-			result = append(result, "")
 			continue
 		}
 
-		lx := 0
-		rx := lineWidth
+		lx := bLeft
+		rx := min(lineWidth, bRight)
 		if i == startY {
-			lx = startX
+			lx = max(startX, bLeft)
 		}
 		if i == endY {
-			rx = min(lineWidth, endX+1)
+			rx = min(bRight, min(lineWidth, endX+1))
 		}
 		if lx >= rx {
 			continue
@@ -849,9 +887,8 @@ func (m App) extractSelectionFromView() string {
 
 		selected := ansi.Cut(lines[i], lx, rx)
 		plain := ansi.Strip(selected)
-		// Trim trailing whitespace from each line.
 		plain = strings.TrimRight(plain, " ")
-		if plain != "" || (i > startY && i < endY) {
+		if plain != "" {
 			result = append(result, plain)
 		}
 	}
