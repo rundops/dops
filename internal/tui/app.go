@@ -295,15 +295,21 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Route based on focus target.
 		if m.focus == focusOutput {
-			// Mouse events: sidebar clicks go to sidebar, everything else to output.
 			if isMouseMsg(msg) {
+				// Sidebar clicks go to sidebar.
 				translated, inSidebar := m.translateMouseForSidebar(msg)
 				if inSidebar {
 					var cmd tea.Cmd
 					m.sidebar, cmd = m.sidebar.Update(translated)
 					return m, cmd
 				}
-				// Translate to output-local coordinates and forward.
+				// Wheel events go directly to viewport (no coordinate translation needed).
+				if _, isWheel := msg.(tea.MouseWheelMsg); isWheel {
+					var cmd tea.Cmd
+					m.output, cmd = m.output.Update(msg)
+					return m, cmd
+				}
+				// Click/motion/release: translate to output-local coordinates.
 				var cmd tea.Cmd
 				m.output, cmd = m.output.Update(m.translateMouseForOutput(msg))
 				return m, cmd

@@ -184,8 +184,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m.updateNormal(msg)
 
 	case tea.MouseClickMsg:
-		// Start selection on click in log area.
-		// Log area starts at row 2 (header + gap) with the top padding.
+		// Start text selection in the log area.
 		logStartRow := 3 // header(1) + gap(1) + logTopPad(1)
 		if msg.Y >= logStartRow {
 			m.selection.Reset()
@@ -195,7 +194,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.selection.FocusX = msg.X
 			m.selection.FocusY = msg.Y - logStartRow
 		}
-		return m, nil
+		// Don't return — let it fall through to the viewport for scroll state.
 
 	case tea.MouseMotionMsg:
 		if m.selection.Active {
@@ -208,10 +207,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.MouseReleaseMsg:
 		if m.selection.Active && !m.selection.IsEmpty() {
 			text := m.selection.ExtractText(m.visibleLineTexts())
+			m.selection.Reset()
 			if text != "" {
 				return m, tea.SetClipboard(text)
 			}
 		}
+		m.selection.Reset()
 		return m, nil
 	}
 
