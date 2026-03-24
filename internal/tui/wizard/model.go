@@ -228,15 +228,32 @@ func (m Model) updateTextInput(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			m.err = "required field"
 			return m, nil
 		}
-		if p.Type == domain.ParamInteger && val != "" {
-			n, err := strconv.Atoi(val)
-			if err != nil {
-				m.err = "must be a number"
-				return m, nil
+		switch p.Type {
+		case domain.ParamInteger:
+			if val != "" {
+				if _, err := strconv.Atoi(val); err != nil {
+					m.err = "must be an integer"
+					return m, nil
+				}
 			}
-			if n < 0 {
-				m.err = "must be a non-negative number"
-				return m, nil
+		case domain.ParamNumber:
+			if val != "" {
+				n, err := strconv.Atoi(val)
+				if err != nil {
+					m.err = "must be a number"
+					return m, nil
+				}
+				if n < 0 {
+					m.err = "must be a non-negative number"
+					return m, nil
+				}
+			}
+		case domain.ParamFloat:
+			if val != "" {
+				if _, err := strconv.ParseFloat(val, 64); err != nil {
+					m.err = "must be a decimal number"
+					return m, nil
+				}
 			}
 		}
 		m.values[p.Name] = val

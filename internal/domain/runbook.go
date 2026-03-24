@@ -10,7 +10,9 @@ type ParameterType string
 const (
 	ParamString      ParameterType = "string"
 	ParamBoolean     ParameterType = "boolean"
-	ParamInteger     ParameterType = "integer"
+	ParamInteger     ParameterType = "integer" // any whole number (negative ok)
+	ParamNumber      ParameterType = "number"  // non-negative whole number (0+)
+	ParamFloat       ParameterType = "float"   // decimal number
 	ParamSelect      ParameterType = "select"
 	ParamMultiSelect ParameterType = "multi_select"
 	ParamFilePath    ParameterType = "file_path"

@@ -29,6 +29,11 @@ func RunbookToInputSchema(rb domain.Runbook, resolved map[string]string) json.Ra
 			prop["type"] = "boolean"
 		case domain.ParamInteger:
 			prop["type"] = "integer"
+		case domain.ParamNumber:
+			prop["type"] = "integer"
+			prop["minimum"] = 0
+		case domain.ParamFloat:
+			prop["type"] = "number"
 		case domain.ParamSelect:
 			prop["type"] = "string"
 			if len(p.Options) > 0 {
