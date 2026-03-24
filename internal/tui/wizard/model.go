@@ -100,12 +100,12 @@ func (m *Model) initField(idx int) {
 		ti := textinput.New()
 		ti.Focus()
 		ti.Prompt = "> "
-		if p.Secret {
+		if p.Secret && prefilled == "" {
+			// New secret — use password echo mode.
 			ti.EchoMode = textinput.EchoPassword
-			if prefilled != "" {
-				// Show **** placeholder — user can type to override.
-				ti.Placeholder = "••••••••••  (enter to keep, type to override)"
-			}
+		} else if p.Secret && prefilled != "" {
+			// Existing secret — don't use password echo, render dots manually.
+			// EchoPassword will be enabled once user starts typing (handled in Update).
 		} else if prefilled != "" {
 			ti.SetValue(prefilled)
 		} else if p.Default != nil {
@@ -239,6 +239,10 @@ func (m Model) updateTextInput(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m.goBack()
 	default:
 		m.err = ""
+		// Switch to password echo on first keystroke for secret pre-filled fields.
+		if p.Secret && m.prefill[p.Name] && m.input.EchoMode != textinput.EchoPassword {
+			m.input.EchoMode = textinput.EchoPassword
+		}
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
 		return m, cmd
@@ -527,7 +531,16 @@ func (m Model) renderCurrentField(p domain.Parameter) string {
 
 	switch m.fieldMode(p) {
 	case modeTextInput:
-		b.WriteString(textStyle.Render(m.input.View()))
+		// Secret field with saved value and empty input: show dots instead of textinput.
+		if p.Secret && m.prefill[p.Name] && m.input.Value() == "" {
+			mutedStyle := lipgloss.NewStyle()
+			if m.styles != nil {
+				mutedStyle = m.styles.TextMuted
+			}
+			b.WriteString(textStyle.Render("> ") + mutedStyle.Render("••••••••••  (enter to keep, type to override)"))
+		} else {
+			b.WriteString(textStyle.Render(m.input.View()))
+		}
 	case modeSelect:
 		for i, opt := range p.Options {
 			if i == m.cursor {
