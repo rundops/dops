@@ -834,8 +834,14 @@ func (m App) outputPaneBounds() (top, bottom, left, right int) {
 	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
 	outputContentH := clamp(outputTotalH-borderSize, 1)
 
-	left = layoutMarginLeft + sidebarRenderedW + gap + layoutBorderSize
-	right = left + clamp(contentW, 1)
+	// Output inner content area: border(1) + padX(1) + indent(2) + text + scrollbar(1) + padX(1) + border(1)
+	// We want just the text area: after border + padX + indent, before scrollbar + padX + border.
+	outputInnerW := clamp(contentW-borderSize, 1) // inside outer border
+	padX := 1
+	logW := max(1, outputInnerW-padX*2-1) // -padX*2 for left/right pad, -1 for scrollbar
+
+	left = layoutMarginLeft + sidebarRenderedW + gap + layoutBorderSize + padX
+	right = left + logW
 	top = layoutMarginTop + metaRenderedH + layoutBorderSize
 	bottom = top + outputContentH
 	return
