@@ -1189,37 +1189,23 @@ func (m *App) handleOutputClick(msg tea.Msg) tea.Cmd {
 	line := lines[click.Y]
 
 	var copyText, region string
-	if cmd := m.output.Command(); cmd != "" {
-		// Detect header click by position: header rows are between the
-		// output border top and the first gap row. Find the "$ " line
-		// and count how many lines the header spans.
-		bTop, _, _, _ := m.outputPaneBounds()
-		// Header starts at bTop (first row inside border).
-		// Find how many lines until the gap (empty line after header).
-		headerEnd := bTop
-		for i := bTop; i < len(lines); i++ {
-			trimmed := strings.TrimSpace(lines[i])
-			if trimmed == "" {
-				break // gap row = end of header
-			}
-			headerEnd = i
-		}
-		if click.Y >= bTop && click.Y <= headerEnd {
-			copyText, region = cmd, "header"
+
+	// Check footer FIRST — specific text match on "Saved to <path>".
+	if logPath := m.output.LogPath(); logPath != "" {
+		if strings.Contains(line, "Saved to") || strings.Contains(line, logPath) {
+			copyText, region = logPath, "footer"
 		}
 	}
+
+	// Check header — any line containing "$ " or "--param" in the output area.
 	if region == "" {
-		if logPath := m.output.LogPath(); logPath != "" {
-			target := "Saved to " + logPath
-			if idx := strings.Index(line, target); idx >= 0 {
-				start := lipgloss.Width(line[:idx])
-				end := start + lipgloss.Width(target)
-				if click.X >= start && click.X < end {
-					copyText, region = logPath, "footer"
-				}
+		if cmd := m.output.Command(); cmd != "" {
+			if strings.Contains(line, "$ ") || strings.Contains(line, "--param") {
+				copyText, region = cmd, "header"
 			}
 		}
 	}
+
 	if region == "" {
 		return nil
 	}
