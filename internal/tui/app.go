@@ -131,7 +131,7 @@ func (m *App) resizeAll() {
 	sw := sidebarWidth(innerW)
 	rightW := clamp(innerW-sw-borderSize-gap, 1)
 	contentW := clamp(rightW-borderSize, 1)
-	panelRows := clamp(m.height-layoutMarginTop-footerH, 1)
+	panelRows := clamp(m.height-layoutMarginTop-footerH-layoutMarginBottom, 1)
 
 	// Sidebar
 	sidebarContentH := clamp(panelRows-borderSize-1, 3)
