@@ -168,7 +168,7 @@ func TestOutput_ViewFooterRow(t *testing.T) {
 
 	row := -1
 	for i, line := range lines {
-		if strings.Contains(line, "/tmp/test.log") {
+		if strings.Contains(line, "Saved to /tmp/test.log") {
 			row = i
 			break
 		}
