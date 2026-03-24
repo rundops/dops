@@ -264,14 +264,6 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.copiedFlash = false
 		return m, nil
 
-	case output.CopiedHeaderFlashMsg:
-		m.output.SetCopiedHeader(false)
-		return m, nil
-
-	case output.CopiedFooterFlashMsg:
-		m.output.SetCopiedFooter(false)
-		return m, nil
-
 	case output.CopyFlashExpiredMsg:
 		m.output, _ = m.output.Update(msg)
 		return m, nil
@@ -1018,24 +1010,14 @@ func (m *App) handleOutputClick(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 
-	switch region {
-	case "header":
-		m.output.SetCopiedHeader(true)
-		return tea.Batch(
-			tea.SetClipboard(copyText),
-			tea.Tick(2*time.Second, func(time.Time) tea.Msg {
-				return output.CopiedHeaderFlashMsg{}
-			}),
-		)
-	case "footer":
-		m.output.SetCopiedFooter(true)
-		return tea.Batch(
-			tea.SetClipboard(copyText),
-			tea.Tick(2*time.Second, func(time.Time) tea.Msg {
-				return output.CopiedFooterFlashMsg{}
-			}),
-		)
-	}
+	// Use the unified border badge for all copy feedback.
+	m.output.SetCopyFlash(true)
+	return tea.Batch(
+		tea.SetClipboard(copyText),
+		tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
+			return output.CopyFlashExpiredMsg{}
+		}),
+	)
 
 	return nil
 }

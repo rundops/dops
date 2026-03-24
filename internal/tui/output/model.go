@@ -88,7 +88,8 @@ func (m *Model) SetCommand(cmd string) {
 
 func (m Model) Command() string        { return m.command }
 func (m Model) LogPath() string        { return m.logPath }
-func (m Model) CopyFlash() bool        { return m.copyFlash }
+func (m Model) CopyFlash() bool         { return m.copyFlash }
+func (m *Model) SetCopyFlash(v bool)    { m.copyFlash = v }
 func (m *Model) SetCopiedHeader(v bool) { m.copiedHeader = v }
 func (m *Model) SetCopiedFooter(v bool) { m.copiedFooter = v }
 
@@ -432,22 +433,15 @@ func (m Model) View() string {
 	cw := max(1, m.width-padX*2)
 	tw := max(1, cw-3) // line width for log text (cw - 2 indent - 1 scrollbar)
 
-	// === Header: 1 row ===
-	var headerLine string
-	if m.copiedHeader {
-		headerLine = lipgloss.NewStyle().Foreground(successFg).Render("Copied to Clipboard!")
-	} else {
-		dollar := lipgloss.NewStyle().Foreground(successFg).Render("$")
-		cmd := lipgloss.NewStyle().Foreground(textFg).Render(" " + m.command)
-		headerLine = ansi.Truncate(dollar+cmd, cw, "")
-	}
+	// === Header: 1 row — always shows command ===
+	dollar := lipgloss.NewStyle().Foreground(successFg).Render("$")
+	cmd := lipgloss.NewStyle().Foreground(textFg).Render(" " + m.command)
+	headerLine := ansi.Truncate(dollar+cmd, cw, "")
 	headerBox := lipgloss.NewStyle().Width(cw).Render(headerLine)
 
-	// === Footer: 1 row ===
+	// === Footer: 1 row — always shows log path ===
 	var footerLine string
-	if m.copiedFooter {
-		footerLine = lipgloss.NewStyle().Foreground(successFg).Render("Copied to Clipboard!")
-	} else if m.logPath != "" && !m.searching && !m.navigating {
+	if m.logPath != "" && !m.searching && !m.navigating {
 		footerLine = lipgloss.NewStyle().Foreground(mutedFg).Render("Saved to " + m.logPath)
 	}
 	footerBox := lipgloss.NewStyle().Width(cw).Render(footerLine)
