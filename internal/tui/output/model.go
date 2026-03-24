@@ -186,29 +186,31 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		// Start text selection in the log area.
 		// Coordinates are output-local (translated by the app).
-		// Log content starts at: padX(1) + header(1) + gap(1) + topPad(1) = row 4
-		// and column padX(1) + indent(2) = col 3.
-		logTop := 4 // padX row offset + header + gap + top pad
-		logCol := 3 // padX col offset + 2-char indent
+		// Layout: header(row 0) + gap(row 1) + topPad(row 2) → first line at row 3
+		// Column: padX(1) + indent(2) → text starts at col 3
+		logTop := 3
+		logCol := 3
 		row := msg.Y - logTop
 		col := msg.X - logCol
-		if row >= 0 {
+		if row >= 0 && row < m.bodyHeight() {
 			m.selection.Reset()
 			m.selection.Active = true
-			m.selection.AnchorX = col
+			m.selection.AnchorX = max(0, col)
 			m.selection.AnchorY = row
-			m.selection.FocusX = col
+			m.selection.FocusX = max(0, col)
 			m.selection.FocusY = row
+		} else {
+			m.selection.Reset()
 		}
 		// Don't return — let it fall through to the viewport for scroll state.
 
 	case tea.MouseMotionMsg:
 		// Only track drag when a button is held.
 		if m.selection.Active && msg.Button != 0 {
-			logTop := 4
+			logTop := 3
 			logCol := 3
-			m.selection.FocusX = msg.X - logCol
-			m.selection.FocusY = msg.Y - logTop
+			m.selection.FocusX = max(0, msg.X-logCol)
+			m.selection.FocusY = max(0, msg.Y-logTop)
 		}
 		return m, nil
 
@@ -490,13 +492,20 @@ func (m Model) View() string {
 			}
 
 			// Apply selection highlighting if this line is within the selection.
-			visibleRow := i // row index relative to visible content
-			highlighted := m.highlightLine(visible, visibleRow, logContentStyle, selectionStyle)
-			lineText := "  " + highlighted
-			if line.IsStderr && !m.selection.Active {
+			visibleRow := i
+			if m.selection.Active && !m.selection.IsEmpty() && m.isRowSelected(visibleRow) {
+				highlighted := m.highlightLine(visible, visibleRow, logContentStyle, selectionStyle)
+				lineText := "  " + highlighted
+				// Pad manually — don't wrap in Width().Render() which strips inner ANSI.
+				pad := logW - ansi.StringWidth(lineText)
+				if pad > 0 {
+					lineText += logContentStyle.Render(strings.Repeat(" ", pad))
+				}
+				logLines = append(logLines, lineText)
+			} else if line.IsStderr {
 				logLines = append(logLines, logStderrStyle.Width(logW).Render("  "+visible))
 			} else {
-				logLines = append(logLines, logContentStyle.Width(logW).Render(lineText))
+				logLines = append(logLines, logContentStyle.Width(logW).Render("  "+visible))
 			}
 		} else {
 			logLines = append(logLines, blankLine)
@@ -532,6 +541,12 @@ func (m Model) matchLineSet() map[int]bool {
 		set[idx] = true
 	}
 	return set
+}
+
+// isRowSelected returns true if the given visible row is within the selection bounds.
+func (m Model) isRowSelected(visibleRow int) bool {
+	_, startY, _, endY := m.selection.Bounds()
+	return visibleRow >= startY && visibleRow <= endY
 }
 
 // highlightLine applies selection highlighting to a visible line.
