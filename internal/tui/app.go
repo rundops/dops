@@ -238,6 +238,13 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Switch focus on hover: any mouse event over a pane focuses it.
+	if m.state == stateNormal {
+		if target, ok := m.focusTargetFromMouse(msg); ok {
+			m.focus = target
+		}
+	}
+
 	// Route to focused component
 	switch m.state {
 	case stateNormal:
@@ -642,6 +649,38 @@ func (m App) translateMouseForSidebar(msg tea.Msg) (tea.Msg, bool) {
 		return msg, inBounds
 	}
 	return msg, true
+}
+
+// focusTargetFromMouse returns which pane a mouse event is over.
+// Returns the target and true if the event is a mouse event, false otherwise.
+func (m App) focusTargetFromMouse(msg tea.Msg) (focusTarget, bool) {
+	var mx, my int
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		mx, my = msg.X, msg.Y
+	case tea.MouseMotionMsg:
+		mx, my = msg.X, msg.Y
+	case tea.MouseWheelMsg:
+		mx, my = msg.X, msg.Y
+	default:
+		return 0, false
+	}
+
+	innerW := clamp(m.width-layoutMarginLeft, 1)
+	sw := sidebarWidth(innerW) + layoutBorderSize*2 + layoutPadLeft
+	sidebarRight := layoutMarginLeft + sw
+
+	if mx >= layoutMarginLeft && mx < sidebarRight && my >= layoutMarginTop {
+		// Sidebar: only steal focus on click, not hover.
+		if _, isClick := msg.(tea.MouseClickMsg); isClick {
+			return focusSidebar, true
+		}
+		return m.focus, false
+	}
+	if mx >= sidebarRight && my >= layoutMarginTop {
+		return focusOutput, true
+	}
+	return m.focus, false
 }
 
 func isMouseMsg(msg tea.Msg) bool {
