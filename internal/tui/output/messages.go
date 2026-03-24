@@ -14,3 +14,4 @@ type CopiedHeaderFlashMsg struct{}
 type CopiedFooterFlashMsg struct{}
 type CopyFlashExpiredMsg struct{}
 type CopiedRegionFlashMsg struct{} // clears header/footer background highlight
+type SelectionCompleteMsg struct{} // signals the app to extract and copy selected text

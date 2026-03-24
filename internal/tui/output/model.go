@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"strings"
-	"time"
 
 	"dops/internal/theme"
 
@@ -212,16 +211,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.selection.FocusY = msg.Y
 
 			if !m.selection.IsEmpty() {
-				text := m.extractSelectedText()
-				if text != "" {
-					m.copyFlash = true
-					return m, tea.Batch(
-						tea.SetClipboard(text),
-						tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
-							return CopyFlashExpiredMsg{}
-						}),
-					)
-				}
+				// Signal the app to extract text and copy to clipboard.
+				// The app has access to the full rendered view for extraction.
+				return m, func() tea.Msg { return SelectionCompleteMsg{} }
 			}
 		}
 		return m, nil
@@ -251,11 +243,7 @@ func (m Model) updateNormal(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m, nil
 	case msg.Text == "y":
 		if m.selection.Active && !m.selection.IsEmpty() {
-			text := m.extractSelectedText()
-			m.selection.Reset()
-			if text != "" {
-				return m, tea.SetClipboard(text)
-			}
+			return m, func() tea.Msg { return SelectionCompleteMsg{} }
 		}
 		return m, nil
 	}
@@ -542,46 +530,7 @@ func (m Model) matchLineSet() map[int]bool {
 	return set
 }
 
-// extractSelectedText extracts plain text from the current selection using
-// the rendered output. Works in rendered-output coordinates.
-func (m Model) extractSelectedText() string {
-	if !m.selection.Active || m.selection.IsEmpty() {
-		return ""
-	}
 
-	rendered := m.View()
-	startX, startY, endX, endY := m.selection.Bounds()
-	lines := strings.Split(rendered, "\n")
-
-	var result []string
-	for i := startY; i <= endY; i++ {
-		if i < 0 || i >= len(lines) {
-			continue
-		}
-		lineWidth := ansi.StringWidth(lines[i])
-		if lineWidth == 0 {
-			result = append(result, "")
-			continue
-		}
-
-		lx := 0
-		rx := lineWidth
-		if i == startY {
-			lx = startX
-		}
-		if i == endY {
-			rx = min(lineWidth, endX+1)
-		}
-		if lx >= rx {
-			continue
-		}
-
-		selected := ansi.Cut(lines[i], lx, rx)
-		result = append(result, ansi.Strip(selected))
-	}
-
-	return strings.Join(result, "\n")
-}
 
 // renderScrollbar builds the scrollbar column with a pill-shaped thumb.
 func (m Model) renderScrollbar(contentH, yOffset, visibleH int, trackStyle, thumbStyle lipgloss.Style) string {

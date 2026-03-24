@@ -272,6 +272,20 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.output.SetCopiedHeader(false)
 		m.output.SetCopiedFooter(false)
 		return m, nil
+
+	case output.SelectionCompleteMsg:
+		// Extract text from the full rendered view using terminal-absolute coords.
+		text := m.extractSelectionFromView()
+		if text != "" {
+			m.output.SetCopyFlash(true)
+			return m, tea.Batch(
+				tea.SetClipboard(text),
+				tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
+					return output.CopyFlashExpiredMsg{}
+				}),
+			)
+		}
+		return m, nil
 	}
 
 	// Switch focus on hover: any mouse event over a pane focuses it.
@@ -648,12 +662,17 @@ func (m App) viewNormal() tea.View {
 		Height(m.height).
 		Render(content)
 
-	// --- Apply selection highlight on the full terminal view ---
-	// Selection coordinates are terminal-absolute — they map directly
-	// to rows/columns in the rendered content string.
+	// --- Apply selection highlight confined to the output pane ---
 	sel := m.output.Selection()
 	if sel.Active && !sel.IsEmpty() {
-		content = applySelectionHighlight(content, sel, m.deps.Styles)
+		// Compute output pane bounds in terminal-absolute coordinates.
+		sidebarRenderedW := lipgloss.Width(sidebarView)
+		outputLeft := layoutMarginLeft + sidebarRenderedW + gap + layoutBorderSize
+		outputRight := outputLeft + clamp(contentW, 1)
+		outputTop := layoutMarginTop + metaRenderedH + layoutBorderSize
+		outputBottom := outputTop + outputContentH
+		content = applySelectionHighlight(content, sel, m.deps.Styles,
+			outputTop, outputBottom, outputLeft, outputRight)
 	}
 
 	return tea.NewView(content)
@@ -791,11 +810,58 @@ func (m App) translateMouseForOutput(msg tea.Msg) tea.Msg {
 	return msg
 }
 
+// extractSelectionFromView extracts plain text from the selection using
+// the full rendered terminal view. Terminal-absolute coordinates map
+// directly to rows/columns in the rendered content.
+func (m App) extractSelectionFromView() string {
+	sel := m.output.Selection()
+	if !sel.Active || sel.IsEmpty() {
+		return ""
+	}
+
+	view := m.viewNormal()
+	content := view.Content
+	startX, startY, endX, endY := sel.Bounds()
+	lines := strings.Split(content, "\n")
+
+	var result []string
+	for i := startY; i <= endY; i++ {
+		if i < 0 || i >= len(lines) {
+			continue
+		}
+		lineWidth := ansi.StringWidth(lines[i])
+		if lineWidth == 0 {
+			result = append(result, "")
+			continue
+		}
+
+		lx := 0
+		rx := lineWidth
+		if i == startY {
+			lx = startX
+		}
+		if i == endY {
+			rx = min(lineWidth, endX+1)
+		}
+		if lx >= rx {
+			continue
+		}
+
+		selected := ansi.Cut(lines[i], lx, rx)
+		plain := ansi.Strip(selected)
+		// Trim trailing whitespace from each line.
+		plain = strings.TrimRight(plain, " ")
+		if plain != "" || (i > startY && i < endY) {
+			result = append(result, plain)
+		}
+	}
+
+	return strings.TrimRight(strings.Join(result, "\n"), "\n ")
+}
+
 // applySelectionHighlight post-processes the full terminal view to highlight
-// the selected text range. Uses terminal-absolute coordinates from the
-// selection, confined to log content rows. The rendered view is the source
-// of truth for character positions.
-func applySelectionHighlight(content string, sel output.TextSelection, styles *theme.Styles) string {
+// the selected text, confined within the output pane bounds.
+func applySelectionHighlight(content string, sel output.TextSelection, styles *theme.Styles, boundsTop, boundsBottom, boundsLeft, boundsRight int) string {
 	hlStyle := lipgloss.NewStyle()
 	if styles != nil {
 		hlStyle = lipgloss.NewStyle().
@@ -804,8 +870,21 @@ func applySelectionHighlight(content string, sel output.TextSelection, styles *t
 	}
 
 	startX, startY, endX, endY := sel.Bounds()
-	lines := strings.Split(content, "\n")
 
+	// Clamp to output pane bounds.
+	if startY < boundsTop {
+		startY = boundsTop
+		startX = boundsLeft
+	}
+	if endY > boundsBottom {
+		endY = boundsBottom
+		endX = boundsRight
+	}
+	if startY > endY {
+		return content
+	}
+
+	lines := strings.Split(content, "\n")
 	for i := range lines {
 		if i < startY || i > endY {
 			continue
@@ -816,20 +895,19 @@ func applySelectionHighlight(content string, sel output.TextSelection, styles *t
 			continue
 		}
 
-		// Determine highlight range for this row.
 		var lx, rx int
 		if i == startY && i == endY {
-			lx = startX
-			rx = min(lineWidth, endX+1)
+			lx = max(startX, boundsLeft)
+			rx = min(boundsRight, min(lineWidth, endX+1))
 		} else if i == startY {
-			lx = startX
-			rx = lineWidth
+			lx = max(startX, boundsLeft)
+			rx = min(lineWidth, boundsRight)
 		} else if i == endY {
-			lx = 0
-			rx = min(lineWidth, endX+1)
+			lx = boundsLeft
+			rx = min(boundsRight, min(lineWidth, endX+1))
 		} else {
-			lx = 0
-			rx = lineWidth
+			lx = boundsLeft
+			rx = min(lineWidth, boundsRight)
 		}
 
 		if lx >= rx || lx >= lineWidth {
