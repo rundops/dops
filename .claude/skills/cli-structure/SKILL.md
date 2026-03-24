@@ -12,20 +12,42 @@ This project uses Cobra for CLI routing and BubbleTea v2 for interactive TUI.
 
 ```
 dops/
-├── main.go              # Minimal — calls cmd.Execute()
+├── main.go                  # Minimal — calls cmd.Execute()
+├── Makefile                 # Build, test, lint, screenshots, docker, ci
+├── Dockerfile               # Multi-stage Alpine build for MCP server
+├── .goreleaser.yml          # Multi-platform release with Homebrew tap
+├── .github/workflows/       # CI: test.yml + release.yml
 ├── cmd/
-│   ├── root.go          # Root command, persistent flags, initConfig
-│   ├── version.go       # Non-TUI commands
-│   └── <command>.go     # One file per subcommand
+│   ├── root.go              # Root command, DOPS_HOME env, TUI launch
+│   ├── version.go
+│   ├── run.go               # dops run <id>
+│   ├── config.go            # dops config set/get/unset/list
+│   ├── catalog.go           # dops catalog list/add/remove/install/update
+│   └── mcp.go               # dops mcp serve/tools
 ├── internal/
-│   ├── tui/             # BubbleTea models, views, styles
-│   │   ├── model.go
-│   │   ├── styles.go
-│   │   └── ...
-│   ├── <domain>/        # Business logic packages
-│   └── adapters/        # External service wrappers
-├── specs/               # Spec markdown files
-├── .pre-commit-config.yaml
+│   ├── tui/
+│   │   ├── app.go           # Root tea.Model — state machine, focus, overlays
+│   │   ├── sidebar/         # Catalog tree with search, collapse, scrollbar
+│   │   ├── metadata/        # Runbook details, click-to-copy
+│   │   ├── output/          # Log pane: scroll, search, text selection
+│   │   ├── wizard/          # Custom field-by-field parameter input
+│   │   ├── confirm/         # Risk confirmation overlay
+│   │   ├── help/            # Context-aware keybinding overlay
+│   │   ├── palette/         # Command palette (ctrl+shift+p)
+│   │   └── footer/          # Status bar with keybinding hints
+│   ├── mcp/                 # MCP server: tools, resources, schema, progress
+│   ├── domain/              # Core types: Runbook, Config, RiskLevel
+│   ├── config/              # Config store, dot-notation path access
+│   ├── catalog/             # Catalog loader, disk scanner
+│   ├── executor/            # Script runner with io.Pipe streaming
+│   ├── vars/                # Variable resolver (global → catalog → runbook)
+│   ├── theme/               # JSON theme loader, resolver, styles builder
+│   ├── crypto/              # Age encryption/decryption
+│   ├── clipboard/           # OSC 52 clipboard fallback
+│   └── adapters/            # FileSystem, LogWriter
+├── specs/                   # Versioned spec (dops-v0.1.0.md)
+├── plans/                   # Implementation plans (completed/)
+├── tapes/                   # VHS tapes, screenshots, GIFs
 └── LICENSE
 ```
 

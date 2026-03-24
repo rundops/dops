@@ -11,16 +11,15 @@ FROM alpine:3.20
 
 RUN apk add --no-cache git bash
 
-COPY --from=builder /dops /usr/local/bin/dops
+COPY --from=builder /dops /opt/dops/bin/dops
+ENV PATH="/opt/dops/bin:${PATH}"
 
 # DOPS_HOME is where dops looks for config.json, catalogs/, and themes/.
 # Mount your local .dops directory here:
 #   docker run -i -v ~/.dops:/data/dops ghcr.io/<owner>/dops-cli
 ENV DOPS_HOME=/data/dops
 
-# Create the default DOPS_HOME directory.
 RUN mkdir -p /data/dops
 
-# Default: run MCP server on stdio
 ENTRYPOINT ["dops", "mcp", "serve"]
 CMD ["--transport", "stdio"]
