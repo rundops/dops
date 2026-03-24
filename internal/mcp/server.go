@@ -198,9 +198,17 @@ func (s *Server) ServeHTTP(ctx context.Context, addr string) error {
 }
 
 // gzipMiddleware wraps an HTTP handler with gzip compression.
+// Skips gzip for SSE/streaming responses to avoid buffering delays.
 func gzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip gzip if client doesn't accept it.
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Skip gzip for SSE requests — gzip buffering breaks event streaming.
+		if strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
 			next.ServeHTTP(w, r)
 			return
 		}
