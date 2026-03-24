@@ -451,6 +451,9 @@ func (m App) View() tea.View {
 
 	v.AltScreen = m.deps.AltScreen
 	v.MouseMode = tea.MouseModeCellMotion
+	if m.deps.Styles != nil {
+		v.BackgroundColor = m.deps.Styles.Background.GetForeground()
+	}
 	return v
 }
 
