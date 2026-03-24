@@ -426,7 +426,9 @@ func (m Model) View() string {
 	}
 	var footerLine string
 	if m.logPath != "" && !m.searching && !m.navigating {
-		footerLine = lipgloss.NewStyle().Foreground(footerFg).Render("Saved to " + m.logPath)
+		label := lipgloss.NewStyle().Foreground(footerFg).Render("Saved to ")
+		path := lipgloss.NewStyle().Foreground(successFg).Render(m.logPath)
+		footerLine = label + path
 	}
 	footerBox := lipgloss.NewStyle().Width(cw).Render(footerLine)
 
