@@ -129,40 +129,21 @@ func hitTestRenderedText(rendered string, x, y int, target, copyText, region str
 // Height / width calculations (matching legacy chromeHeight/contentHeight)
 // ---------------------------------------------------------------------------
 
-// chromeHeight returns the total rows consumed by borders, header content,
-// and footer content — everything except scrollable log lines.
-func (m Model) chromeHeight() int {
-	// header: 1 top border + commandLineH content (no bottom border)
-	// log:    1 top border + 1 bottom border
-	// footer: 1 content row + 1 bottom border (no top border)
-	return m.commandLineH + 5
-}
-
-// contentHeight returns rows available for the log section interior
-// (between its top and bottom borders).
-func (m Model) contentHeight() int {
-	return max(1, m.height-m.chromeHeight())
-}
-
-// bodyHeight returns the number of visible log lines (content minus padding).
+// bodyHeight returns the number of visible log lines.
+// Header = 1 row, Footer = 1 row, Log = rest.
 func (m Model) bodyHeight() int {
-	return max(1, m.contentHeight()-2) // minus top/bottom padding rows
+	return max(1, m.height-2) // minus header + footer
 }
 
 // textWidth returns usable character width for log lines.
 func (m Model) textWidth() int {
-	// 2 border sides + 2 indent + 1 scrollbar
-	return max(1, m.width-5)
+	// 2 indent + 1 scrollbar
+	return max(1, m.width-3)
 }
 
 func (m *Model) updateCommandLineH() {
-	if m.width <= 2 || m.command == "" {
-		m.commandLineH = 1
-		return
-	}
-	innerW := m.width - 2 // minus border left+right
-	wrapped := ansi.Wrap("$ "+m.command, innerW, " ")
-	m.commandLineH = strings.Count(wrapped, "\n") + 1
+	// Header is always 1 row (truncated to fit).
+	m.commandLineH = 1
 }
 
 func (m *Model) resizeViewport() {
@@ -336,87 +317,68 @@ func (m Model) ViewWithSize(width, height int) string {
 func (m Model) View() string {
 	// --- Resolve colors ---
 	var textFg, mutedFg, stderrFg, successFg, primaryFg color.Color
-	var bgColor, bgElemColor, borderActiveFg color.Color
+	var bgElemColor color.Color
 	textFg = lipgloss.NoColor{}
 	mutedFg = lipgloss.NoColor{}
 	stderrFg = lipgloss.NoColor{}
 	successFg = lipgloss.NoColor{}
 	primaryFg = lipgloss.NoColor{}
-	bgColor = lipgloss.NoColor{}
 	bgElemColor = lipgloss.NoColor{}
-	borderActiveFg = lipgloss.NoColor{}
-
 	if m.styles != nil {
 		textFg = m.styles.Text.GetForeground()
 		mutedFg = m.styles.TextMuted.GetForeground()
 		stderrFg = m.styles.Error.GetForeground()
 		successFg = m.styles.Success.GetForeground()
 		primaryFg = m.styles.Primary.GetForeground()
-		bgColor = m.styles.Background.GetForeground()
 		bgElemColor = m.styles.BackgroundElem.GetForeground()
-		borderActiveFg = m.styles.BorderActive.GetForeground()
 	}
 
 	if !m.HasSession() {
 		return ""
 	}
 
-	// --- Section border: invisible by default, active when focused ---
-	borderFg := bgColor
-	if m.focused {
-		borderFg = borderActiveFg
-	}
-	sectionBorder := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderFg).
-		BorderBackground(bgColor).
-		Background(bgColor)
+	// No section borders — the app renders the outer border. Content is flat.
+	// m.width is the content width INSIDE the app's outer border.
+	cw := max(1, m.width)
+	tw := m.textWidth() // line width for log text (cw - 2 indent - 1 scrollbar)
 
-	innerW := max(1, m.width-2) // content width inside border columns
-	tw := m.textWidth()
-
-	// === Section 1 — Header ===
-	var headerContent string
+	// === Header: 1 row ===
+	var headerLine string
 	if m.copiedHeader {
-		headerContent = lipgloss.NewStyle().Foreground(successFg).Background(bgColor).Render("Copied to Clipboard")
+		headerLine = lipgloss.NewStyle().Foreground(successFg).Render("Copied to Clipboard")
 	} else {
-		dollar := lipgloss.NewStyle().Foreground(successFg).Background(bgColor).Render("$")
-		cmd := lipgloss.NewStyle().Foreground(textFg).Background(bgColor).Render(" " + m.command)
-		headerContent = ansi.Wrap(dollar+cmd, innerW, " ")
+		dollar := lipgloss.NewStyle().Foreground(successFg).Render("$")
+		cmd := lipgloss.NewStyle().Foreground(textFg).Render(" " + m.command)
+		headerLine = ansi.Truncate(dollar+cmd, cw, "")
 	}
-	chromeStyle := lipgloss.NewStyle().Background(bgColor).Foreground(textFg).Width(innerW)
-	headerBox := sectionBorder.BorderBottom(false).Width(m.width).Render(
-		chromeStyle.Render(headerContent),
-	)
+	headerBox := lipgloss.NewStyle().Width(cw).Render(headerLine)
 
-	// === Section 3 — Footer (rendered early to measure) ===
-	var footerContent string
+	// === Footer: 1 row ===
+	var footerLine string
 	if m.copiedFooter {
-		footerContent = lipgloss.NewStyle().Foreground(successFg).Background(bgColor).Render("Copied to Clipboard")
+		footerLine = lipgloss.NewStyle().Foreground(successFg).Render("Copied to Clipboard")
 	} else if m.logPath != "" && !m.searching && !m.navigating {
-		footerContent = lipgloss.NewStyle().Foreground(mutedFg).Background(bgColor).Render("Saved to " + m.logPath)
+		footerLine = lipgloss.NewStyle().Foreground(mutedFg).Render("Saved to " + m.logPath)
 	}
-	footerBox := sectionBorder.BorderTop(false).Width(m.width).Render(
-		chromeStyle.Render(footerContent),
-	)
+	footerBox := lipgloss.NewStyle().Width(cw).Render(footerLine)
 
-	// === Section 2 — Log pane ===
+	// === Log: fills remaining height ===
 	logContentStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(textFg)
 	logStderrStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(stderrFg)
 	logSuccessStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(successFg)
 	thumbStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(primaryFg)
 
+	// Header=1 row, Footer=1 row. Log gets the rest.
+	logH := max(1, m.height-2)
 	searchBarH := 0
 	if m.searching || m.navigating {
 		searchBarH = 2
 	}
-	visibleH := max(1, m.contentHeight()-2-searchBarH) // content minus padding minus search
-	logW := max(1, innerW-1)                           // leave 1 col for scrollbar
+	visibleH := max(1, logH-searchBarH)
+	logW := max(1, cw-1) // 1 col for scrollbar
 
-	// Styled blank line (bgElemColor fills full width).
 	blankLine := logContentStyle.Width(logW).Render("")
 
-	// Scroll position from the viewport.
 	yOffset := m.vp.YOffset()
 	if searchBarH > 0 && len(m.lines) > visibleH {
 		maxOff := len(m.lines) - visibleH
@@ -431,11 +393,7 @@ func (m Model) View() string {
 	matchSet := m.matchLineSet()
 	needsScrollbar := len(m.lines) > visibleH
 
-	// Build log lines: top padding + visible lines + bottom padding.
-	logTotalH := visibleH + 2 + searchBarH // padding(2) + search
-	logLines := make([]string, 0, logTotalH)
-	logLines = append(logLines, blankLine) // top padding
-
+	logLines := make([]string, 0, logH)
 	for i := range visibleH {
 		idx := yOffset + i
 		if idx < len(m.lines) {
@@ -464,23 +422,16 @@ func (m Model) View() string {
 				visible = ansi.Truncate(raw, lineW, "")
 			}
 
-			// Render the full line at exactly logW width so bgElemColor
-			// fills edge-to-edge. The Width() ensures lipgloss pads with
-			// the background color.
 			lineText := "  " + visible
-			var styled string
 			if line.IsStderr {
-				styled = logStderrStyle.Width(logW).Render(lineText)
+				logLines = append(logLines, logStderrStyle.Width(logW).Render(lineText))
 			} else {
-				styled = logContentStyle.Width(logW).Render(lineText)
+				logLines = append(logLines, logContentStyle.Width(logW).Render(lineText))
 			}
-			logLines = append(logLines, styled)
 		} else {
 			logLines = append(logLines, blankLine)
 		}
 	}
-
-	logLines = append(logLines, blankLine) // bottom padding
 
 	if m.searching {
 		logLines = append(logLines, logContentStyle.Width(logW).Render("  "+fmt.Sprintf("/%s", m.searchQuery)))
@@ -492,16 +443,8 @@ func (m Model) View() string {
 	}
 
 	contentStr := strings.Join(logLines, "\n")
-	scrollbar := m.renderScrollbar(logTotalH, yOffset, visibleH, logContentStyle, thumbStyle)
-	logInner := lipgloss.JoinHorizontal(lipgloss.Top, contentStr, scrollbar)
-	// Use a dedicated log section border with bgElemColor background so any
-	// filler rows inside the border also carry the log background color.
-	logSectionBorder := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderFg).
-		BorderBackground(bgColor).
-		Background(bgElemColor)
-	logBox := logSectionBorder.Width(m.width).Render(logInner)
+	scrollbar := m.renderScrollbar(logH, yOffset, visibleH, logContentStyle, thumbStyle)
+	logBox := lipgloss.JoinHorizontal(lipgloss.Top, contentStr, scrollbar)
 
 	return lipgloss.JoinVertical(lipgloss.Left, headerBox, logBox, footerBox)
 }

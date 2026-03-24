@@ -146,10 +146,11 @@ func (m *App) resizeAll() {
 	metaRenderedH := lipgloss.Height(metaView)
 	sidebarRenderedH := sidebarContentH + borderSize
 
-	// Output — set dimensions that persist across Update/View cycles.
-	outputH := clamp(sidebarRenderedH-metaRenderedH, 3)
-	outputW := clamp(rightW, 3)
-	m.output.SetSize(outputW, outputH)
+	// Output — pass content dimensions (inside the outer border the app renders).
+	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
+	outputContentH := clamp(outputTotalH-borderSize, 1)  // subtract outer border top+bottom
+	outputInnerW := clamp(contentW-borderSize, 1)         // subtract outer border left+right
+	m.output.SetSize(outputInnerW, outputContentH)
 }
 
 func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -505,21 +506,21 @@ func (m App) viewNormal() tea.View {
 
 	metaRenderedH := lipgloss.Height(metaView)
 
-	// --- Output: manages its own three bordered sections ---
-	// Dimensions are set persistently via resizeAll() in Update, not here.
-	m.output.SetFocused(m.focus == focusOutput)
-	outputView := m.output.View()
-	// When no session, fill the space with an empty bordered box.
-	if !m.output.HasSession() {
-		emptyH := clamp(sidebarRenderedH-metaRenderedH, 3)
-		emptyW := clamp(rightW-borderSize, 1)
-		outputView = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(borderColor).
-			Width(emptyW).
-			Height(emptyH).
-			Render("")
+	// --- Output: persistent outer border with content inside ---
+	outputBorderColor := borderColor
+	if m.focus == focusOutput {
+		outputBorderColor = activeBorderColor
 	}
+	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
+	outputContentH := clamp(outputTotalH-borderSize, 1)
+	outputInnerW := clamp(contentW-borderSize, 1) // content width inside the outer border
+	m.output.SetFocused(m.focus == focusOutput)
+	outputView := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(outputBorderColor).
+		Width(contentW).
+		Height(outputTotalH).
+		Render(m.output.ViewWithSize(outputInnerW, outputContentH))
 
 	// --- Compose panels ---
 	rightPanel := lipgloss.JoinVertical(lipgloss.Left, metaView, outputView)

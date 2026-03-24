@@ -177,9 +177,9 @@ func TestOutput_ViewFooterRow(t *testing.T) {
 	if row == -1 {
 		t.Fatal("footer text not found in rendered output")
 	}
-	// Footer text is on the second-to-last row (last row is footer bottom border).
-	if row != totalH-2 {
-		t.Fatalf("footer row = %d, want %d (totalH=%d)", row, totalH-2, totalH)
+	// Footer text is on the last row (no section borders).
+	if row != totalH-1 {
+		t.Fatalf("footer row = %d, want %d (totalH=%d)", row, totalH-1, totalH)
 	}
 	// Total rendered height must equal the requested height.
 	if totalH != 20 {
