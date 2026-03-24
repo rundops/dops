@@ -63,10 +63,10 @@ docker:
 	docker build -t $(BINARY):$(VERSION) .
 
 docker-run:
-	docker run -i -v ~/.dops:/opt/dops/data $(BINARY):$(VERSION)
+	docker run -i -v ~/.dops:/data/dops $(BINARY):$(VERSION)
 
 docker-run-http:
-	docker run -p 8080:8080 -v ~/.dops:/opt/dops/data $(BINARY):$(VERSION) --transport http --port 8080
+	docker run -p 8080:8080 -v ~/.dops:/data/dops $(BINARY):$(VERSION) --transport http --port 8080
 
 ## Release (local)
 
