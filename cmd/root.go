@@ -96,13 +96,17 @@ func launchTUI(dopsDir string) error {
 }
 
 func Execute() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	// DOPS_HOME overrides the default ~/.dops directory.
+	// Useful for Docker containers and custom installations.
+	dopsDir := os.Getenv("DOPS_HOME")
+	if dopsDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		dopsDir = filepath.Join(home, ".dops")
 	}
-
-	dopsDir := filepath.Join(home, ".dops")
 	cmd := newRootCmd(dopsDir)
 
 	if err := cmd.Execute(); err != nil {

@@ -59,7 +59,8 @@ go install github.com/<owner>/dops-cli@latest
 ### Docker (MCP server)
 
 ```bash
-docker run -i ghcr.io/<owner>/dops-cli:latest
+# Mount your local catalogs and config into the container
+docker run -i -v ~/.dops:/data/dops ghcr.io/<owner>/dops-cli:latest
 ```
 
 ### From source
@@ -129,12 +130,14 @@ Add to `.claude/settings.json`:
 ### Docker
 
 ```bash
-# stdio transport
-docker run -i ghcr.io/<owner>/dops-cli:latest
+# stdio transport — mount your catalogs/config
+docker run -i -v ~/.dops:/data/dops ghcr.io/<owner>/dops-cli:latest
 
 # HTTP transport with gzip
-docker run -p 8080:8080 ghcr.io/<owner>/dops-cli:latest --transport http --port 8080
+docker run -p 8080:8080 -v ~/.dops:/data/dops ghcr.io/<owner>/dops-cli:latest --transport http --port 8080
 ```
+
+> **Note:** The container uses `DOPS_HOME=/data/dops`. Mount your local `~/.dops` directory to `/data/dops` to provide catalogs, config, and themes. You can also set `DOPS_HOME` to any path when running dops outside Docker.
 
 ## Keyboard Shortcuts
 
