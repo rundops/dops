@@ -381,6 +381,16 @@ All four regions of the main view must be visually distinct bordered panels. Bor
 - Hover over output pane auto-focuses it for scrolling; click in sidebar steals focus back
 - Terminal background color set from theme `background` token via `View.BackgroundColor`
 - Layout includes `layoutMarginBottom = 4` rows of space below panels
+- **Text selection**: click/drag to select, highlight in `primary` bg confined to log text area
+- **Clipboard**: auto-copy on mouse release, `y` key to copy, "Copied to Clipboard!" border badge for 1.5s
+- **Click-to-copy feedback**: clicked header/footer text flashes `success` color for 1.5s, border badge appears simultaneously
+- **Selection coordinates**: terminal-absolute, rendered view is source of truth. `outputPaneBounds()` confines highlight and extraction to exclude scrollbar, padding, border
+- **Search UI**: "Search: <query>▎" prompt, navigation shows query + `[x/y]` + hints
+- **Risk confirmation**: Low/Medium = skip, High = y/N, Critical = type runbook ID
+- **Process management**: ctrl+x stops running execution (SIGKILL process group)
+- **Help overlay**: `?` key shows context-aware keybindings, esc to close
+- **Dry-run mode**: `AppDeps.DryRun` shows resolved command/env without executing
+- **Catalog CLI**: `dops catalog list/add/remove/install/update` with `--ref` for versioning
 
 **Footer bar requirements:**
 - Full-width bar, no background fill — transparent background
