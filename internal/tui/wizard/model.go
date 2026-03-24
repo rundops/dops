@@ -98,6 +98,7 @@ func (m *Model) initField(idx int) {
 	switch m.fieldMode(p) {
 	case modeTextInput:
 		ti := textinput.New()
+		ti.Focus()
 		ti.Prompt = "> "
 		if p.Secret && prefilled == "" {
 			// New secret — use password echo mode.

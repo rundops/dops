@@ -48,7 +48,7 @@ func (l *DiskCatalogLoader) LoadAll(catalogs []domain.Catalog, defaultRisk domai
 			ceiling = defaultRisk
 		}
 
-		runbooks, err := l.loadCatalog(expandHome(cat.Path), ceiling)
+		runbooks, err := l.loadCatalog(cat.Name, expandHome(cat.Path), ceiling)
 		if err != nil {
 			return nil, fmt.Errorf("load catalog %q: %w", cat.Name, err)
 		}
@@ -76,7 +76,7 @@ func (l *DiskCatalogLoader) FindByID(id string) (*domain.Runbook, *domain.Catalo
 	return nil, nil, fmt.Errorf("runbook %q not found", id)
 }
 
-func (l *DiskCatalogLoader) loadCatalog(catalogPath string, ceiling domain.RiskLevel) ([]domain.Runbook, error) {
+func (l *DiskCatalogLoader) loadCatalog(catalogName, catalogPath string, ceiling domain.RiskLevel) ([]domain.Runbook, error) {
 	entries, err := l.fs.ReadDir(catalogPath)
 	if err != nil {
 		return nil, fmt.Errorf("read catalog dir: %w", err)
@@ -97,6 +97,11 @@ func (l *DiskCatalogLoader) loadCatalog(catalogPath string, ceiling domain.RiskL
 
 		if rb.RiskLevel.Exceeds(ceiling) {
 			continue
+		}
+
+		// Generate ID as catalog.runbook if not set in YAML.
+		if rb.ID == "" {
+			rb.ID = catalogName + "." + entry.Name()
 		}
 
 		runbooks = append(runbooks, *rb)
