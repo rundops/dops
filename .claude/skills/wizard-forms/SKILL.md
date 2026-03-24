@@ -1,5 +1,5 @@
 ---
-name: huh-forms
+name: wizard-forms
 description: "Custom wizard form patterns for Go. Use when creating or editing interactive forms, field-by-field parameter input, select menus, text inputs, confirmations, multi-select, or the wizard overlay. Triggers on wizard model changes, new field types, or form flow modifications."
 user-invocable: false
 ---
