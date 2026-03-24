@@ -98,7 +98,6 @@ func (m *Model) initField(idx int) {
 	switch m.fieldMode(p) {
 	case modeTextInput:
 		ti := textinput.New()
-		ti.Focus()
 		ti.Prompt = "> "
 		if p.Secret && prefilled == "" {
 			// New secret — use password echo mode.
@@ -164,7 +163,11 @@ func (m Model) Init() tea.Cmd {
 	if len(m.params) == 0 {
 		return nil
 	}
-	return m.input.Focus()
+	// Only focus the text input if the first field uses it.
+	if m.fieldMode(m.params[0]) == modeTextInput {
+		return m.input.Focus()
+	}
+	return nil
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
