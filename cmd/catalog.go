@@ -41,13 +41,17 @@ func newCatalogListCmd(dopsDir string) *cobra.Command {
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(w, "NAME\tPATH\tACTIVE\tRISK POLICY")
+			fmt.Fprintln(w, "NAME\tPATH\tURL\tACTIVE\tRISK POLICY")
 			for _, c := range cfg.Catalogs {
 				risk := string(c.Policy.MaxRiskLevel)
 				if risk == "" {
 					risk = "—"
 				}
-				fmt.Fprintf(w, "%s\t%s\t%v\t%s\n", c.Name, c.Path, c.Active, risk)
+				url := c.URL
+				if url == "" {
+					url = "—"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\n", c.Name, c.Path, url, c.Active, risk)
 			}
 			return w.Flush()
 		},
