@@ -35,6 +35,7 @@ func newRootCmd(dopsDir string) *cobra.Command {
 	root.AddCommand(newConfigCmd(dopsDir))
 	root.AddCommand(newRunCmd(dopsDir))
 	root.AddCommand(newCatalogCmd(dopsDir))
+	root.AddCommand(newMCPCmd(dopsDir))
 
 	return root
 }
