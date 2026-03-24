@@ -2,6 +2,7 @@ package wizard
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"dops/internal/config"
@@ -228,11 +229,14 @@ func (m Model) updateTextInput(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		if p.Type == domain.ParamInteger && val != "" {
-			for _, c := range val {
-				if c < '0' || c > '9' {
-					m.err = "must be an integer"
-					return m, nil
-				}
+			n, err := strconv.Atoi(val)
+			if err != nil {
+				m.err = "must be a number"
+				return m, nil
+			}
+			if n < 0 {
+				m.err = "must be a non-negative number"
+				return m, nil
 			}
 		}
 		m.values[p.Name] = val

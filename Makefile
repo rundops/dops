@@ -49,7 +49,7 @@ vet:
 
 ## Screenshots (VHS)
 
-screenshots: build
+tapes: build
 	@echo "Generating feature screenshots..."
 	@for tape in tapes/demo-*.tape; do \
 		echo "  Running $$tape..."; \
