@@ -1026,7 +1026,7 @@ func (m *App) handleOutputClick(msg tea.Msg) tea.Cmd {
 	return tea.Batch(
 		tea.SetClipboard(copyText),
 		// Short highlight flash (500ms).
-		tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
+		tea.Tick(1*time.Second, func(time.Time) tea.Msg {
 			return output.CopiedRegionFlashMsg{}
 		}),
 		// Badge stays longer (1.5s).
