@@ -135,9 +135,9 @@ func hitTestRenderedText(rendered string, x, y int, target, copyText, region str
 // ---------------------------------------------------------------------------
 
 // bodyHeight returns the number of visible log lines.
-// Header(1) + gap(1) + logTopPad(1) + log + logBottomPad(1) + gap(1) + Footer(1) = height.
+// Conservative estimate using minimum header height (1 row).
 func (m Model) bodyHeight() int {
-	return max(1, m.height-6) // minus header + footer + 2 gaps + top pad + bottom pad
+	return max(1, m.height-6) // header(1) + footer(1) + 2 gaps + top pad + bottom pad
 }
 
 // textWidth returns usable character width for log lines.
@@ -406,18 +406,57 @@ func (m Model) View() string {
 	cw := max(1, m.width-padX*2)
 	tw := max(1, cw-3) // line width for log text (cw - 2 indent - 1 scrollbar)
 
-	// === Header: 1 row — always shows command ===
-	// Brief green flash on click-to-copy, then reverts to normal colors.
+	// === Header: wraps long commands, continuation indented under "dops" ===
 	headerDollarFg := successFg
 	headerCmdFg := textFg
 	if m.copiedHeader {
 		headerDollarFg = successFg
-		headerCmdFg = successFg // entire line flashes green
+		headerCmdFg = successFg
 	}
-	dollar := lipgloss.NewStyle().Foreground(headerDollarFg).Render("$")
-	cmd := lipgloss.NewStyle().Foreground(headerCmdFg).Render(" " + m.command)
-	headerLine := ansi.Truncate(dollar+cmd, cw, "")
-	headerBox := lipgloss.NewStyle().Width(cw).Render(headerLine)
+
+	dollarStyle := lipgloss.NewStyle().Foreground(headerDollarFg)
+	cmdStyle := lipgloss.NewStyle().Foreground(headerCmdFg)
+
+	// Wrap the command at --param boundaries for clean multi-line display.
+	// First line: "$ dops run <id>", continuation lines indented with each --param.
+	prefix := "$ "
+	indent := "  " // continuation indent (same width as "$ ")
+	cmdText := m.command
+	lineW := cw - len(prefix)
+
+	var headerLines []string
+	if ansi.StringWidth(cmdText) <= lineW {
+		// Fits on one line.
+		headerLines = append(headerLines, dollarStyle.Render("$")+cmdStyle.Render(" "+cmdText))
+	} else {
+		// Split at --param boundaries.
+		parts := strings.SplitAfter(cmdText, " --param")
+		// First part is "dops run <id>", rest are " key=value" after --param.
+		var lines []string
+		current := parts[0]
+		for _, part := range parts[1:] {
+			candidate := current + " --param" + part
+			// Remove the trailing " --param" from SplitAfter artifact.
+			candidate = strings.TrimSuffix(current, " --param") + " --param" + part
+			if ansi.StringWidth(candidate) <= lineW {
+				current = candidate
+			} else {
+				lines = append(lines, strings.TrimSuffix(current, " --param"))
+				current = "--param" + part
+			}
+		}
+		lines = append(lines, current)
+
+		for i, l := range lines {
+			l = strings.TrimSpace(l)
+			if i == 0 {
+				headerLines = append(headerLines, dollarStyle.Render("$")+cmdStyle.Render(" "+l))
+			} else {
+				headerLines = append(headerLines, cmdStyle.Render(indent+l))
+			}
+		}
+	}
+	headerBox := strings.Join(headerLines, "\n")
 
 	// === Footer: 1 row — always shows log path ===
 	var footerLine string
@@ -438,10 +477,11 @@ func (m Model) View() string {
 	logSuccessStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(successFg)
 	thumbStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(primaryFg)
 
-	// Header(1) + gap(1) + logTopPad(1) + visibleLines + logBottomPad(1) + gap(1) + Footer(1) = height.
+	// Header(N) + gap(1) + logTopPad(1) + visibleLines + logBottomPad(1) + gap(1) + Footer(1) = height.
+	headerH := lipgloss.Height(headerBox)
 	logTopPad := 1
 	logBottomPad := 1
-	logH := max(1, m.height-4-logTopPad-logBottomPad)
+	logH := max(1, m.height-headerH-3-logTopPad-logBottomPad) // -3 for gap+gap+footer
 	searchBarH := 0
 	if m.searching || m.navigating {
 		searchBarH = 2

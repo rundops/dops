@@ -1177,11 +1177,12 @@ func (m *App) handleOutputClick(msg tea.Msg) tea.Cmd {
 
 	var copyText, region string
 	if cmd := m.output.Command(); cmd != "" {
-		target := "$ " + cmd
-		if idx := strings.Index(line, target); idx >= 0 {
-			start := lipgloss.Width(line[:idx])
-			end := start + lipgloss.Width(target)
-			if click.X >= start && click.X < end {
+		// Check if the clicked line contains any part of the header command.
+		// With wrapping, "$ dops run ..." spans multiple lines.
+		// Match: line starts with "$ " or matches a continuation of the command.
+		if strings.Contains(line, "$ ") || strings.Contains(line, "dops run") {
+			// Verify the click is in the output header area (not the footer "Saved to" line).
+			if !strings.Contains(line, "Saved to") {
 				copyText, region = cmd, "header"
 			}
 		}

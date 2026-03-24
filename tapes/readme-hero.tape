@@ -4,14 +4,7 @@ Set Shell "zsh"
 Set Width 1800
 Set Height 1000
 Set FontSize 18
-Set FontFamily "JetBrains Mono"
-Set Theme "TokyoNight"
-Set Padding 20
-Set Margin 20
-Set MarginFill "#1a1b26"
-Set BorderRadius 12
-Set WindowBar Colorful
-Set WindowBarSize 40
+Set Theme "Catppuccin Mocha"
 
 # Launch dops
 Type "DOPS_NO_ALT_SCREEN=1 ./bin/dops"
@@ -21,6 +14,26 @@ Sleep 2s
 Screenshot assets/hero-startup.png
 
 # Navigate to demo catalog → deploy-app
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
+Down
+Sleep 200ms
 Down
 Sleep 200ms
 Down
@@ -65,6 +78,8 @@ Down
 Sleep 300ms
 Enter
 Sleep 500ms
+Enter
+Sleep 500ms
 
 # Type version
 Type "v1.2.3"
@@ -72,6 +87,8 @@ Sleep 500ms
 
 Screenshot assets/hero-wizard-input.png
 
+Enter
+Sleep 500ms
 Enter
 Sleep 500ms
 
