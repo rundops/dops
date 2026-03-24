@@ -93,8 +93,10 @@ type App struct {
 	state       viewState
 	width       int
 	height      int
-	copiedFlash bool // show "Copied to Clipboard" in metadata
-	focus       focusTarget
+	copiedFlash  bool // show "Copied to Clipboard" in metadata
+	focus        focusTarget
+	cancelExec   context.CancelFunc
+	execRunning  bool
 }
 
 func NewApp(catalogs []catalog.CatalogWithRunbooks, styles *theme.Styles) App {
@@ -178,6 +180,11 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.focus = focusSidebar
 				}
 				return m, nil
+			case "ctrl+x":
+				if m.execRunning && m.cancelExec != nil {
+					m.cancelExec()
+				}
+				return m, nil
 			}
 		}
 
@@ -197,6 +204,8 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.openWizard()
 
 	case executionDoneMsg:
+		m.execRunning = false
+		m.cancelExec = nil
 		m.output, _ = m.output.Update(output.ExecutionDoneMsg{LogPath: msg.LogPath, Err: msg.Err})
 		return m, nil
 
@@ -387,11 +396,16 @@ func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[st
 	lw := m.deps.LogWriter
 	finalLogPath := logPath
 
+	// Create a cancellable context for ctrl+x stop.
+	ctx, cancel := context.WithCancel(context.Background())
+	m.cancelExec = cancel
+	m.execRunning = true
+
 	// If we have a program reference, stream lines live via p.Send().
 	// Otherwise fall back to returning a single done message (e.g. in tests).
 	if prog != nil {
 		go func() {
-			lines, errs := runner.Run(context.Background(), scriptPath, env)
+			lines, errs := runner.Run(ctx, scriptPath, env)
 			for line := range lines {
 				if lw != nil {
 					lw.WriteLine(line.Text)
@@ -412,7 +426,7 @@ func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[st
 
 	// Fallback: no program reference (tests). Collect and return as done msg.
 	return m, func() tea.Msg {
-		lines, errs := runner.Run(context.Background(), scriptPath, env)
+		lines, errs := runner.Run(ctx, scriptPath, env)
 		for line := range lines {
 			if lw != nil {
 				lw.WriteLine(line.Text)

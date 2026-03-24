@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 )
 
 type ScriptRunner struct{}
@@ -27,8 +29,18 @@ func (r *ScriptRunner) Run(ctx context.Context, scriptPath string, env map[strin
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
 	}
 
-	// Use io.Pipe instead of cmd.StdoutPipe/StderrPipe for immediate
-	// line delivery without OS pipe buffering.
+	// Process group so we can kill the entire tree on cancel.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process != nil {
+			// Kill the entire process group.
+			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
+		return nil
+	}
+	cmd.WaitDelay = 2 * time.Second
+
+	// Use io.Pipe for immediate line delivery without OS pipe buffering.
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 	cmd.Stdout = stdoutW
@@ -61,7 +73,6 @@ func (r *ScriptRunner) Run(ctx context.Context, scriptPath string, env map[strin
 
 	go func() {
 		err := cmd.Wait()
-		// Close pipe writers so scanners finish.
 		stdoutW.Close()
 		stderrW.Close()
 		wg.Wait()
