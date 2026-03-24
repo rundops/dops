@@ -302,7 +302,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if isMouseClick(msg) {
 			if _, cmd := m.handleMetadataClick(msg); cmd != nil {
 				m.copiedFlash = true
-				return m, cmd
+				m.output.SetCopyFlash(true)
+				return m, tea.Batch(cmd, tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
+					return output.CopyFlashExpiredMsg{}
+				}))
 			}
 			if cmd := m.handleOutputClick(msg); cmd != nil {
 				return m, cmd
@@ -1149,7 +1152,8 @@ func (m App) handleMetadataClick(msg tea.Msg) (string, tea.Cmd) {
 
 	return location, tea.Batch(
 		tea.SetClipboard(location),
-		tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+		// Green flash on metadata path (1.5s).
+		tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
 			return copiedFlashMsg{}
 		}),
 	)

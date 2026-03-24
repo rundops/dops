@@ -54,10 +54,11 @@ func Render(rb *domain.Runbook, cat *domain.Catalog, width int, copied bool, sty
 
 	if cat != nil {
 		b.WriteString("\n\n")
+		location := Location(rb, cat)
 		if copied {
-			fmt.Fprintf(&b, " %s", successStyle.Render("Copied to Clipboard!"))
+			// Flash the path green on copy — don't replace the text.
+			fmt.Fprintf(&b, " %s", successStyle.Render(location))
 		} else {
-			location := Location(rb, cat)
 			linkStyle := mutedStyle
 			if cat.URL != "" {
 				linkStyle = linkStyle.Hyperlink(cat.URL)
