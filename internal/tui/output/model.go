@@ -89,6 +89,17 @@ func (m Model) Command() string        { return m.command }
 func (m Model) LogPath() string        { return m.logPath }
 func (m Model) CopyFlash() bool         { return m.copyFlash }
 func (m *Model) SetCopyFlash(v bool)    { m.copyFlash = v }
+
+// TryCopy attempts to start a copy operation. Returns false if a copy
+// is already in progress (flash still active). Centralizes the lock
+// so callers don't need to inspect internal state.
+func (m *Model) TryCopy() bool {
+	if m.copyFlash {
+		return false
+	}
+	m.copyFlash = true
+	return true
+}
 func (m Model) Selection() TextSelection { return m.selection }
 func (m *Model) SetCopiedHeader(v bool) { m.copiedHeader = v }
 func (m *Model) SetCopiedFooter(v bool) { m.copiedFooter = v }

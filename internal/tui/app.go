@@ -274,10 +274,8 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case output.SelectionCompleteMsg:
-		// Extract text from the full rendered view using terminal-absolute coords.
 		text := m.extractSelectionFromView()
-		if text != "" {
-			m.output.SetCopyFlash(true)
+		if text != "" && m.output.TryCopy() {
 			return m, tea.Batch(
 				tea.SetClipboard(text),
 				tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
@@ -301,8 +299,10 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check for click-to-copy targets
 		if isMouseClick(msg) {
 			if _, cmd := m.handleMetadataClick(msg); cmd != nil {
-				m.copiedFlash = true
-				return m, cmd
+				if m.output.TryCopy() {
+					m.copiedFlash = true
+					return m, cmd
+				}
 			}
 			if cmd := m.handleOutputClick(msg); cmd != nil {
 				return m, cmd
@@ -1217,7 +1217,9 @@ func (m *App) handleOutputClick(msg tea.Msg) tea.Cmd {
 	case "footer":
 		m.output.SetCopiedFooter(true)
 	}
-	m.output.SetCopyFlash(true)
+	if !m.output.TryCopy() {
+		return nil // copy already in progress
+	}
 	return tea.Batch(
 		tea.SetClipboard(copyText),
 		// Short highlight flash (500ms).
