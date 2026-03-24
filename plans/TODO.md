@@ -1,4 +1,6 @@
-# dops-cli — Remaining Feature TODO
+# dops-cli — Feature TODO
+
+All v0.1.0 features have been implemented.
 
 ## Completed
 
@@ -36,6 +38,11 @@
 - [x] New parameter types (multi_select, file_path, resource_id)
 - [x] Command header only shows overridden params (not config defaults)
 
-## Future Enhancements
-
-- [ ] MCP server integration (stdio/http transport)
+### 2026-03-24 — MCP Server
+- [x] MCP server with stdio and HTTP transport
+- [x] Each runbook as an MCP tool with JSON Schema input
+- [x] Catalog listing and detail as MCP resources
+- [x] Smart output truncation (last 50 lines + metadata)
+- [x] HTTP gzip compression middleware
+- [x] Risk confirmation via synthetic params
+- [x] CLI: dops mcp serve / dops mcp tools
