@@ -444,7 +444,7 @@ Write tests first in this sequence (red → green → refactor for each):
    - `Location(rb, cat)` helper returns raw path or URL string
    - Local catalogs: path to `runbook.yaml` with OSC 8 `file://` hyperlink
    - Git catalogs (URL field set): catalog URL with OSC 8 hyperlink
-   - `Render` accepts `copied bool` — when true, replaces location line with `"Copied to Clipboard"` in `success` color
+   - `Render` accepts `copied bool` — when true, replaces location line with `"Copied to Clipboard!"` in `success` color
    - **Click-to-copy**: app detects clicks on the path/URL text (exact character bounds), copies to clipboard via `tea.SetClipboard` (OSC 52), shows flash for 2 seconds
    - Auto-height (6-8 lines based on content)
 

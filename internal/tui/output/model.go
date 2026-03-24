@@ -241,6 +241,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case CopyFlashExpiredMsg:
 		m.copyFlash = false
+		m.selection.Reset()
 		return m, nil
 	}
 
@@ -468,7 +469,7 @@ func (m Model) View() string {
 	}
 	flashPadH := 0
 	if m.copyFlash {
-		flashPadH = 1 // extra blank row below the badge
+		flashPadH = 2 // blank row above + blank row below the badge
 	}
 	visibleH := max(1, logH-searchBarH-flashPadH)
 	logW := max(1, cw-1) // 1 col for scrollbar
@@ -490,7 +491,9 @@ func (m Model) View() string {
 
 	logLines := make([]string, 0, logH+logTopPad)
 	if m.copyFlash {
-		// Show badge right-aligned with 1-char right padding on top padding row.
+		// Blank row above badge to push it down from the top edge.
+		logLines = append(logLines, blankLine)
+		// Show badge right-aligned with 1-char right padding.
 		badgeText := "Copied to Clipboard!"
 		badge := lipgloss.NewStyle().
 			Background(bgElemColor).
@@ -504,7 +507,7 @@ func (m Model) View() string {
 		} else {
 			logLines = append(logLines, badge)
 		}
-		// Extra blank row below the badge for top spacing.
+		// Blank row below badge for spacing from log content.
 		logLines = append(logLines, blankLine)
 	} else {
 		logLines = append(logLines, blankLine) // top padding inside log

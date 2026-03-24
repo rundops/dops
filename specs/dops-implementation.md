@@ -305,7 +305,7 @@ The output pane renders inside a persistent outer `RoundedBorder` (applied by th
 
 **Architecture:** The output model (`internal/tui/output/model.go`) returns flat styled content (no borders). The app wraps it in the outer border with `Width`, `Height`, and focus-aware `BorderForeground`. The output receives content dimensions (inside the border) via `ViewWithSize()`.
 
-**Header** — 1 row displaying `$ <command>`, truncated to fit. `$` in `success` color, command text in `text` color. Clicking copies the command to clipboard. When copied, shows "Copied to Clipboard" in `success` for 2 seconds.
+**Header** — 1 row displaying `$ <command>`, truncated to fit. `$` in `success` color, command text in `text` color. Clicking copies the command to clipboard. When copied, shows "Copied to Clipboard!" in `success` for 2 seconds.
 
 **Log body** — Streams stdout and stderr live as the script runs. Uses `backgroundElement` background fill that extends edge-to-edge on every row. stderr rendered in `error` color. Content confined within the pane — text never overflows or pushes other sections. 1-row top padding inside the log area pushes content down.
 
@@ -362,7 +362,7 @@ All four regions of the main view must be visually distinct bordered panels. Bor
 **Metadata panel requirements:**
 - Layout: `Name version` on first line (name bold `text`, version `textMuted`), risk level badge on second line, blank line, description in `textMuted`, blank line, location path/URL in `textMuted`
 - Location line: for local catalogs shows path to `runbook.yaml` with OSC 8 `file://` hyperlink; for git catalogs (URL field set) shows the catalog URL with OSC 8 hyperlink
-- **Click-to-copy**: clicking the location text copies it to clipboard via OSC 52 (`tea.SetClipboard`). A "Copied to Clipboard" message in `success` color replaces the path for 2 seconds. Click target is confined to the exact text bounds (not the full line)
+- **Click-to-copy**: clicking the location text copies it to clipboard via OSC 52 (`tea.SetClipboard`). A "Copied to Clipboard!" message in `success` color replaces the path for 2 seconds. Click target is confined to the exact text bounds (not the full line)
 - No background fill — transparent background inherits terminal default
 - Panel has its own rounded border, visually separate from the output pane below it
 
