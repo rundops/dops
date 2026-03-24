@@ -375,7 +375,8 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[string]string) (tea.Model, tea.Cmd) {
 	m.output.Clear()
-	cmdStr := wizard.BuildCommand(rb, params)
+	resolved := m.resolveVars()
+	cmdStr := wizard.BuildCommand(rb, params, resolved)
 	m.output.SetCommand(cmdStr)
 	m.resizeAll() // Recompute dimensions after command changes header height
 

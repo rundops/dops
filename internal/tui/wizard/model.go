@@ -455,7 +455,7 @@ func (m Model) View() string {
 		p := m.params[i]
 		val := m.values[p.Name]
 		if p.Secret {
-			val = "****"
+			val = "••••••••••"
 		}
 		b.WriteString(m.renderCompletedField(p.Name, val))
 		b.WriteString("\n")
@@ -469,7 +469,7 @@ func (m Model) View() string {
 		p := m.params[m.current]
 		val := m.values[p.Name]
 		if p.Secret {
-			val = "****"
+			val = "••••••••••"
 		}
 		b.WriteString(m.renderCompletedField(p.Name, val))
 		b.WriteString("\n\n")
@@ -680,7 +680,7 @@ func BuildCommand(rb domain.Runbook, params map[string]string, configParams ...m
 			}
 		}
 		if p.Secret {
-			fmt.Fprintf(&b, " --param %s=****", p.Name)
+			fmt.Fprintf(&b, " --param %s=••••••••••", p.Name)
 		} else {
 			fmt.Fprintf(&b, " --param %s=%s", p.Name, v)
 		}
