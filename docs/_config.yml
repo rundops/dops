@@ -1,0 +1,31 @@
+title: dops
+description: a runbook toolkit for operators and AI agents.
+url: https://jacobhuemmer.github.io
+baseurl: /dops-cli
+
+remote_theme: just-the-docs/just-the-docs@v0.10.1
+
+color_scheme: dops
+
+permalink: pretty
+search_enabled: true
+search.heading_level: 3
+
+nav_order: 1
+
+aux_links:
+  "GitHub":
+    - "https://github.com/jacobhuemmer/dops-cli"
+
+footer_content: "dops is released under the <a href=\"https://github.com/jacobhuemmer/dops-cli/blob/main/LICENSE\">MIT License</a>."
+
+callouts:
+  warning:
+    title: Warning
+    color: yellow
+  note:
+    title: Note
+    color: blue
+  tip:
+    title: Tip
+    color: green

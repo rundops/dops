@@ -1,0 +1,55 @@
+/* dops custom overrides */
+
+/* Inline code */
+code {
+  background-color: #292e42;
+  color: #c0caf5;
+  border: 1px solid #3b4261;
+}
+
+/* Code blocks */
+pre {
+  background-color: #1f2335 !important;
+  border: 1px solid #3b4261;
+}
+
+pre code {
+  background-color: transparent;
+  border: none;
+}
+
+/* Tables */
+th {
+  background-color: #292e42;
+  color: #c0caf5;
+  border-color: #3b4261;
+}
+
+td {
+  border-color: #3b4261;
+}
+
+/* Sidebar active link */
+.navigation-list-link.active {
+  color: #7aa2f7;
+}
+
+/* Callout styles */
+.warning {
+  border-left-color: #e0af68;
+}
+
+.note {
+  border-left-color: #7aa2f7;
+}
+
+.tip {
+  border-left-color: #9ece6a;
+}
+
+/* Hero cat */
+.hero-cat {
+  font-family: monospace;
+  color: #565f89;
+  line-height: 1.2;
+}
