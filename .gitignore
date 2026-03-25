@@ -26,3 +26,4 @@ coverage.html
 # VHS output (regenerated)
 tapes/screenshots/
 tapes/gifs/
+Screenshot*
