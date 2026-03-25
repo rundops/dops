@@ -101,8 +101,27 @@ func (m *Model) initField(idx int) {
 		ti := textinput.New()
 		ti.Focus()
 		ti.Prompt = "> "
+		// Style textinput to match theme foreground colors (no background —
+		// transparent, inherits from terminal background).
+		if m.styles != nil {
+			textFg := m.styles.Text.GetForeground()
+			mutedFg := m.styles.TextMuted.GetForeground()
+			ti.SetStyles(textinput.Styles{
+				Focused: textinput.StyleState{
+					Text:        lipgloss.NewStyle().Foreground(textFg),
+					Prompt:      lipgloss.NewStyle().Foreground(textFg),
+					Placeholder: lipgloss.NewStyle().Foreground(mutedFg),
+					Suggestion:  lipgloss.NewStyle().Foreground(mutedFg),
+				},
+				Blurred: textinput.StyleState{
+					Text:        lipgloss.NewStyle().Foreground(mutedFg),
+					Prompt:      lipgloss.NewStyle().Foreground(mutedFg),
+					Placeholder: lipgloss.NewStyle().Foreground(mutedFg),
+					Suggestion:  lipgloss.NewStyle().Foreground(mutedFg),
+				},
+			})
+		}
 		if p.Secret && prefilled == "" {
-			// New secret — use password echo mode.
 			ti.EchoMode = textinput.EchoPassword
 		} else if p.Secret && prefilled != "" {
 			// Existing secret — don't use password echo, render dots manually.
@@ -607,7 +626,8 @@ func (m Model) renderCurrentField(p domain.Parameter) string {
 		if p.Secret && m.prefill[p.Name] && m.input.Value() == "" {
 			b.WriteString(text.Render("> ") + m.mutedStyle().Render("••••••••••  (enter to keep, type to override)"))
 		} else {
-			b.WriteString(text.Render(m.input.View()))
+			// textinput has its own styles with panelBg — don't wrap in another Render.
+			b.WriteString(m.input.View())
 		}
 	case modeSelect:
 		for i, opt := range p.Options {

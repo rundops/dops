@@ -780,19 +780,15 @@ func (m App) viewConfirmOverlay() tea.View {
 		overlayW = overlayMinWidth
 	}
 
-	// Same style as wizard: left accent bar + panel background.
-	var panelBg, primaryFg color.Color
-	panelBg = lipgloss.NoColor{}
+	var primaryFg color.Color
 	primaryFg = lipgloss.NoColor{}
 	if m.deps.Styles != nil {
-		panelBg = m.deps.Styles.BackgroundPanel.GetForeground()
 		primaryFg = m.deps.Styles.Primary.GetForeground()
 	}
 
 	overlay := lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder(), false, false, false, true).
+		Border(lipgloss.ThickBorder()).
 		BorderForeground(primaryFg).
-		Background(panelBg).
 		Padding(1, 2).
 		Width(overlayW).
 		Render(confView)
@@ -816,19 +812,16 @@ func (m App) viewWizardOverlay() tea.View {
 		overlayW = overlayMinWidth
 	}
 
-	// Left accent bar only — thick border on left side, panel background.
-	var panelBg, primaryFg color.Color
-	panelBg = lipgloss.NoColor{}
+	// Left accent bar only — transparent background (no Background() set).
+	var primaryFg color.Color
 	primaryFg = lipgloss.NoColor{}
 	if m.deps.Styles != nil {
-		panelBg = m.deps.Styles.BackgroundPanel.GetForeground()
 		primaryFg = m.deps.Styles.Primary.GetForeground()
 	}
 
 	overlay := lipgloss.NewStyle().
-		Border(lipgloss.ThickBorder(), false, false, false, true).
+		Border(lipgloss.ThickBorder()).
 		BorderForeground(primaryFg).
-		Background(panelBg).
 		Padding(1, 2).
 		Width(overlayW).
 		Render(wizView)
