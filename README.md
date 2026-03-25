@@ -38,6 +38,11 @@ AI agents can discover and execute runbooks via the [Model Context Protocol](htt
 - **Security** — sensitive params excluded from schema, loaded from local config
 - **Progress** — real-time output streaming via MCP notifications
 
+### Configuration
+
+- **Local config** — stored in `~/.dops/config.json`
+- **Secret encryption** — sensitive values encrypted at rest with [age](https://github.com/FiloSottile/age) (key auto-generated at `~/.dops/keys/keys.txt`)
+
 ### CLI
 
 - `dops` — launch the TUI
