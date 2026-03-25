@@ -4,8 +4,9 @@ title: Home
 nav_order: 1
 ---
 
-<pre class="hero-cat">  /\_/\
- ( =^.^= )</pre>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jacobhuemmer/dops-cli/main/assets/logo.png" alt="dops logo" width="400" />
+</p>
 
 # do(ops) cli
 {: .fs-9 }

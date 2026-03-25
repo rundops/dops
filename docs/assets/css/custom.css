@@ -3,7 +3,7 @@
 /* Inline code */
 code {
   background-color: #292e42;
-  color: #c0caf5;
+  color: #a9b1d6;
   border: 1px solid #3b4261;
 }
 
@@ -21,7 +21,7 @@ pre code {
 /* Tables */
 th {
   background-color: #292e42;
-  color: #c0caf5;
+  color: #a9b1d6;
   border-color: #3b4261;
 }
 
@@ -47,9 +47,3 @@ td {
   border-left-color: #9ece6a;
 }
 
-/* Hero cat */
-.hero-cat {
-  font-family: monospace;
-  color: #565f89;
-  line-height: 1.2;
-}
