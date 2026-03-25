@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo_transparent.png" alt="dops logo" width="250" />
+  <img src="assets/logo.png" alt="dops logo" width="250" />
 </p>
 
 # dops — the do(ops) cli
