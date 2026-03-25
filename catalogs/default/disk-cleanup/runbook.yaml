@@ -1,0 +1,12 @@
+name: disk-cleanup
+version: 1.0.0
+description: Find and remove old files from /tmp
+risk_level: low
+script: script.sh
+parameters:
+  - name: days
+    type: number
+    required: true
+    description: Remove files older than this many days
+    scope: runbook
+    default: 7

@@ -1,0 +1,13 @@
+name: disk-usage
+version: 1.0.0
+description: Check disk usage on local mounts
+risk_level: low
+script: script.sh
+parameters:
+  - name: mount
+    type: select
+    required: true
+    description: Mount point to check
+    options: [/, /tmp, /var, /home, /opt]
+    scope: runbook
+    default: /

@@ -1,0 +1,22 @@
+name: build-image
+version: 1.0.0
+description: Build and optionally push a Docker image
+risk_level: medium
+script: script.sh
+parameters:
+  - name: repo
+    type: string
+    required: true
+    description: Docker repository (e.g. registry.example.com/app)
+    scope: runbook
+  - name: tag
+    type: string
+    required: true
+    description: Image tag
+    scope: runbook
+  - name: push
+    type: boolean
+    required: false
+    description: Push image to registry after build
+    scope: runbook
+    default: true

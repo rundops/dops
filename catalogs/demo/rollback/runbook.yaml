@@ -1,0 +1,24 @@
+name: rollback
+version: 1.0.0
+description: Rollback a deployment to a previous version
+risk_level: high
+script: script.sh
+parameters:
+  - name: version
+    type: select
+    required: true
+    description: Version to rollback to
+    options: [v1.2.2, v1.2.1, v1.2.0, v1.1.9, v1.1.8]
+    scope: runbook
+  - name: namespace
+    type: string
+    required: true
+    description: Kubernetes namespace
+    scope: runbook
+    default: production
+  - name: force
+    type: boolean
+    required: false
+    description: Force rollback without health check
+    scope: runbook
+    default: false

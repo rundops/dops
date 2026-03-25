@@ -1,0 +1,11 @@
+name: health-check
+version: 1.0.0
+description: Ping a URL and report status
+risk_level: medium
+script: script.sh
+parameters:
+  - name: endpoint
+    type: string
+    required: true
+    description: URL to check
+    scope: runbook

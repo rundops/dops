@@ -1,0 +1,17 @@
+name: rotate-certs
+version: 1.0.0
+description: Rotate TLS certificates for the cluster
+risk_level: critical
+script: script.sh
+parameters:
+  - name: domain
+    type: string
+    required: true
+    description: Domain for the new certificate
+    scope: runbook
+  - name: api_token
+    type: string
+    required: true
+    secret: true
+    description: Certificate authority API token
+    scope: global

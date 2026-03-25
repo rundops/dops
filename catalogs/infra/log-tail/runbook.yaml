@@ -1,0 +1,17 @@
+name: log-tail
+version: 1.0.0
+description: Tail recent log lines from a service (simulated)
+risk_level: medium
+script: script.sh
+parameters:
+  - name: service
+    type: string
+    required: true
+    description: Service name
+    scope: runbook
+  - name: lines
+    type: number
+    required: false
+    description: Number of lines to show
+    scope: runbook
+    default: 20

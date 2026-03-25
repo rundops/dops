@@ -1,0 +1,17 @@
+name: ssl-check
+version: 1.0.0
+description: Check SSL certificate expiry for a domain
+risk_level: low
+script: script.sh
+parameters:
+  - name: domain
+    type: string
+    required: true
+    description: Domain to check
+    scope: runbook
+  - name: verbose
+    type: boolean
+    required: false
+    description: Show full certificate details
+    scope: runbook
+    default: false

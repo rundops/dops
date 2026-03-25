@@ -1,0 +1,17 @@
+name: service-status
+version: 1.0.0
+description: Check status of a system service (simulated)
+risk_level: medium
+script: script.sh
+parameters:
+  - name: service
+    type: string
+    required: true
+    description: Service name
+    scope: runbook
+  - name: host
+    type: string
+    required: false
+    description: Target host (default localhost)
+    scope: runbook
+    default: localhost

@@ -1,0 +1,18 @@
+name: dns-lookup
+version: 1.0.0
+description: Query DNS records for a domain
+risk_level: low
+script: script.sh
+parameters:
+  - name: domain
+    type: string
+    required: true
+    description: Domain to query
+    scope: runbook
+  - name: record_type
+    type: select
+    required: true
+    description: DNS record type
+    options: [A, AAAA, CNAME, MX, NS, TXT, SOA]
+    scope: runbook
+    default: A

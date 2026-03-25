@@ -1,0 +1,11 @@
+name: echo
+version: 1.0.0
+description: Echoes a message to stdout
+risk_level: low
+script: script.sh
+parameters:
+  - name: message
+    type: string
+    required: true
+    description: Message to echo
+    scope: runbook

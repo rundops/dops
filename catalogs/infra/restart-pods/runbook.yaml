@@ -1,0 +1,17 @@
+name: restart-pods
+version: 1.0.0
+description: Rolling restart of a Kubernetes deployment (simulated)
+risk_level: medium
+script: script.sh
+parameters:
+  - name: deployment
+    type: string
+    required: true
+    description: Deployment name
+    scope: runbook
+  - name: namespace
+    type: string
+    required: true
+    description: Kubernetes namespace
+    scope: runbook
+    default: default

@@ -1,0 +1,36 @@
+name: deploy-app
+version: 2.0.0
+description: Build, test, and deploy an application to the target environment
+risk_level: high
+script: script.sh
+parameters:
+  - name: environment
+    type: select
+    required: true
+    description: Target deployment environment
+    options: [dev, staging, prod]
+    scope: runbook
+    default: staging
+  - name: version
+    type: string
+    required: true
+    description: Semver tag to deploy (e.g. v1.2.3)
+    scope: runbook
+  - name: features
+    type: multi_select
+    required: true
+    description: Platform features to enable
+    options: [logging, monitoring, tracing, alerting]
+    scope: runbook
+  - name: api_token
+    type: string
+    required: true
+    secret: true
+    description: CI/CD API token
+    scope: global
+  - name: dry_run
+    type: boolean
+    required: false
+    description: Simulate the deploy without applying changes
+    scope: runbook
+    default: false

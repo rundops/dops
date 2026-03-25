@@ -1,0 +1,23 @@
+name: audit-permissions
+version: 1.0.0
+description: Scan IAM policies for overly permissive rules
+risk_level: low
+script: script.sh
+parameters:
+  - name: policies
+    type: multi_select
+    required: true
+    description: IAM policies to audit
+    options: [admin-access, read-only, power-user, billing, security-audit, network-admin]
+    scope: runbook
+  - name: account
+    type: string
+    required: true
+    description: AWS account ID or alias
+    scope: runbook
+  - name: verbose
+    type: boolean
+    required: false
+    description: Show detailed findings
+    scope: runbook
+    default: false

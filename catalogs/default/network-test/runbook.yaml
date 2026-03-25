@@ -1,0 +1,23 @@
+name: network-test
+version: 1.0.0
+description: Test TCP connectivity to a host and port
+risk_level: low
+script: script.sh
+parameters:
+  - name: host
+    type: string
+    required: true
+    description: Hostname or IP to test
+    scope: runbook
+  - name: port
+    type: number
+    required: true
+    description: Port number
+    scope: runbook
+    default: 443
+  - name: timeout
+    type: number
+    required: false
+    description: Timeout in seconds
+    scope: runbook
+    default: 5

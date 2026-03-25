@@ -1,0 +1,17 @@
+name: rotate-secrets
+version: 1.0.0
+description: Rotate API keys and tokens in vault
+risk_level: critical
+script: script.sh
+parameters:
+  - name: path
+    type: string
+    required: true
+    description: Vault secret path
+    scope: runbook
+  - name: vault_token
+    type: string
+    required: true
+    secret: true
+    description: Vault authentication token
+    scope: global

@@ -1,0 +1,22 @@
+name: scale-deployment
+version: 1.0.0
+description: Scale a Kubernetes deployment (simulated)
+risk_level: high
+script: script.sh
+parameters:
+  - name: deployment
+    type: string
+    required: true
+    description: Deployment name
+    scope: runbook
+  - name: replicas
+    type: number
+    required: true
+    description: Target replica count
+    scope: runbook
+  - name: namespace
+    type: string
+    required: true
+    description: Kubernetes namespace
+    scope: runbook
+    default: default

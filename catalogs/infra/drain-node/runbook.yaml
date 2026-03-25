@@ -1,0 +1,11 @@
+name: drain-node
+version: 1.0.0
+description: Cordon and drain a Kubernetes node (simulated)
+risk_level: high
+script: script.sh
+parameters:
+  - name: node
+    type: string
+    required: true
+    description: Node name to drain
+    scope: runbook

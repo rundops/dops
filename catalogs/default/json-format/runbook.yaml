@@ -1,0 +1,11 @@
+name: json-format
+version: 1.0.0
+description: Pretty-print a JSON string
+risk_level: low
+script: script.sh
+parameters:
+  - name: input
+    type: string
+    required: true
+    description: JSON string to format
+    scope: runbook

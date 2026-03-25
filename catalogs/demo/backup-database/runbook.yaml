@@ -1,0 +1,24 @@
+name: backup-database
+version: 1.0.0
+description: Backup a PostgreSQL database
+risk_level: medium
+script: script.sh
+parameters:
+  - name: database
+    type: string
+    required: true
+    description: Database name
+    scope: runbook
+  - name: db_password
+    type: string
+    required: true
+    secret: true
+    description: Database password
+    scope: catalog
+  - name: format
+    type: select
+    required: true
+    description: Backup format
+    options: [custom, plain, tar]
+    scope: runbook
+    default: custom

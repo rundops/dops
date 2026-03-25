@@ -1,0 +1,19 @@
+name: generate-password
+version: 1.0.0
+description: Generate cryptographically random passwords
+risk_level: low
+script: script.sh
+parameters:
+  - name: length
+    type: number
+    required: true
+    description: Password length
+    scope: runbook
+    default: 32
+  - name: charset
+    type: select
+    required: true
+    description: Character set to use
+    options: [alphanumeric, alphanumeric-symbols, hex, numeric]
+    scope: runbook
+    default: alphanumeric

@@ -1,0 +1,17 @@
+name: encode-base64
+version: 1.0.0
+description: Encode or decode base64 strings
+risk_level: low
+script: script.sh
+parameters:
+  - name: input
+    type: string
+    required: true
+    description: String to encode/decode
+    scope: runbook
+  - name: decode
+    type: boolean
+    required: false
+    description: Decode instead of encode
+    scope: runbook
+    default: false

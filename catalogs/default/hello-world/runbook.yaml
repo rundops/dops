@@ -1,0 +1,17 @@
+name: hello-world
+version: 1.0.0
+description: Prints a greeting message to stdout
+risk_level: low
+script: script.sh
+parameters:
+  - name: greeting
+    type: string
+    required: true
+    description: Greeting message
+    scope: runbook
+    default: Hello
+  - name: name
+    type: string
+    required: true
+    description: Name to greet
+    scope: runbook

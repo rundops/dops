@@ -1,0 +1,24 @@
+name: canary-deploy
+version: 1.0.0
+description: Deploy to canary with configurable traffic percentage
+risk_level: high
+script: script.sh
+parameters:
+  - name: version
+    type: string
+    required: true
+    description: Version to deploy
+    scope: runbook
+  - name: percentage
+    type: number
+    required: true
+    description: Traffic percentage for canary (1-100)
+    scope: runbook
+    default: 10
+  - name: environment
+    type: select
+    required: true
+    description: Target environment
+    options: [staging, production]
+    scope: runbook
+    default: staging
