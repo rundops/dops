@@ -23,7 +23,7 @@ func newRootCmd(dopsDir string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "dops",
 		Short:         "Developer Operations TUI",
-		Long:          "A terminal user interface for browsing and executing operational runbooks.",
+		Long:          "a runbook toolkit for operators and AI agents.",
 		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -37,6 +37,9 @@ func newRootCmd(dopsDir string) *cobra.Command {
 	root.AddCommand(newRunCmd(dopsDir))
 	root.AddCommand(newCatalogCmd(dopsDir))
 	root.AddCommand(newMCPCmd(dopsDir))
+
+	// Styled help for all commands.
+	root.SetHelpFunc(cli.HelpFunc)
 
 	return root
 }
