@@ -525,59 +525,96 @@ func (m Model) View() string {
 	return b.String()
 }
 
-func (m Model) renderHeader(cmd string) string {
-	successStyle := lipgloss.NewStyle()
-	textStyle := lipgloss.NewStyle().Bold(true)
+// style helpers — return a safe zero style when m.styles is nil.
+
+func (m Model) successStyle() lipgloss.Style {
 	if m.styles != nil {
-		successStyle = m.styles.Success
-		textStyle = m.styles.Text.Bold(true)
+		return m.styles.Success
 	}
-	return successStyle.Render("$") + " " + textStyle.Render(cmd) + "\n"
+	return lipgloss.NewStyle()
+}
+
+func (m Model) textStyle() lipgloss.Style {
+	if m.styles != nil {
+		return m.styles.Text
+	}
+	return lipgloss.NewStyle()
+}
+
+func (m Model) primaryStyle() lipgloss.Style {
+	if m.styles != nil {
+		return m.styles.Primary.Bold(true)
+	}
+	return lipgloss.NewStyle().Bold(true)
+}
+
+func (m Model) mutedStyle() lipgloss.Style {
+	if m.styles != nil {
+		return m.styles.TextMuted
+	}
+	return lipgloss.NewStyle()
+}
+
+func (m Model) errorStyle() lipgloss.Style {
+	if m.styles != nil {
+		return m.styles.Error
+	}
+	return lipgloss.NewStyle()
+}
+
+// renderToggle renders a [Yes] / [No] toggle with the given cursor position.
+// cursor == 0 highlights Yes, cursor == 1 highlights No.
+func (m Model) renderToggle(cursor int) string {
+	activeStyle := lipgloss.NewStyle()
+	inactiveStyle := lipgloss.NewStyle()
+	if m.styles != nil {
+		activeStyle = lipgloss.NewStyle().
+			Background(m.styles.Primary.GetForeground()).
+			Foreground(m.styles.Background.GetForeground()).
+			Padding(0, 1)
+		inactiveStyle = m.styles.TextMuted.Padding(0, 1)
+	}
+	yesStyle, noStyle := activeStyle, inactiveStyle
+	if cursor != 0 {
+		yesStyle, noStyle = inactiveStyle, activeStyle
+	}
+	return "  " + yesStyle.Render("Yes") + "  " + noStyle.Render("No") + "\n"
+}
+
+func (m Model) renderHeader(cmd string) string {
+	return m.successStyle().Render("$") + " " + m.textStyle().Bold(true).Render(cmd) + "\n"
 }
 
 func (m Model) renderCompletedField(name, value string) string {
-	mutedStyle := lipgloss.NewStyle()
-	if m.styles != nil {
-		mutedStyle = m.styles.TextMuted
-	}
 	padded := name + ":"
 	if len(padded) < 15 {
 		padded += strings.Repeat(" ", 15-len(padded))
 	} else {
 		padded += " "
 	}
-	return mutedStyle.Render(padded + value)
+	return m.mutedStyle().Render(padded + value)
 }
 
 func (m Model) renderCurrentField(p domain.Parameter) string {
-	primaryStyle := lipgloss.NewStyle().Bold(true)
-	textStyle := lipgloss.NewStyle()
-	if m.styles != nil {
-		primaryStyle = m.styles.Primary.Bold(true)
-		textStyle = m.styles.Text
-	}
+	primary := m.primaryStyle()
+	text := m.textStyle()
 
 	var b strings.Builder
-	b.WriteString(primaryStyle.Render(p.Name+":") + "\n\n")
+	b.WriteString(primary.Render(p.Name+":") + "\n\n")
 
 	switch m.fieldMode(p) {
 	case modeTextInput:
-		// Secret field with saved value and empty input: show dots instead of textinput.
 		if p.Secret && m.prefill[p.Name] && m.input.Value() == "" {
-			mutedStyle := lipgloss.NewStyle()
-			if m.styles != nil {
-				mutedStyle = m.styles.TextMuted
-			}
-			b.WriteString(textStyle.Render("> ") + mutedStyle.Render("••••••••••  (enter to keep, type to override)"))
+			b.WriteString(text.Render("> ") + m.mutedStyle().Render("••••••••••  (enter to keep, type to override)"))
 		} else {
-			b.WriteString(textStyle.Render(m.input.View()))
+			b.WriteString(text.Render(m.input.View()))
 		}
 	case modeSelect:
 		for i, opt := range p.Options {
 			if i == m.cursor {
-				b.WriteString(primaryStyle.Render("> ") + textStyle.Render(opt) + "\n")
+				b.WriteString(primary.Render("> ") + text.Render(opt) + "\n")
 			} else {
-				b.WriteString("  " + textStyle.Render(opt) + "\n")
+				b.WriteString("  " + text.Render(opt) + "\n")
 			}
 		}
 	case modeMultiSelect:
@@ -587,80 +624,31 @@ func (m Model) renderCurrentField(p domain.Parameter) string {
 				check = "[x]"
 			}
 			if i == m.cursor {
-				b.WriteString(primaryStyle.Render("> "+check) + " " + textStyle.Render(opt) + "\n")
+				b.WriteString(primary.Render("> "+check) + " " + text.Render(opt) + "\n")
 			} else {
-				b.WriteString("  " + check + " " + textStyle.Render(opt) + "\n")
+				b.WriteString("  " + check + " " + text.Render(opt) + "\n")
 			}
 		}
 	case modeBoolean:
-		yesStyle := lipgloss.NewStyle()
-		noStyle := lipgloss.NewStyle()
-		if m.styles != nil {
-			if m.cursor == 0 {
-				yesStyle = lipgloss.NewStyle().
-					Background(m.styles.Primary.GetForeground()).
-					Foreground(m.styles.Background.GetForeground()).
-					Padding(0, 1)
-				noStyle = m.styles.TextMuted.Padding(0, 1)
-			} else {
-				yesStyle = m.styles.TextMuted.Padding(0, 1)
-				noStyle = lipgloss.NewStyle().
-					Background(m.styles.Primary.GetForeground()).
-					Foreground(m.styles.Background.GetForeground()).
-					Padding(0, 1)
-			}
-		}
-		b.WriteString("  " + yesStyle.Render("Yes") + "  " + noStyle.Render("No") + "\n")
+		b.WriteString(m.renderToggle(m.cursor))
 	}
 
 	return b.String()
 }
 
 func (m Model) renderSavePrompt() string {
-	primaryStyle := lipgloss.NewStyle().Bold(true)
-	if m.styles != nil {
-		primaryStyle = m.styles.Primary.Bold(true)
-	}
-
 	var b strings.Builder
-	b.WriteString(primaryStyle.Render("Save for future runs?") + "\n\n")
-
-	yesStyle := lipgloss.NewStyle()
-	noStyle := lipgloss.NewStyle()
-	if m.styles != nil {
-		if m.cursor == 0 {
-			yesStyle = lipgloss.NewStyle().
-				Background(m.styles.Primary.GetForeground()).
-				Foreground(m.styles.Background.GetForeground()).
-				Padding(0, 1)
-			noStyle = m.styles.TextMuted.Padding(0, 1)
-		} else {
-			yesStyle = m.styles.TextMuted.Padding(0, 1)
-			noStyle = lipgloss.NewStyle().
-				Background(m.styles.Primary.GetForeground()).
-				Foreground(m.styles.Background.GetForeground()).
-				Padding(0, 1)
-		}
-	}
-	b.WriteString("  " + yesStyle.Render("Yes") + "  " + noStyle.Render("No") + "\n")
-
+	b.WriteString(m.primaryStyle().Render("Save for future runs?") + "\n\n")
+	b.WriteString(m.renderToggle(m.cursor))
 	return b.String()
 }
 
 func (m Model) renderError(msg string) string {
-	errStyle := lipgloss.NewStyle()
-	if m.styles != nil {
-		errStyle = m.styles.Error
-	}
-	return errStyle.Render("! " + msg)
+	return m.errorStyle().Render("! " + msg)
 }
 
 func (m Model) renderFooter() string {
-	mutedStyle := lipgloss.NewStyle()
-	if m.styles != nil {
-		mutedStyle = m.styles.TextMuted
-	}
-	return mutedStyle.Render(m.FooterHints())
+	return m.mutedStyle().Render(m.FooterHints())
 }
 
 func (m Model) collectParams() map[string]string {
@@ -689,8 +677,8 @@ func ShouldSkip(params []domain.Parameter, resolved map[string]string) bool {
 	return true
 }
 
-// MissingParams returns parameters that are not yet resolved.
-func MissingParams(params []domain.Parameter, resolved map[string]string) []domain.Parameter {
+// missingParams returns parameters that are not yet resolved.
+func missingParams(params []domain.Parameter, resolved map[string]string) []domain.Parameter {
 	var missing []domain.Parameter
 	for _, p := range params {
 		if _, ok := resolved[p.Name]; !ok {

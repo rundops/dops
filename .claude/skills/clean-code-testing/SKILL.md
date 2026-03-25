@@ -23,11 +23,141 @@ Apply these principles when writing or modifying Go tests.
 
 ## FIRST Principles
 
-- **Fast**: Tests run quickly. No network calls in unit tests. Use interfaces and test doubles.
-- **Independent**: Tests don't depend on each other or on execution order. No shared mutable state between tests.
-- **Repeatable**: Same result every time, in every environment. No flaky tests. Control time, randomness, and external state.
-- **Self-Validating**: Tests produce a boolean result — pass or fail. No manual inspection of output.
-- **Timely**: Write tests before or alongside the code, not after. Tests written after tend to rationalize the implementation rather than verify the spec.
+### Fast
+
+Tests must run quickly — milliseconds, not seconds. Slow tests don't get run.
+
+- No network calls, no disk I/O in unit tests. Use interfaces and test doubles.
+- No `time.Sleep`. Use channels, `sync.WaitGroup`, or fake clocks.
+- If a test needs a database, it's an integration test — separate it with a build tag.
+
+```go
+// Bad — slow, flaky, depends on external service
+func TestHealthCheck(t *testing.T) {
+    resp, err := http.Get("https://api.example.com/health")
+    // ...
+}
+
+// Good — fast, deterministic
+func TestHealthCheck(t *testing.T) {
+    srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+    }))
+    defer srv.Close()
+    err := CheckHealth(srv.URL)
+    // ...
+}
+```
+
+### Independent
+
+Tests must not depend on each other or on execution order. No shared mutable state.
+
+- Each test creates its own fixtures and state.
+- No package-level `var` that tests mutate.
+- Use `t.TempDir()` for filesystem tests — it cleans up automatically.
+- Use `t.Parallel()` when possible to prove independence.
+
+```go
+// Bad — test B depends on test A's side effect
+var globalStore = NewStore()
+
+func TestStore_Add(t *testing.T) {
+    globalStore.Add("key", "value") // mutates shared state
+}
+
+func TestStore_Get(t *testing.T) {
+    v := globalStore.Get("key") // depends on TestStore_Add running first
+}
+
+// Good — each test is self-contained
+func TestStore_Add(t *testing.T) {
+    store := NewStore()
+    store.Add("key", "value")
+    if v := store.Get("key"); v != "value" {
+        t.Errorf("Get(key) = %q, want value", v)
+    }
+}
+```
+
+### Repeatable
+
+Same result every time, in any environment, in any order. No flaky tests.
+
+- Control all sources of non-determinism: time, randomness, concurrency, environment.
+- Inject `time.Now` as a dependency when time matters.
+- Use deterministic seeds for random values, or inject a fake random source.
+- Never depend on map iteration order.
+
+```go
+// Bad — depends on wall clock
+func TestExpiry(t *testing.T) {
+    token := NewToken()
+    time.Sleep(2 * time.Second)
+    if !token.IsExpired() { t.Error("should be expired") }
+}
+
+// Good — inject clock
+func TestExpiry(t *testing.T) {
+    now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+    token := NewToken(WithClock(func() time.Time { return now }))
+    now = now.Add(2 * time.Hour)
+    if !token.IsExpired() { t.Error("should be expired") }
+}
+```
+
+### Self-Validating
+
+Tests produce pass or fail. No manual inspection of logs or output.
+
+- Every test must have assertions. A test with no assertions always passes — useless.
+- Use `t.Errorf` with context: include input, got, and want.
+- Don't `fmt.Println` results for a human to read — assert them.
+
+```go
+// Bad — requires human to read output
+func TestFormat(t *testing.T) {
+    result := Format(input)
+    fmt.Println(result) // "looks right" is not a test
+}
+
+// Good — machine-verifiable
+func TestFormat(t *testing.T) {
+    result := Format(input)
+    if result != expected {
+        t.Errorf("Format(%q) = %q, want %q", input, result, expected)
+    }
+}
+```
+
+### Timely
+
+Write tests alongside the code, not weeks later.
+
+- Tests written after the fact rationalize the implementation instead of verifying behavior.
+- If writing the test is hard, the design likely needs improvement (testability = good design).
+- Use query methods and interfaces to make code testable without exposing internals.
+- Don't access unexported struct fields in tests — add minimal public query methods instead.
+
+```go
+// Bad — test reaches into internals
+func TestModel_Update(t *testing.T) {
+    m := NewModel()
+    m, _ = m.Update(someMsg)
+    if m.cursor != 3 { // couples test to field name
+        t.Error("wrong cursor")
+    }
+}
+
+// Good — test uses public API
+func TestModel_Update(t *testing.T) {
+    m := NewModel()
+    m, _ = m.Update(someMsg)
+    if m.Cursor() != 3 { // survives field renames
+        t.Error("wrong cursor")
+    }
+}
+```
 
 ## Table-Driven Tests
 

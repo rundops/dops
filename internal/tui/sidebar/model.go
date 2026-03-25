@@ -555,6 +555,15 @@ func (m Model) selectionCmd() tea.Cmd {
 }
 
 
+// Test query methods — expose internal state for assertions.
+func (m Model) Cursor() int                      { return m.cursor }
+func (m Model) HoverIdx() int                    { return m.hoverIdx }
+func (m Model) IsCollapsed(catalog string) bool   { return m.collapsed[catalog] }
+func (m Model) IsSearching() bool                 { return m.searching }
+func (m Model) Visible() []int                    { return m.visible() }
+func (m Model) EntryIsHeader(idx int) bool        { return m.entries[idx].isHeader }
+func (m Model) VisibleRunbooks() []domain.Runbook { return m.visibleRunbooks() }
+
 func (m Model) visibleRunbooks() []domain.Runbook {
 	vis := m.visible()
 	var result []domain.Runbook

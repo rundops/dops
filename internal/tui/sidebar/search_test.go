@@ -3,6 +3,7 @@ package sidebar
 import (
 	"dops/internal/catalog"
 	"dops/internal/domain"
+	"dops/internal/testutil"
 	"strings"
 	"testing"
 
@@ -39,26 +40,26 @@ func typeSearch(m Model, query string) Model {
 }
 
 func TestSearch_ActivateWithSlash(t *testing.T) {
-	m := New(largeCatalogs(), 20, sidebarTestStyles())
+	m := New(largeCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
-	if m.searching {
+	if m.IsSearching() {
 		t.Fatal("should not be searching initially")
 	}
 
 	m, _ = pressKey(m, "/")
-	if !m.searching {
+	if !m.IsSearching() {
 		t.Fatal("should be searching after /")
 	}
 }
 
 func TestSearch_FiltersRunbooks(t *testing.T) {
-	m := New(largeCatalogs(), 20, sidebarTestStyles())
+	m := New(largeCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
 	m = typeSearch(m, "deploy")
 
-	visible := m.visibleRunbooks()
+	visible := m.VisibleRunbooks()
 	if len(visible) != 1 {
 		t.Fatalf("expected 1 visible runbook, got %d", len(visible))
 	}
@@ -68,7 +69,7 @@ func TestSearch_FiltersRunbooks(t *testing.T) {
 }
 
 func TestSearch_HidesEmptyCatalogs(t *testing.T) {
-	m := New(largeCatalogs(), 20, sidebarTestStyles())
+	m := New(largeCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
 	m = typeSearch(m, "drain")
@@ -83,38 +84,38 @@ func TestSearch_HidesEmptyCatalogs(t *testing.T) {
 }
 
 func TestSearch_NoMatches(t *testing.T) {
-	m := New(largeCatalogs(), 20, sidebarTestStyles())
+	m := New(largeCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
 	m = typeSearch(m, "zzzznothing")
 
-	visible := m.visibleRunbooks()
+	visible := m.VisibleRunbooks()
 	if len(visible) != 0 {
 		t.Errorf("expected 0 visible runbooks, got %d", len(visible))
 	}
 }
 
 func TestSearch_EscapeRestores(t *testing.T) {
-	m := New(largeCatalogs(), 20, sidebarTestStyles())
+	m := New(largeCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
 	m = typeSearch(m, "deploy")
-	if len(m.visibleRunbooks()) != 1 {
+	if len(m.VisibleRunbooks()) != 1 {
 		t.Fatal("should have 1 match before escape")
 	}
 
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 
-	if m.searching {
+	if m.IsSearching() {
 		t.Error("should not be searching after escape")
 	}
-	if len(m.visibleRunbooks()) != 5 {
-		t.Errorf("expected 5 runbooks after escape, got %d", len(m.visibleRunbooks()))
+	if len(m.VisibleRunbooks()) != 5 {
+		t.Errorf("expected 5 runbooks after escape, got %d", len(m.VisibleRunbooks()))
 	}
 }
 
 func TestScrollbar_AppearsWhenNeeded(t *testing.T) {
-	m := New(largeCatalogs(), 3, sidebarTestStyles())
+	m := New(largeCatalogs(), 3, testutil.TestStyles())
 	m.Init()
 
 	view := m.View()
@@ -130,7 +131,7 @@ func TestScrollbar_NotNeededForSmallList(t *testing.T) {
 			Runbooks: []domain.Runbook{{ID: "tiny.one", Name: "one"}},
 		},
 	}
-	m := New(small, 20, sidebarTestStyles())
+	m := New(small, 20, testutil.TestStyles())
 	m.Init()
 
 	view := m.View()

@@ -34,7 +34,8 @@ type Model struct {
 	matchIndex   int
 	copiedHeader bool
 	copiedFooter bool
-	copyFlash    bool // show "✓ Copied" badge in log top-right
+	copyFlash    bool // show "Copied to Clipboard!" badge on output pane
+	copyLock     bool // prevents concurrent copy operations
 	commandLineH int  // wrapped command line height in rows
 	focused      bool
 	selection    TextSelection
@@ -88,19 +89,42 @@ func (m *Model) SetCommand(cmd string) {
 func (m Model) Command() string        { return m.command }
 func (m Model) LogPath() string        { return m.logPath }
 func (m Model) CopyFlash() bool         { return m.copyFlash }
-func (m *Model) SetCopyFlash(v bool)    { m.copyFlash = v }
+func (m *Model) SetCopyFlash(v bool)    { m.copyFlash = v; if !v { m.copyLock = false } }
 
-// TryCopy attempts to start a copy operation. Returns false if a copy
-// is already in progress (flash still active). Centralizes the lock
-// so callers don't need to inspect internal state.
+// TryCopy attempts to start a copy operation and show the output badge.
+// Returns false if a copy is already in progress (lock still held).
 func (m *Model) TryCopy() bool {
-	if m.copyFlash {
+	if m.copyLock {
 		return false
 	}
-	m.copyFlash = true
+	m.copyLock = true
+	m.copyFlash = true // show badge on output pane
+	return true
+}
+
+// TryLock acquires the copy lock without showing the output badge.
+// Use for copies that display their badge elsewhere (e.g. metadata pane).
+func (m *Model) TryLock() bool {
+	if m.copyLock {
+		return false
+	}
+	m.copyLock = true
 	return true
 }
 func (m Model) Selection() TextSelection { return m.selection }
+
+// Test query methods — expose internal state for assertions without
+// coupling tests to struct field names.
+func (m Model) Lines() []OutputLineMsg { return m.lines }
+func (m Model) AtBottom() bool        { return m.atBottom }
+func (m Model) XOffset() int          { return m.xOffset }
+func (m Model) MaxLineWidth() int     { return m.maxLineWidth }
+func (m Model) BodyHeight() int       { return m.bodyHeight() }
+func (m Model) Searching() bool       { return m.searching }
+func (m Model) Navigating() bool      { return m.navigating }
+func (m Model) MatchCount() int       { return m.matchCount }
+func (m Model) MatchIndex() int       { return m.matchIndex }
+func (m Model) ScrollbarCharAt(row int) string { return m.scrollbarCharAt(row) }
 func (m *Model) SetCopiedHeader(v bool) { m.copiedHeader = v }
 func (m *Model) SetCopiedFooter(v bool) { m.copiedFooter = v }
 
@@ -231,6 +255,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case CopyFlashExpiredMsg:
 		m.copyFlash = false
+		m.copyLock = false
 		m.selection.Reset()
 		return m, nil
 	}
@@ -387,118 +412,125 @@ func (m Model) ViewWithSize(width, height int) string {
 	return m.View()
 }
 
-func (m Model) View() string {
-	// --- Resolve colors ---
-	var textFg, mutedFg, stderrFg, successFg, primaryFg color.Color
-	var bgElemColor color.Color
-	textFg = lipgloss.NoColor{}
-	mutedFg = lipgloss.NoColor{}
-	stderrFg = lipgloss.NoColor{}
-	successFg = lipgloss.NoColor{}
-	primaryFg = lipgloss.NoColor{}
-	bgElemColor = lipgloss.NoColor{}
-	if m.styles != nil {
-		textFg = m.styles.Text.GetForeground()
-		mutedFg = m.styles.TextMuted.GetForeground()
-		stderrFg = m.styles.Error.GetForeground()
-		successFg = m.styles.Success.GetForeground()
-		primaryFg = m.styles.Primary.GetForeground()
-		bgElemColor = m.styles.BackgroundElem.GetForeground()
-	}
+// viewColors holds resolved theme colors for rendering.
+type viewColors struct {
+	text, muted, stderr, success, primary, bgElem color.Color
+}
 
+func (m Model) resolveColors() viewColors {
+	c := viewColors{
+		text:    lipgloss.NoColor{},
+		muted:   lipgloss.NoColor{},
+		stderr:  lipgloss.NoColor{},
+		success: lipgloss.NoColor{},
+		primary: lipgloss.NoColor{},
+		bgElem:  lipgloss.NoColor{},
+	}
+	if m.styles != nil {
+		c.text = m.styles.Text.GetForeground()
+		c.muted = m.styles.TextMuted.GetForeground()
+		c.stderr = m.styles.Error.GetForeground()
+		c.success = m.styles.Success.GetForeground()
+		c.primary = m.styles.Primary.GetForeground()
+		c.bgElem = m.styles.BackgroundElem.GetForeground()
+	}
+	return c
+}
+
+func (m Model) View() string {
 	if !m.HasSession() {
 		return ""
 	}
 
-	// No section borders — the app renders the outer border. Content is flat.
-	// m.width is the content width INSIDE the app's outer border.
-	// Reserve 1 char left + 1 char right padding across all sections.
+	c := m.resolveColors()
 	padX := 1
 	cw := max(1, m.width-padX*2)
-	tw := max(1, cw-3) // line width for log text (cw - 2 indent - 1 scrollbar)
 
-	// === Header: wraps long commands, continuation indented under "dops" ===
-	headerDollarFg := successFg
-	headerCmdFg := textFg
+	headerBox := m.renderHeader(cw, c)
+	footerBox := m.renderFooterSection(cw, c)
+	logBox := m.renderLogSection(cw, lipgloss.Height(headerBox), c)
+
+	gap := lipgloss.NewStyle().Width(cw).Render("")
+	inner := lipgloss.JoinVertical(lipgloss.Left, headerBox, gap, logBox, gap, footerBox)
+	return lipgloss.NewStyle().PaddingLeft(padX).PaddingRight(padX).Render(inner)
+}
+
+// renderHeader builds the command header, wrapping at --param boundaries.
+func (m Model) renderHeader(cw int, c viewColors) string {
+	dollarFg := c.success
+	cmdFg := c.text
 	if m.copiedHeader {
-		headerDollarFg = successFg
-		headerCmdFg = successFg
+		cmdFg = c.success
 	}
 
-	dollarStyle := lipgloss.NewStyle().Foreground(headerDollarFg)
-	cmdStyle := lipgloss.NewStyle().Foreground(headerCmdFg)
+	dollarStyle := lipgloss.NewStyle().Foreground(dollarFg)
+	cmdStyle := lipgloss.NewStyle().Foreground(cmdFg)
+	lineW := cw - 2 // "$ " prefix width
 
-	// Wrap the command at --param boundaries for clean multi-line display.
-	// First line: "$ dops run <id>", continuation lines indented with each --param.
-	prefix := "$ "
-	indent := "  " // continuation indent (same width as "$ ")
-	cmdText := m.command
-	lineW := cw - len(prefix)
+	if ansi.StringWidth(m.command) <= lineW {
+		return dollarStyle.Render("$") + cmdStyle.Render(" "+m.command)
+	}
+
+	// Split at --param boundaries for clean wrapping.
+	parts := strings.SplitAfter(m.command, " --param")
+	var lines []string
+	current := parts[0]
+	for _, part := range parts[1:] {
+		candidate := strings.TrimSuffix(current, " --param") + " --param" + part
+		if ansi.StringWidth(candidate) <= lineW {
+			current = candidate
+		} else {
+			lines = append(lines, strings.TrimSuffix(current, " --param"))
+			current = "--param" + part
+		}
+	}
+	lines = append(lines, current)
 
 	var headerLines []string
-	if ansi.StringWidth(cmdText) <= lineW {
-		// Fits on one line.
-		headerLines = append(headerLines, dollarStyle.Render("$")+cmdStyle.Render(" "+cmdText))
-	} else {
-		// Split at --param boundaries.
-		parts := strings.SplitAfter(cmdText, " --param")
-		// First part is "dops run <id>", rest are " key=value" after --param.
-		var lines []string
-		current := parts[0]
-		for _, part := range parts[1:] {
-			candidate := current + " --param" + part
-			// Remove the trailing " --param" from SplitAfter artifact.
-			candidate = strings.TrimSuffix(current, " --param") + " --param" + part
-			if ansi.StringWidth(candidate) <= lineW {
-				current = candidate
-			} else {
-				lines = append(lines, strings.TrimSuffix(current, " --param"))
-				current = "--param" + part
-			}
-		}
-		lines = append(lines, current)
-
-		for i, l := range lines {
-			l = strings.TrimSpace(l)
-			if i == 0 {
-				headerLines = append(headerLines, dollarStyle.Render("$")+cmdStyle.Render(" "+l))
-			} else {
-				headerLines = append(headerLines, cmdStyle.Render(indent+l))
-			}
+	for i, l := range lines {
+		l = strings.TrimSpace(l)
+		if i == 0 {
+			headerLines = append(headerLines, dollarStyle.Render("$")+cmdStyle.Render(" "+l))
+		} else {
+			headerLines = append(headerLines, cmdStyle.Render("  "+l))
 		}
 	}
-	headerBox := strings.Join(headerLines, "\n")
+	return strings.Join(headerLines, "\n")
+}
 
-	// === Footer: 1 row — always shows log path ===
+// renderFooterSection builds the footer row showing the log path.
+func (m Model) renderFooterSection(cw int, c viewColors) string {
 	var footerLine string
 	if m.logPath != "" && !m.searching && !m.navigating {
-		label := lipgloss.NewStyle().Foreground(mutedFg).Render("Saved to ")
-		pathFg := mutedFg
+		label := lipgloss.NewStyle().Foreground(c.muted).Render("Saved to ")
+		pathFg := c.muted
 		if m.copiedFooter {
-			pathFg = successFg // only path flashes green on copy
+			pathFg = c.success
 		}
 		path := lipgloss.NewStyle().Foreground(pathFg).Render(m.logPath)
 		footerLine = label + path
 	}
-	footerBox := lipgloss.NewStyle().Width(cw).Render(footerLine)
+	return lipgloss.NewStyle().Width(cw).Render(footerLine)
+}
 
-	// === Log: fills remaining height ===
-	logContentStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(textFg)
-	logStderrStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(stderrFg)
-	logSuccessStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(successFg)
-	thumbStyle := lipgloss.NewStyle().Background(bgElemColor).Foreground(primaryFg)
+// renderLogSection builds the scrollable log area with search bar.
+func (m Model) renderLogSection(cw, headerH int, c viewColors) string {
+	tw := max(1, cw-3) // cw - 2 indent - 1 scrollbar
 
-	// Header(N) + gap(1) + logTopPad(1) + visibleLines + logBottomPad(1) + gap(1) + Footer(1) = height.
-	headerH := lipgloss.Height(headerBox)
+	logContentStyle := lipgloss.NewStyle().Background(c.bgElem).Foreground(c.text)
+	logStderrStyle := lipgloss.NewStyle().Background(c.bgElem).Foreground(c.stderr)
+	logSuccessStyle := lipgloss.NewStyle().Background(c.bgElem).Foreground(c.success)
+	thumbStyle := lipgloss.NewStyle().Background(c.bgElem).Foreground(c.primary)
+
 	logTopPad := 1
 	logBottomPad := 1
-	logH := max(1, m.height-headerH-3-logTopPad-logBottomPad) // -3 for gap+gap+footer
+	logH := max(1, m.height-headerH-3-logTopPad-logBottomPad)
 	searchBarH := 0
 	if m.searching || m.navigating {
 		searchBarH = 2
 	}
 	visibleH := max(1, logH-searchBarH)
-	logW := max(1, cw-1) // 1 col for scrollbar
+	logW := max(1, cw-1)
 
 	blankLine := logContentStyle.Width(logW).Render("")
 
@@ -516,7 +548,7 @@ func (m Model) View() string {
 	needsScrollbar := len(m.lines) > visibleH
 
 	logLines := make([]string, 0, logH+logTopPad)
-	logLines = append(logLines, blankLine) // top padding — always present
+	logLines = append(logLines, blankLine) // top padding
 	for i := range visibleH {
 		idx := yOffset + i
 		if idx < len(m.lines) {
@@ -527,20 +559,7 @@ func (m Model) View() string {
 			}
 			lineW = max(1, lineW)
 
-			raw := line.Text
-			rawWidth := ansi.StringWidth(raw)
-			var visible string
-			if m.xOffset > 0 || rawWidth > lineW {
-				endCol := min(m.xOffset+lineW, rawWidth)
-				if m.xOffset >= rawWidth {
-					visible = ""
-				} else {
-					visible = ansi.Cut(raw, m.xOffset, endCol)
-				}
-			} else {
-				visible = ansi.Truncate(raw, lineW, "")
-			}
-
+			visible := m.truncateLine(line.Text, lineW)
 			lineText := "  " + visible
 			if line.IsStderr {
 				logLines = append(logLines, logStderrStyle.Width(logW).Render(lineText))
@@ -551,8 +570,7 @@ func (m Model) View() string {
 			logLines = append(logLines, blankLine)
 		}
 	}
-
-	logLines = append(logLines, blankLine) // bottom padding inside log
+	logLines = append(logLines, blankLine) // bottom padding
 
 	if m.searching {
 		logLines = append(logLines, logContentStyle.Width(logW).Render("  "+fmt.Sprintf("Search: %s▎", m.searchQuery)))
@@ -566,21 +584,20 @@ func (m Model) View() string {
 
 	contentStr := strings.Join(logLines, "\n")
 	scrollbar := m.renderScrollbar(logH+logTopPad+logBottomPad, yOffset, visibleH, logContentStyle, thumbStyle)
-	logBox := lipgloss.JoinHorizontal(lipgloss.Top, contentStr, scrollbar)
-
-	// Gap rows between sections (empty, terminal background).
-	gap := lipgloss.NewStyle().Width(cw).Render("")
-
-	inner := lipgloss.JoinVertical(lipgloss.Left, headerBox, gap, logBox, gap, footerBox)
-	return lipgloss.NewStyle().PaddingLeft(padX).PaddingRight(padX).Render(inner)
+	return lipgloss.JoinHorizontal(lipgloss.Top, contentStr, scrollbar)
 }
 
-func (m Model) matchLineSet() map[int]bool {
-	set := make(map[int]bool, len(m.matchLines))
-	for _, idx := range m.matchLines {
-		set[idx] = true
+// truncateLine applies horizontal scrolling and truncation to a single line.
+func (m Model) truncateLine(raw string, lineW int) string {
+	rawWidth := ansi.StringWidth(raw)
+	if m.xOffset > 0 || rawWidth > lineW {
+		if m.xOffset >= rawWidth {
+			return ""
+		}
+		endCol := min(m.xOffset+lineW, rawWidth)
+		return ansi.Cut(raw, m.xOffset, endCol)
 	}
-	return set
+	return ansi.Truncate(raw, lineW, "")
 }
 
 
@@ -638,7 +655,7 @@ func (m Model) scrollbarCharAt(visibleRow int) string {
 	}
 	thumbPos = max(0, min(thumbPos, bh-thumbHeight))
 	if visibleRow >= thumbPos && visibleRow < thumbPos+thumbHeight {
-		return "█"
+		return "▐" // must match renderScrollbar thumb glyph
 	}
-	return "░"
+	return " " // must match renderScrollbar track glyph
 }

@@ -74,13 +74,13 @@ func TestPalette_FilterNoMatches(t *testing.T) {
 func TestPalette_NavigateDown(t *testing.T) {
 	m := New(80)
 
-	if m.cursor != 0 {
-		t.Fatalf("initial cursor = %d", m.cursor)
+	if m.Cursor() != 0 {
+		t.Fatalf("initial cursor = %d", m.Cursor())
 	}
 
 	m, _ = pressKey(m, "down")
-	if m.cursor != 1 {
-		t.Errorf("after down: cursor = %d, want 1", m.cursor)
+	if m.Cursor() != 1 {
+		t.Errorf("after down: cursor = %d, want 1", m.Cursor())
 	}
 }
 
@@ -91,8 +91,8 @@ func TestPalette_NavigateUp(t *testing.T) {
 	m, _ = pressKey(m, "down")
 	m, _ = pressKey(m, "up")
 
-	if m.cursor != 1 {
-		t.Errorf("after down,down,up: cursor = %d, want 1", m.cursor)
+	if m.Cursor() != 1 {
+		t.Errorf("after down,down,up: cursor = %d, want 1", m.Cursor())
 	}
 }
 
@@ -101,8 +101,8 @@ func TestPalette_NavigateClamps(t *testing.T) {
 
 	// Up at top stays at 0
 	m, _ = pressKey(m, "up")
-	if m.cursor != 0 {
-		t.Errorf("up at top: cursor = %d, want 0", m.cursor)
+	if m.Cursor() != 0 {
+		t.Errorf("up at top: cursor = %d, want 0", m.Cursor())
 	}
 
 	// Down past end stays at last
@@ -110,8 +110,8 @@ func TestPalette_NavigateClamps(t *testing.T) {
 		m, _ = pressKey(m, "down")
 	}
 	max := len(m.Filtered()) - 1
-	if m.cursor != max {
-		t.Errorf("down past end: cursor = %d, want %d", m.cursor, max)
+	if m.Cursor() != max {
+		t.Errorf("down past end: cursor = %d, want %d", m.Cursor(), max)
 	}
 }
 
@@ -157,8 +157,8 @@ func TestPalette_FilterResetssCursor(t *testing.T) {
 
 	// Type filter — cursor should reset to 0
 	m = typeQuery(m, "config")
-	if m.cursor != 0 {
-		t.Errorf("cursor after filter = %d, want 0", m.cursor)
+	if m.Cursor() != 0 {
+		t.Errorf("cursor after filter = %d, want 0", m.Cursor())
 	}
 }
 

@@ -119,7 +119,16 @@ func Execute() {
 func splitError(err error) (string, string) {
 	msg := err.Error()
 	if i := strings.Index(msg, ": "); i > 0 {
-		return strings.Title(msg[:i]), msg[i+2:]
+		return titleCase(msg[:i]), msg[i+2:]
 	}
 	return msg, ""
+}
+
+// titleCase capitalizes the first letter of s. Replaces deprecated strings.Title
+// without pulling in golang.org/x/text for a single call site.
+func titleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }

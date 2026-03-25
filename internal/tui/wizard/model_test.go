@@ -2,6 +2,7 @@ package wizard
 
 import (
 	"dops/internal/domain"
+	"strings"
 	"testing"
 )
 
@@ -65,7 +66,7 @@ func TestMissingParams_AllResolved(t *testing.T) {
 		"region": "us-east-1", "namespace": "platform", "dry_run": "false", "env": "prod",
 	}
 
-	missing := MissingParams(rb.Parameters, resolved)
+	missing := missingParams(rb.Parameters, resolved)
 	if len(missing) != 0 {
 		t.Errorf("expected 0 missing, got %d", len(missing))
 	}
@@ -77,7 +78,7 @@ func TestMissingParams_SomeMissing(t *testing.T) {
 		"region": "us-east-1",
 	}
 
-	missing := MissingParams(rb.Parameters, resolved)
+	missing := missingParams(rb.Parameters, resolved)
 
 	names := make(map[string]bool)
 	for _, p := range missing {
@@ -105,12 +106,12 @@ func TestBuildCommand_Format(t *testing.T) {
 		t.Fatal("command should not be empty")
 	}
 
-	if !contains(cmd, "default.hello-world") {
+	if !strings.Contains(cmd, "default.hello-world") {
 		t.Error("command should contain runbook ID")
 	}
 }
 
-func TestNewModel_WithMissingParams(t *testing.T) {
+func TestNewModel_WithmissingParams(t *testing.T) {
 	rb := testRunbook()
 	cat := domain.Catalog{Name: "default"}
 	resolved := map[string]string{
@@ -137,7 +138,7 @@ func TestNewModel_CommandHeader(t *testing.T) {
 	m := New(rb, cat, resolved)
 	view := m.View()
 
-	if !contains(view, "dops run") {
+	if !strings.Contains(view, "dops run") {
 		t.Error("view should show command header")
 	}
 }
@@ -155,15 +156,3 @@ func TestNewModel_FooterHints(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
-}

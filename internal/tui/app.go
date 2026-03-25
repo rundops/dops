@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -56,7 +55,88 @@ const (
 	layoutPadLeft      = 1 // sidebar content left padding
 )
 
-var tuiANSIPattern = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
+// Layout constants for overlay sizing and flash durations.
+const (
+	overlayWidthRatio = 2  // overlay width = terminal width * overlayWidthRatio / overlayWidthDenom
+	overlayWidthDenom = 3
+	overlayMinWidth   = 50
+	sidebarMinWidth   = 30
+	sidebarMaxWidth   = 50
+	copyFlashDuration = 1500 * time.Millisecond
+)
+
+// layoutDims holds pre-computed layout dimensions for the main view.
+// Computed once per render/resize cycle, shared across all layout-dependent methods.
+type layoutDims struct {
+	innerW          int
+	sw              int // sidebar logical width
+	rightW          int
+	contentW        int // content width inside bordered right panels
+	panelRows       int
+	sidebarContentH int
+	sidebarRenderedH int
+	sidebarRenderedW int
+	metaRenderedH   int
+	outputTotalH    int
+	outputContentH  int
+	outputInnerW    int
+	gap             int
+	borderSize      int
+}
+
+// computeLayout derives all panel dimensions from the terminal size and
+// current metadata content. This eliminates duplicated layout math across
+// resizeAll, viewNormal, outputPaneBounds, and click handlers.
+func (m App) computeLayout() layoutDims {
+	gap := 1
+	borderSize := layoutBorderSize * 2
+
+	innerW := clamp(m.width-layoutMarginLeft, 1)
+	sw := sidebarWidth(innerW)
+	rightW := clamp(innerW-sw-borderSize-gap, 1)
+	contentW := clamp(rightW-borderSize, 1)
+	panelRows := clamp(m.height-layoutMarginTop-1-layoutMarginBottom, 1) // -1 for footer
+
+	sidebarContentH := clamp(panelRows-borderSize-1, 3)
+
+	// Render sidebar/metadata to measure actual pixel sizes.
+	sidebarView := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		PaddingLeft(1).
+		Width(sw).
+		Height(sidebarContentH).
+		Render("")
+	sidebarRenderedH := sidebarContentH + borderSize
+	sidebarRenderedW := lipgloss.Width(sidebarView)
+
+	metaContent := metadata.Render(m.selected, m.selCat, contentW, m.copiedFlash, m.deps.Styles)
+	metaView := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(contentW).
+		Render(metaContent)
+	metaRenderedH := lipgloss.Height(metaView)
+
+	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
+	outputContentH := clamp(outputTotalH-borderSize, 1)
+	outputInnerW := clamp(contentW-borderSize, 1)
+
+	return layoutDims{
+		innerW:           innerW,
+		sw:               sw,
+		rightW:           rightW,
+		contentW:         contentW,
+		panelRows:        panelRows,
+		sidebarContentH:  sidebarContentH,
+		sidebarRenderedH: sidebarRenderedH,
+		sidebarRenderedW: sidebarRenderedW,
+		metaRenderedH:    metaRenderedH,
+		outputTotalH:     outputTotalH,
+		outputContentH:   outputContentH,
+		outputInnerW:     outputInnerW,
+		gap:              gap,
+		borderSize:       borderSize,
+	}
+}
 
 type executionDoneMsg struct {
 	LogPath string
@@ -122,6 +202,16 @@ func (m *App) SetConfig(cfg *domain.Config) {
 	m.deps.Config = cfg
 }
 
+// Test query methods — expose internal state for assertions.
+func (m App) Selected() *domain.Runbook      { return m.selected }
+func (m App) SelectedCatalog() *domain.Catalog { return m.selCat }
+func (m App) ViewState() viewState            { return m.state }
+func (m App) Width() int                      { return m.width }
+func (m App) Height() int                     { return m.height }
+func (m App) HasWizard() bool                 { return m.wizard != nil }
+func (m App) HasPalette() bool                { return m.pal != nil }
+func (m App) Output() output.Model            { return m.output }
+
 
 func (m App) Init() tea.Cmd {
 	return m.sidebar.Init()
@@ -131,34 +221,9 @@ func (m App) Init() tea.Cmd {
 // persists them on the sidebar and output models. Must be called from Update
 // (not View) so changes survive across message cycles.
 func (m *App) resizeAll() {
-	footerH := 1
-	gap := 1
-	borderSize := layoutBorderSize * 2
-
-	innerW := clamp(m.width-layoutMarginLeft, 1)
-	sw := sidebarWidth(innerW)
-	rightW := clamp(innerW-sw-borderSize-gap, 1)
-	contentW := clamp(rightW-borderSize, 1)
-	panelRows := clamp(m.height-layoutMarginTop-footerH-layoutMarginBottom, 1)
-
-	// Sidebar
-	sidebarContentH := clamp(panelRows-borderSize-1, 3)
-	m.sidebar.SetHeight(sidebarContentH)
-
-	// Metadata height estimate (render to measure).
-	metaContent := metadata.Render(m.selected, m.selCat, contentW, m.copiedFlash, m.deps.Styles)
-	metaView := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Width(contentW).
-		Render(metaContent)
-	metaRenderedH := lipgloss.Height(metaView)
-	sidebarRenderedH := sidebarContentH + borderSize
-
-	// Output — pass content dimensions (inside the outer border the app renders).
-	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
-	outputContentH := clamp(outputTotalH-borderSize, 1)  // subtract outer border top+bottom
-	outputInnerW := clamp(contentW-borderSize, 1)         // subtract outer border left+right
-	m.output.SetSize(outputInnerW, outputContentH)
+	l := m.computeLayout()
+	m.sidebar.SetHeight(l.sidebarContentH)
+	m.output.SetSize(l.outputInnerW, l.outputContentH)
 }
 
 func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -168,122 +233,15 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.resizeAll()
 		return m, nil
-
 	case tea.KeyPressMsg:
-		if m.state == stateNormal {
-			switch msg.String() {
-			case "q", "ctrl+c":
-				return m, tea.Quit
-			case "ctrl+shift+p":
-				return m.openPalette()
-			case "tab", "shift+tab":
-				if m.focus == focusSidebar {
-					m.focus = focusOutput
-				} else {
-					m.focus = focusSidebar
-				}
-				return m, nil
-			case "ctrl+x":
-				if m.execRunning && m.cancelExec != nil {
-					m.cancelExec()
-				}
-				return m, nil
-			case "?":
-				m.state = stateHelp
-				return m, nil
-			}
+		if result, cmd, handled := m.handleKeyPress(msg); handled {
+			return result, cmd
 		}
-		if m.state == stateHelp {
-			if msg.String() == "?" || msg.String() == "escape" || msg.Code == tea.KeyEscape {
-				m.state = stateNormal
-			}
-			return m, nil
-		}
+	}
 
-	case sidebar.RunbookSelectedMsg:
-		rb := msg.Runbook
-		cat := msg.Catalog
-		m.selected = &rb
-		m.selCat = &cat
-		// Don't clear output — keep last execution visible until a new one starts.
-		return m, nil
-
-	case sidebar.RunbookExecuteMsg:
-		rb := msg.Runbook
-		cat := msg.Catalog
-		m.selected = &rb
-		m.selCat = &cat
-		return m.openWizard()
-
-	case executionDoneMsg:
-		m.execRunning = false
-		m.cancelExec = nil
-		m.output, _ = m.output.Update(output.ExecutionDoneMsg{LogPath: msg.LogPath, Err: msg.Err})
-		return m, nil
-
-	case output.OutputLineMsg:
-		m.output, _ = m.output.Update(msg)
-		return m, nil
-
-	case output.ExecutionDoneMsg:
-		m.output, _ = m.output.Update(msg)
-		return m, nil
-
-	case wizard.WizardSubmitMsg:
-		m.state = stateNormal
-		m.wizard = nil
-		return m.openConfirm(msg.Runbook, msg.Catalog, msg.Params)
-
-	case confirm.ConfirmAcceptMsg:
-		m.state = stateNormal
-		m.conf = nil
-		return m.startExecution(msg.Runbook, msg.Catalog, msg.Params)
-
-	case confirm.ConfirmCancelMsg:
-		m.state = stateNormal
-		m.conf = nil
-		return m, nil
-
-	case wizard.WizardCancelMsg:
-		m.state = stateNormal
-		m.wizard = nil
-		return m, nil
-
-	case palette.PaletteSelectMsg:
-		m.state = stateNormal
-		m.pal = nil
-		return m, nil
-
-	case palette.PaletteCancelMsg:
-		m.state = stateNormal
-		m.pal = nil
-		return m, nil
-
-	case copiedFlashMsg:
-		m.copiedFlash = false
-		m.output.SetCopyFlash(false) // release copy lock
-		return m, nil
-
-	case output.CopyFlashExpiredMsg:
-		m.output, _ = m.output.Update(msg)
-		return m, nil
-
-	case output.CopiedRegionFlashMsg:
-		m.output.SetCopiedHeader(false)
-		m.output.SetCopiedFooter(false)
-		return m, nil
-
-	case output.SelectionCompleteMsg:
-		text := m.extractSelectionFromView()
-		if text != "" && m.output.TryCopy() {
-			return m, tea.Batch(
-				tea.SetClipboard(text),
-				tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
-					return output.CopyFlashExpiredMsg{}
-				}),
-			)
-		}
-		return m, nil
+	// Handle domain messages (selection, execution, wizard, copy flash, etc.).
+	if result, cmd, handled := m.handleAppMessage(msg); handled {
+		return result, cmd
 	}
 
 	// Switch focus on hover: any mouse event over a pane focuses it.
@@ -293,13 +251,150 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Route to focused component
+	return m.routeToComponent(msg)
+}
+
+// handleKeyPress processes keyboard input for normal and help states.
+// Returns (model, cmd, handled).
+func (m App) handleKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd, bool) {
+	if m.state == stateNormal {
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit, true
+		case "ctrl+shift+p":
+			result, cmd := m.openPalette()
+			return result, cmd, true
+		case "tab", "shift+tab":
+			if m.focus == focusSidebar {
+				m.focus = focusOutput
+			} else {
+				m.focus = focusSidebar
+			}
+			return m, nil, true
+		case "ctrl+x":
+			if m.execRunning && m.cancelExec != nil {
+				m.cancelExec()
+			}
+			return m, nil, true
+		case "?":
+			m.state = stateHelp
+			return m, nil, true
+		}
+	}
+	if m.state == stateHelp {
+		if msg.String() == "?" || msg.String() == "escape" || msg.Code == tea.KeyEscape {
+			m.state = stateNormal
+		}
+		return m, nil, true
+	}
+	return m, nil, false
+}
+
+// handleAppMessage processes typed domain messages (sidebar selection,
+// execution lifecycle, wizard/confirm/palette transitions, copy flash).
+// Returns (model, cmd, handled).
+func (m App) handleAppMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+	switch msg := msg.(type) {
+	case sidebar.RunbookSelectedMsg:
+		rb := msg.Runbook
+		cat := msg.Catalog
+		m.selected = &rb
+		m.selCat = &cat
+		return m, nil, true
+
+	case sidebar.RunbookExecuteMsg:
+		rb := msg.Runbook
+		cat := msg.Catalog
+		m.selected = &rb
+		m.selCat = &cat
+		result, cmd := m.openWizard()
+		return result, cmd, true
+
+	case executionDoneMsg:
+		m.execRunning = false
+		m.cancelExec = nil
+		m.output, _ = m.output.Update(output.ExecutionDoneMsg{LogPath: msg.LogPath, Err: msg.Err})
+		return m, nil, true
+
+	case output.OutputLineMsg:
+		m.output, _ = m.output.Update(msg)
+		return m, nil, true
+
+	case output.ExecutionDoneMsg:
+		m.output, _ = m.output.Update(msg)
+		return m, nil, true
+
+	case wizard.WizardSubmitMsg:
+		m.state = stateNormal
+		m.wizard = nil
+		result, cmd := m.openConfirm(msg.Runbook, msg.Catalog, msg.Params)
+		return result, cmd, true
+
+	case confirm.ConfirmAcceptMsg:
+		m.state = stateNormal
+		m.conf = nil
+		result, cmd := m.startExecution(msg.Runbook, msg.Catalog, msg.Params)
+		return result, cmd, true
+
+	case confirm.ConfirmCancelMsg:
+		m.state = stateNormal
+		m.conf = nil
+		return m, nil, true
+
+	case wizard.WizardCancelMsg:
+		m.state = stateNormal
+		m.wizard = nil
+		return m, nil, true
+
+	case palette.PaletteSelectMsg:
+		m.state = stateNormal
+		m.pal = nil
+		return m, nil, true
+
+	case palette.PaletteCancelMsg:
+		m.state = stateNormal
+		m.pal = nil
+		return m, nil, true
+
+	case copiedFlashMsg:
+		m.copiedFlash = false
+		m.output.SetCopyFlash(false)
+		return m, nil, true
+
+	case output.CopyFlashExpiredMsg:
+		m.output, _ = m.output.Update(msg)
+		return m, nil, true
+
+	case output.CopiedRegionFlashMsg:
+		m.output.SetCopiedHeader(false)
+		m.output.SetCopiedFooter(false)
+		return m, nil, true
+
+	case output.SelectionCompleteMsg:
+		text := m.extractSelectionFromView()
+		if text != "" && m.output.TryCopy() {
+			return m, tea.Batch(
+				tea.SetClipboard(text),
+				tea.Tick(copyFlashDuration, func(time.Time) tea.Msg {
+					return output.CopyFlashExpiredMsg{}
+				}),
+			), true
+		}
+		return m, nil, true
+	}
+
+	return m, nil, false
+}
+
+// routeToComponent forwards messages to the currently active component
+// (sidebar, output, wizard, palette, or confirm overlay).
+func (m App) routeToComponent(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case stateNormal:
-		// Check for click-to-copy targets
+		// Check for click-to-copy targets.
 		if isMouseClick(msg) {
 			if _, cmd := m.handleMetadataClick(msg); cmd != nil {
-				if m.output.TryCopy() {
+				if m.output.TryLock() {
 					m.copiedFlash = true
 					return m, cmd
 				}
@@ -312,16 +407,13 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Route based on focus target.
 		if m.focus == focusOutput {
 			if isMouseMsg(msg) {
-				// Sidebar clicks go to sidebar.
+				// Sidebar clicks still go to sidebar.
 				translated, inSidebar := m.translateMouseForSidebar(msg)
 				if inSidebar {
 					var cmd tea.Cmd
 					m.sidebar, cmd = m.sidebar.Update(translated)
 					return m, cmd
 				}
-				// Pass all mouse events with terminal-absolute coordinates.
-				// The output model stores them as-is for selection.
-				// Highlight is applied by the app on the full rendered view.
 				var cmd tea.Cmd
 				m.output, cmd = m.output.Update(msg)
 				return m, cmd
@@ -332,11 +424,8 @@ func (m App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		translated, inSidebar := m.translateMouseForSidebar(msg)
-		if !inSidebar {
-			// Mouse event outside sidebar — don't forward
-			if isMouseMsg(msg) {
-				return m, nil
-			}
+		if !inSidebar && isMouseMsg(msg) {
+			return m, nil
 		}
 		var cmd tea.Cmd
 		m.sidebar, cmd = m.sidebar.Update(translated)
@@ -378,86 +467,75 @@ func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[st
 	resolved := m.resolveVars()
 	cmdStr := wizard.BuildCommand(rb, params, resolved)
 	m.output.SetCommand(cmdStr)
-	m.resizeAll() // Recompute dimensions after command changes header height
-
-	// Parameter saving is handled per-field in the wizard's "Save for future runs?" prompt.
-	// No auto-save here.
+	m.resizeAll()
 
 	if m.deps.Runner == nil {
 		return m, nil
 	}
 
-	catPath := expandTilde(cat.Path)
-	scriptPath := filepath.Join(catPath, rb.Name, rb.Script)
+	scriptPath := filepath.Join(expandTilde(cat.Path), rb.Name, rb.Script)
 
-	// Dry-run: show resolved command and environment without executing.
 	if m.deps.DryRun {
-		m.output, _ = m.output.Update(output.OutputLineMsg{Text: "[DRY RUN] Would execute:"})
-		m.output, _ = m.output.Update(output.OutputLineMsg{Text: fmt.Sprintf("  Script: %s", scriptPath)})
-		m.output, _ = m.output.Update(output.OutputLineMsg{Text: ""})
-		if len(params) > 0 {
-			m.output, _ = m.output.Update(output.OutputLineMsg{Text: "  Environment:"})
-			for k, v := range params {
-				m.output, _ = m.output.Update(output.OutputLineMsg{
-					Text: fmt.Sprintf("    %s=%s", strings.ToUpper(k), v),
-				})
-			}
-		}
-		m.output, _ = m.output.Update(output.ExecutionDoneMsg{})
+		m.emitDryRun(scriptPath, params)
 		return m, nil
 	}
 
-	var logPath string
-	if m.deps.LogWriter != nil {
-		lp, err := m.deps.LogWriter.Create(cat.Name, rb.Name, time.Now())
-		if err == nil {
-			logPath = lp
-		}
-	}
+	env := buildEnv(params)
+	logPath := m.createLogFile(cat.Name, rb.Name)
 
-	env := make(map[string]string)
-	for k, v := range params {
-		env[strings.ToUpper(k)] = v
-	}
-
-	var prog *tea.Program
-	if m.deps.ProgramRef != nil {
-		prog = m.deps.ProgramRef.P
-	}
-	runner := m.deps.Runner
-	lw := m.deps.LogWriter
-	finalLogPath := logPath
-
-	// Create a cancellable context for ctrl+x stop.
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancelExec = cancel
 	m.execRunning = true
 
-	// If we have a program reference, stream lines live via p.Send().
-	// Otherwise fall back to returning a single done message (e.g. in tests).
-	if prog != nil {
-		go func() {
-			lines, errs := runner.Run(ctx, scriptPath, env)
-			for line := range lines {
-				if lw != nil {
-					lw.WriteLine(line.Text)
-				}
-				prog.Send(output.OutputLineMsg{
-					Text:     line.Text,
-					IsStderr: line.IsStderr,
-				})
-			}
-			if lw != nil {
-				lw.Close()
-			}
-			err := <-errs
-			prog.Send(executionDoneMsg{LogPath: finalLogPath, Err: err})
-		}()
+	// Stream lines live via p.Send() if we have a program reference,
+	// otherwise fall back to a tea.Cmd (tests).
+	if prog := m.program(); prog != nil {
+		go m.runStreaming(ctx, prog, scriptPath, env, logPath)
 		return m, nil
 	}
 
-	// Fallback: no program reference (tests). Collect and return as done msg.
-	return m, func() tea.Msg {
+	return m, m.runBlocking(ctx, scriptPath, env, logPath)
+}
+
+// emitDryRun writes dry-run output to the output pane without executing.
+func (m *App) emitDryRun(scriptPath string, params map[string]string) {
+	m.output, _ = m.output.Update(output.OutputLineMsg{Text: "[DRY RUN] Would execute:"})
+	m.output, _ = m.output.Update(output.OutputLineMsg{Text: fmt.Sprintf("  Script: %s", scriptPath)})
+	m.output, _ = m.output.Update(output.OutputLineMsg{Text: ""})
+	if len(params) > 0 {
+		m.output, _ = m.output.Update(output.OutputLineMsg{Text: "  Environment:"})
+		for k, v := range params {
+			m.output, _ = m.output.Update(output.OutputLineMsg{
+				Text: fmt.Sprintf("    %s=%s", strings.ToUpper(k), v),
+			})
+		}
+	}
+	m.output, _ = m.output.Update(output.ExecutionDoneMsg{})
+}
+
+// runStreaming executes a script in a goroutine, streaming lines to the
+// tea.Program via Send(). Used for live output in the TUI.
+func (m App) runStreaming(ctx context.Context, prog *tea.Program, scriptPath string, env map[string]string, logPath string) {
+	lw := m.deps.LogWriter
+	lines, errs := m.deps.Runner.Run(ctx, scriptPath, env)
+	for line := range lines {
+		if lw != nil {
+			lw.WriteLine(line.Text)
+		}
+		prog.Send(output.OutputLineMsg{Text: line.Text, IsStderr: line.IsStderr})
+	}
+	if lw != nil {
+		lw.Close()
+	}
+	prog.Send(executionDoneMsg{LogPath: logPath, Err: <-errs})
+}
+
+// runBlocking returns a tea.Cmd that executes a script synchronously.
+// Used in tests where no tea.Program reference is available.
+func (m App) runBlocking(ctx context.Context, scriptPath string, env map[string]string, logPath string) tea.Cmd {
+	runner := m.deps.Runner
+	lw := m.deps.LogWriter
+	return func() tea.Msg {
 		lines, errs := runner.Run(ctx, scriptPath, env)
 		for line := range lines {
 			if lw != nil {
@@ -467,9 +545,37 @@ func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[st
 		if lw != nil {
 			lw.Close()
 		}
-		err := <-errs
-		return executionDoneMsg{LogPath: finalLogPath, Err: err}
+		return executionDoneMsg{LogPath: logPath, Err: <-errs}
 	}
+}
+
+// program returns the tea.Program reference, or nil if not set.
+func (m App) program() *tea.Program {
+	if m.deps.ProgramRef != nil {
+		return m.deps.ProgramRef.P
+	}
+	return nil
+}
+
+// createLogFile creates a log file for the execution and returns its path.
+func (m App) createLogFile(catalogName, runbookName string) string {
+	if m.deps.LogWriter == nil {
+		return ""
+	}
+	logPath, err := m.deps.LogWriter.Create(catalogName, runbookName, time.Now())
+	if err != nil {
+		return ""
+	}
+	return logPath
+}
+
+// buildEnv converts parameter keys to uppercase environment variable names.
+func buildEnv(params map[string]string) map[string]string {
+	env := make(map[string]string, len(params))
+	for k, v := range params {
+		env[strings.ToUpper(k)] = v
+	}
+	return env
 }
 
 func (m App) openPalette() (tea.Model, tea.Cmd) {
@@ -507,7 +613,7 @@ func (m App) openConfirm(rb domain.Runbook, cat domain.Catalog, params map[strin
 	if rb.RiskLevel == domain.RiskLow || rb.RiskLevel == domain.RiskMedium || rb.RiskLevel == "" {
 		return m.startExecution(rb, cat, params)
 	}
-	c := confirm.New(rb, cat, params, m.width*2/3, m.deps.Styles)
+	c := confirm.New(rb, cat, params, m.width*overlayWidthRatio/overlayWidthDenom, m.deps.Styles)
 	m.conf = &c
 	m.state = stateConfirm
 	return m, nil
@@ -554,17 +660,7 @@ func (m App) View() tea.View {
 }
 
 func (m App) viewNormal() tea.View {
-	// --- Layout variables (derived from package-level constants) ---
-	footerH    := 1 // footer height
-	gap        := 1 // space between sidebar and right panel
-	borderSize := layoutBorderSize * 2 // top + bottom (or left + right)
-
-	// --- Dimension budget ---
-	innerW    := clamp(m.width - layoutMarginLeft, 1)
-	sw        := sidebarWidth(innerW)
-	rightW    := clamp(innerW - sw - borderSize - gap, 1)
-	contentW  := clamp(rightW - borderSize, 1) // content width inside bordered panels
-	panelRows := clamp(m.height - layoutMarginTop - footerH - layoutMarginBottom, 1)
+	l := m.computeLayout()
 
 	// --- Theme colors ---
 	var borderColor, activeBorderColor color.Color
@@ -575,86 +671,69 @@ func (m App) viewNormal() tea.View {
 		activeBorderColor = m.deps.Styles.BorderActive.GetForeground()
 	}
 
-	// Focus-aware border colors.
+	// --- Sidebar ---
 	sidebarBorderColor := borderColor
 	if m.focus == focusSidebar {
 		sidebarBorderColor = activeBorderColor
 	}
-
-	// --- Sidebar: anchor panel ---
-	sidebarContentH := clamp(panelRows - borderSize - 1, 3) // -1 accounts for border rendering offset
-	m.sidebar.SetHeight(sidebarContentH)
-
+	m.sidebar.SetHeight(l.sidebarContentH)
 	sidebarView := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(sidebarBorderColor).
 		PaddingLeft(1).
-		Width(sw).
-		Height(sidebarContentH).
+		Width(l.sw).
+		Height(l.sidebarContentH).
 		Render(m.sidebar.View())
 
-	sidebarRenderedH := lipgloss.Height(sidebarView)
-
-	// --- Metadata: bordered, auto-height ---
-	metaContent := metadata.Render(m.selected, m.selCat, contentW, m.copiedFlash, m.deps.Styles)
+	// --- Metadata ---
+	metaContent := metadata.Render(m.selected, m.selCat, l.contentW, m.copiedFlash, m.deps.Styles)
 	metaView := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
-		Width(contentW).
+		Width(l.contentW).
 		Render(metaContent)
-
 	if m.copiedFlash {
 		metaView = injectBorderBadge(metaView, "Copied to Clipboard!", m.deps.Styles)
 	}
 
-	metaRenderedH := lipgloss.Height(metaView)
-
-	// --- Output: persistent outer border with content inside ---
+	// --- Output ---
 	outputBorderColor := borderColor
 	if m.focus == focusOutput {
 		outputBorderColor = activeBorderColor
 	}
-	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
-	outputContentH := clamp(outputTotalH-borderSize, 1)
-	outputInnerW := clamp(contentW-borderSize, 1) // content width inside the outer border
 	m.output.SetFocused(m.focus == focusOutput)
 	outputView := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(outputBorderColor).
-		Width(contentW).
-		Height(outputTotalH).
-		Render(m.output.ViewWithSize(outputInnerW, outputContentH))
-
-	// Inject "Copied to Clipboard!" badge into the top border row.
+		Width(l.contentW).
+		Height(l.outputTotalH).
+		Render(m.output.ViewWithSize(l.outputInnerW, l.outputContentH))
 	if m.output.CopyFlash() {
 		outputView = injectBorderBadge(outputView, "Copied to Clipboard!", m.deps.Styles)
 	}
 
-	// --- Compose panels ---
+	// --- Compose ---
 	rightPanel := lipgloss.JoinVertical(lipgloss.Left, metaView, outputView)
-
 	body := lipgloss.NewStyle().
 		MarginLeft(layoutMarginLeft).
 		MarginTop(layoutMarginTop).
 		Render(lipgloss.JoinHorizontal(lipgloss.Top,
 			sidebarView,
-			strings.Repeat(" ", gap),
+			strings.Repeat(" ", l.gap),
 			rightPanel,
 		))
 
-	// --- Footer ---
 	footerView := lipgloss.NewStyle().
 		MarginLeft(layoutMarginLeft - 1).
 		Render(footer.Render(appFooterState(m.state), m.width-layoutMarginLeft, m.deps.Styles))
 
-	// --- Outer container: enforce exact terminal dimensions ---
 	content := lipgloss.JoinVertical(lipgloss.Left, body, footerView)
 	content = lipgloss.NewStyle().
 		Width(m.width).
 		Height(m.height).
 		Render(content)
 
-	// --- Apply selection highlight confined to the output pane ---
+	// Selection highlight confined to the output pane.
 	sel := m.output.Selection()
 	if sel.Active && !sel.IsEmpty() {
 		bTop, bBottom, bLeft, bRight := m.outputPaneBounds()
@@ -686,9 +765,9 @@ func (m App) viewHelpOverlay() tea.View {
 func (m App) viewConfirmOverlay() tea.View {
 	confView := m.conf.View()
 
-	overlayW := m.width * 2 / 3
-	if overlayW < 50 {
-		overlayW = 50
+	overlayW := m.width * overlayWidthRatio / overlayWidthDenom
+	if overlayW < overlayMinWidth {
+		overlayW = overlayMinWidth
 	}
 
 	// Same style as wizard: left accent bar + panel background.
@@ -722,9 +801,9 @@ func (m App) viewConfirmOverlay() tea.View {
 func (m App) viewWizardOverlay() tea.View {
 	wizView := m.wizard.View()
 
-	overlayW := m.width * 2 / 3
-	if overlayW < 50 {
-		overlayW = 50
+	overlayW := m.width * overlayWidthRatio / overlayWidthDenom
+	if overlayW < overlayMinWidth {
+		overlayW = overlayMinWidth
 	}
 
 	// Left accent bar only — thick border on left side, panel background.
@@ -783,17 +862,9 @@ func clamp(v, min int) int {
 // translateMouseForOutput converts terminal-absolute mouse coordinates to
 // output content-relative coordinates (inside the output border).
 func (m App) translateMouseForOutput(msg tea.Msg) tea.Msg {
-	innerW := clamp(m.width-layoutMarginLeft, 1)
-	sw := sidebarWidth(innerW) + layoutBorderSize*2 + layoutPadLeft
-	originX := layoutMarginLeft + sw + 1 + layoutBorderSize // gap + border
-	// Metadata height varies; compute it.
-	borderSize := layoutBorderSize * 2
-	rightW := clamp(innerW-sidebarWidth(innerW)-borderSize-1, 1)
-	contentW := clamp(rightW-borderSize, 1)
-	metaContent := metadata.Render(m.selected, m.selCat, contentW, m.copiedFlash, m.deps.Styles)
-	metaView := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(contentW).Render(metaContent)
-	metaH := lipgloss.Height(metaView)
-	originY := layoutMarginTop + metaH + layoutBorderSize // below metadata + output border
+	l := m.computeLayout()
+	originX := layoutMarginLeft + l.sidebarRenderedW + l.gap + layoutBorderSize
+	originY := layoutMarginTop + l.metaRenderedH + layoutBorderSize
 
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
@@ -816,45 +887,17 @@ func (m App) translateMouseForOutput(msg tea.Msg) tea.Msg {
 	return msg
 }
 
-// extractSelectionFromView extracts plain text from the selection using
-// the full rendered terminal view. Terminal-absolute coordinates map
-// directly to rows/columns in the rendered content.
-// outputPaneBounds computes the output pane's terminal-absolute bounds.
+// outputPaneBounds computes the output pane's terminal-absolute bounds
+// for selection highlight and text extraction confinement.
 func (m App) outputPaneBounds() (top, bottom, left, right int) {
-	gap := 1
-	borderSize := layoutBorderSize * 2
-	innerW := clamp(m.width-layoutMarginLeft, 1)
-	sw := sidebarWidth(innerW)
-	rightW := clamp(innerW-sw-borderSize-gap, 1)
-	contentW := clamp(rightW-borderSize, 1)
-	panelRows := clamp(m.height-layoutMarginTop-1-layoutMarginBottom, 1)
-	sidebarContentH := clamp(panelRows-borderSize-1, 3)
-
-	sidebarView := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		PaddingLeft(1).
-		Width(sw).
-		Height(sidebarContentH).
-		Render("")
-	sidebarRenderedW := lipgloss.Width(sidebarView)
-
-	metaContent := metadata.Render(m.selected, m.selCat, contentW, m.copiedFlash, m.deps.Styles)
-	metaView := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Width(contentW).Render(metaContent)
-	metaRenderedH := lipgloss.Height(metaView)
-	sidebarRenderedH := sidebarContentH + borderSize
-	outputTotalH := clamp(sidebarRenderedH-metaRenderedH, 3)
-	outputContentH := clamp(outputTotalH-borderSize, 1)
-
-	// Output inner content area: border(1) + padX(1) + indent(2) + text + scrollbar(1) + padX(1) + border(1)
-	// We want just the text area: after border + padX + indent, before scrollbar + padX + border.
-	outputInnerW := clamp(contentW-borderSize, 1) // inside outer border
+	l := m.computeLayout()
 	padX := 1
-	logW := max(1, outputInnerW-padX*2-1) // -padX*2 for left/right pad, -1 for scrollbar
+	logW := max(1, l.outputInnerW-padX*2-1) // -padX*2 for left/right pad, -1 for scrollbar
 
-	left = layoutMarginLeft + sidebarRenderedW + gap + layoutBorderSize + padX
+	left = layoutMarginLeft + l.sidebarRenderedW + l.gap + layoutBorderSize + padX
 	right = left + logW
-	top = layoutMarginTop + metaRenderedH + layoutBorderSize
-	bottom = top + outputContentH
+	top = layoutMarginTop + l.metaRenderedH + layoutBorderSize
+	bottom = top + l.outputContentH
 	return
 }
 
@@ -1015,65 +1058,74 @@ func injectBorderBadge(rendered, text string, styles *theme.Styles) string {
 
 func sidebarWidth(totalWidth int) int {
 	w := totalWidth / 3
-	if w < 30 {
-		w = 30
+	if w < sidebarMinWidth {
+		w = sidebarMinWidth
 	}
-	if w > 50 {
-		w = 50
+	if w > sidebarMaxWidth {
+		w = sidebarMaxWidth
 	}
 	return w
 }
 
-// translateMouseForSidebar converts terminal-absolute mouse coordinates to
-// sidebar content-relative coordinates (Y=0 is the first item row).
-// Returns the translated message and whether the click was within the sidebar bounds.
-func (m App) translateMouseForSidebar(msg tea.Msg) (tea.Msg, bool) {
-	originY := layoutMarginTop + layoutBorderSize
-	originX := layoutMarginLeft + layoutBorderSize + layoutPadLeft
+// sidebarBounds returns the origin and whether coordinates are within the sidebar.
+func (m App) sidebarBounds(mx, my int) (originX, originY int, inBounds bool) {
+	originY = layoutMarginTop + layoutBorderSize
+	originX = layoutMarginLeft + layoutBorderSize + layoutPadLeft
 	innerW := clamp(m.width-layoutMarginLeft, 1)
-	sw := sidebarWidth(innerW) + layoutBorderSize*2 + layoutPadLeft // total sidebar width including border+pad
+	sw := sidebarWidth(innerW) + layoutBorderSize*2 + layoutPadLeft
+	inBounds = mx >= layoutMarginLeft && mx < layoutMarginLeft+sw &&
+		my >= layoutMarginTop && my < m.height
+	return
+}
+
+// translateMouseForSidebar converts terminal-absolute mouse coordinates to
+// sidebar content-relative coordinates. Returns translated msg and inBounds.
+func (m App) translateMouseForSidebar(msg tea.Msg) (tea.Msg, bool) {
+	mx, my, ok := mouseCoords(msg)
+	if !ok {
+		return msg, false
+	}
+	originX, originY, inBounds := m.sidebarBounds(mx, my)
 
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
-		inBounds := msg.X >= layoutMarginLeft && msg.X < layoutMarginLeft+sw &&
-			msg.Y >= layoutMarginTop && msg.Y < m.height
 		msg.X -= originX
 		msg.Y -= originY
 		return msg, inBounds
 	case tea.MouseMotionMsg:
-		inBounds := msg.X >= layoutMarginLeft && msg.X < layoutMarginLeft+sw &&
-			msg.Y >= layoutMarginTop && msg.Y < m.height
 		msg.X -= originX
 		msg.Y -= originY
 		return msg, inBounds
 	case tea.MouseReleaseMsg:
-		inBounds := msg.X >= layoutMarginLeft && msg.X < layoutMarginLeft+sw &&
-			msg.Y >= layoutMarginTop && msg.Y < m.height
 		msg.X -= originX
 		msg.Y -= originY
 		return msg, inBounds
 	case tea.MouseWheelMsg:
-		inBounds := msg.X >= layoutMarginLeft && msg.X < layoutMarginLeft+sw &&
-			msg.Y >= layoutMarginTop && msg.Y < m.height
 		return msg, inBounds
 	}
 	return msg, false
 }
 
-// focusTargetFromMouse returns which pane a mouse event is over.
-// Returns the target and true if the event is a mouse event, false otherwise.
-func (m App) focusTargetFromMouse(msg tea.Msg) (focusTarget, bool) {
-	var mx, my int
+// mouseCoords extracts X, Y from any mouse message type.
+// Returns (0, 0, false) if msg is not a mouse event.
+func mouseCoords(msg tea.Msg) (x, y int, ok bool) {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
-		mx, my = msg.X, msg.Y
+		return msg.X, msg.Y, true
 	case tea.MouseReleaseMsg:
-		mx, my = msg.X, msg.Y
+		return msg.X, msg.Y, true
 	case tea.MouseMotionMsg:
-		mx, my = msg.X, msg.Y
+		return msg.X, msg.Y, true
 	case tea.MouseWheelMsg:
-		mx, my = msg.X, msg.Y
-	default:
+		return msg.X, msg.Y, true
+	}
+	return 0, 0, false
+}
+
+// focusTargetFromMouse returns which pane a mouse event is over.
+func (m App) focusTargetFromMouse(msg tea.Msg) (focusTarget, bool) {
+	mx, my, ok := mouseCoords(msg)
+	if !ok {
 		return 0, false
 	}
 
@@ -1120,39 +1172,15 @@ func (m App) handleMetadataClick(msg tea.Msg) (string, tea.Cmd) {
 		return "", nil
 	}
 
-	// Replicate viewNormal layout to get exact pixel positions
-	innerW := clamp(m.width-layoutMarginLeft, 1)
-	sw := sidebarWidth(innerW)
-	gap := 1
-	borderSize := layoutBorderSize * 2
-	rightW := clamp(innerW-sw-borderSize-gap, 1)
-	contentW := clamp(rightW-borderSize, 1)
+	l := m.computeLayout()
 
-	// Render sidebar to measure its actual width
-	sidebarView := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		PaddingLeft(layoutPadLeft).
-		Width(sw).
-		Render("")
-	sidebarRenderedW := lipgloss.Width(sidebarView)
-
-	// Render metadata to measure its actual height
-	metaContent := metadata.Render(m.selected, m.selCat, contentW, false, m.deps.Styles)
-	metaView := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		Width(contentW).
-		Render(metaContent)
-	metaH := lipgloss.Height(metaView)
-
-	metaYStart := layoutMarginTop
-	// Path is the last content line before bottom border
-	pathLineY := metaYStart + metaH - layoutBorderSize - 1
+	// Path is the last content line before the bottom border.
+	pathLineY := layoutMarginTop + l.metaRenderedH - layoutBorderSize - 1
 	if click.Y != pathLineY {
 		return "", nil
 	}
 
-	// Path text X: marginLeft + sidebar width + gap + metadata border left + leading space
-	pathXStart := layoutMarginLeft + sidebarRenderedW + gap + layoutBorderSize + 1
+	pathXStart := layoutMarginLeft + l.sidebarRenderedW + l.gap + layoutBorderSize + 1
 	pathXEnd := pathXStart + len(location)
 	if click.X < pathXStart || click.X >= pathXEnd {
 		return "", nil
@@ -1160,8 +1188,7 @@ func (m App) handleMetadataClick(msg tea.Msg) (string, tea.Cmd) {
 
 	return location, tea.Batch(
 		tea.SetClipboard(location),
-		// Green flash on metadata path (1.5s).
-		tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
+		tea.Tick(copyFlashDuration, func(time.Time) tea.Msg {
 			return copiedFlashMsg{}
 		}),
 	)
@@ -1175,7 +1202,7 @@ func (m *App) handleOutputClick(msg tea.Msg) tea.Cmd {
 		return nil
 	}
 
-	lines := strings.Split(tuiANSIPattern.ReplaceAllString(m.viewNormal().Content, ""), "\n")
+	lines := strings.Split(ansi.Strip(m.viewNormal().Content), "\n")
 	if click.Y < 0 || click.Y >= len(lines) {
 		return nil
 	}
@@ -1218,11 +1245,11 @@ func (m *App) handleOutputClick(msg tea.Msg) tea.Cmd {
 	return tea.Batch(
 		tea.SetClipboard(copyText),
 		// Short highlight flash (500ms).
-		tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
+		tea.Tick(copyFlashDuration, func(time.Time) tea.Msg {
 			return output.CopiedRegionFlashMsg{}
 		}),
 		// Badge stays longer (1.5s).
-		tea.Tick(1500*time.Millisecond, func(time.Time) tea.Msg {
+		tea.Tick(copyFlashDuration, func(time.Time) tea.Msg {
 			return output.CopyFlashExpiredMsg{}
 		}),
 	)

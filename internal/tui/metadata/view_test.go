@@ -2,33 +2,10 @@ package metadata
 
 import (
 	"dops/internal/domain"
-	"dops/internal/theme"
+	"dops/internal/testutil"
 	"strings"
 	"testing"
 )
-
-func metadataTestStyles() *theme.Styles {
-	return theme.BuildStyles(&theme.ResolvedTheme{
-		Name: "test",
-		Colors: map[string]string{
-			"background":        "#1a1b26",
-			"backgroundPanel":   "#1f2335",
-			"backgroundElement": "#292e42",
-			"text":              "#c0caf5",
-			"textMuted":         "#565f89",
-			"primary":           "#7aa2f7",
-			"border":            "#3b4261",
-			"borderActive":      "#7aa2f7",
-			"success":           "#9ece6a",
-			"warning":           "#e0af68",
-			"error":             "#f7768e",
-			"risk.low":          "#9ece6a",
-			"risk.medium":       "#e0af68",
-			"risk.high":         "#f7768e",
-			"risk.critical":     "#db4b4b",
-		},
-	})
-}
 
 func TestRender(t *testing.T) {
 	rb := &domain.Runbook{
@@ -40,7 +17,7 @@ func TestRender(t *testing.T) {
 	}
 
 	cat := &domain.Catalog{Name: "default", Path: "~/.dops/catalogs/default"}
-	out := Render(rb, cat, 40, false, metadataTestStyles())
+	out := Render(rb, cat, 40, false, testutil.TestStyles())
 
 	if !strings.Contains(out, "hello-world") {
 		t.Error("output should contain runbook name")
@@ -66,7 +43,7 @@ func TestRender_GitCatalog(t *testing.T) {
 		RiskLevel: domain.RiskHigh,
 	}
 	cat := &domain.Catalog{Name: "public", URL: "https://github.com/org/public-catalog"}
-	out := Render(rb, cat, 50, false, metadataTestStyles())
+	out := Render(rb, cat, 50, false, testutil.TestStyles())
 
 	if !strings.Contains(out, "public-catalog") {
 		t.Error("output should contain catalog URL")
@@ -80,7 +57,7 @@ func TestRender_CopiedFlash(t *testing.T) {
 		RiskLevel: domain.RiskLow,
 	}
 	cat := &domain.Catalog{Name: "default", Path: "~/.dops/catalogs/default"}
-	out := Render(rb, cat, 40, true, metadataTestStyles())
+	out := Render(rb, cat, 40, true, testutil.TestStyles())
 
 	// Path should still be visible (flashed green, not replaced).
 	if !strings.Contains(out, "runbook.yaml") {
@@ -89,7 +66,7 @@ func TestRender_CopiedFlash(t *testing.T) {
 }
 
 func TestRender_Nil(t *testing.T) {
-	out := Render(nil, nil, 40, false, metadataTestStyles())
+	out := Render(nil, nil, 40, false, testutil.TestStyles())
 	if len(out) == 0 {
 		t.Error("nil runbook should still produce output")
 	}

@@ -1,6 +1,7 @@
 package output
 
 import (
+	"dops/internal/testutil"
 	"strings"
 	"testing"
 
@@ -8,7 +9,7 @@ import (
 )
 
 func populatedModel() Model {
-	m := New(60, 20, outputTestStyles())
+	m := New(60, 20, testutil.TestStyles())
 	m.SetCommand("dops run default.hello-world")
 	lines := []string{
 		"starting deploy",
@@ -58,12 +59,12 @@ func typeOutputSearch(m Model, query string) Model {
 func TestOutputSearch_ActivateWithSlash(t *testing.T) {
 	m := populatedModel()
 
-	if m.searching {
+	if m.Searching() {
 		t.Fatal("should not be searching initially")
 	}
 
 	m = pressOutputKey(m, "/")
-	if !m.searching {
+	if !m.Searching() {
 		t.Fatal("should be searching after /")
 	}
 }
@@ -73,8 +74,8 @@ func TestOutputSearch_FindsMatches(t *testing.T) {
 	m = typeOutputSearch(m, "deploy")
 
 	// "deploy" appears in lines: 0 (starting deploy), 1 (deploying...), 2 (deploy complete), 4 (deploy verified)
-	if m.matchCount != 4 {
-		t.Errorf("matchCount = %d, want 4", m.matchCount)
+	if m.MatchCount() != 4 {
+		t.Errorf("matchCount = %d, want 4", m.MatchCount())
 	}
 }
 
@@ -82,8 +83,8 @@ func TestOutputSearch_NoMatches(t *testing.T) {
 	m := populatedModel()
 	m = typeOutputSearch(m, "zzzznothing")
 
-	if m.matchCount != 0 {
-		t.Errorf("matchCount = %d, want 0", m.matchCount)
+	if m.MatchCount() != 0 {
+		t.Errorf("matchCount = %d, want 0", m.MatchCount())
 	}
 }
 
@@ -94,18 +95,18 @@ func TestOutputSearch_NavigateNext(t *testing.T) {
 	// Confirm search to enter nav mode
 	m = pressOutputKey(m, "enter")
 
-	if m.matchIndex != 0 {
-		t.Errorf("initial matchIndex = %d, want 0", m.matchIndex)
+	if m.MatchIndex() != 0 {
+		t.Errorf("initial matchIndex = %d, want 0", m.MatchIndex())
 	}
 
 	m = pressOutputKey(m, "n")
-	if m.matchIndex != 1 {
-		t.Errorf("after n: matchIndex = %d, want 1", m.matchIndex)
+	if m.MatchIndex() != 1 {
+		t.Errorf("after n: matchIndex = %d, want 1", m.MatchIndex())
 	}
 
 	m = pressOutputKey(m, "n")
-	if m.matchIndex != 2 {
-		t.Errorf("after 2nd n: matchIndex = %d, want 2", m.matchIndex)
+	if m.MatchIndex() != 2 {
+		t.Errorf("after 2nd n: matchIndex = %d, want 2", m.MatchIndex())
 	}
 }
 
@@ -117,14 +118,14 @@ func TestOutputSearch_NavigatePrev(t *testing.T) {
 	// Go forward twice
 	m = pressOutputKey(m, "n")
 	m = pressOutputKey(m, "n")
-	if m.matchIndex != 2 {
-		t.Fatalf("matchIndex = %d, want 2", m.matchIndex)
+	if m.MatchIndex() != 2 {
+		t.Fatalf("matchIndex = %d, want 2", m.MatchIndex())
 	}
 
 	// Go back
 	m = pressOutputKey(m, "N")
-	if m.matchIndex != 1 {
-		t.Errorf("after N: matchIndex = %d, want 1", m.matchIndex)
+	if m.MatchIndex() != 1 {
+		t.Errorf("after N: matchIndex = %d, want 1", m.MatchIndex())
 	}
 }
 
@@ -134,18 +135,18 @@ func TestOutputSearch_WrapAround(t *testing.T) {
 	m = pressOutputKey(m, "enter")
 
 	// Navigate to last match
-	for i := 0; i < m.matchCount-1; i++ {
+	for i := 0; i < m.MatchCount()-1; i++ {
 		m = pressOutputKey(m, "n")
 	}
 
-	if m.matchIndex != m.matchCount-1 {
-		t.Fatalf("matchIndex = %d, want %d", m.matchIndex, m.matchCount-1)
+	if m.MatchIndex() != m.MatchCount()-1 {
+		t.Fatalf("matchIndex = %d, want %d", m.MatchIndex(), m.MatchCount()-1)
 	}
 
 	// Next should wrap to 0
 	m = pressOutputKey(m, "n")
-	if m.matchIndex != 0 {
-		t.Errorf("after wrap: matchIndex = %d, want 0", m.matchIndex)
+	if m.MatchIndex() != 0 {
+		t.Errorf("after wrap: matchIndex = %d, want 0", m.MatchIndex())
 	}
 }
 
@@ -156,8 +157,8 @@ func TestOutputSearch_WrapAroundPrev(t *testing.T) {
 
 	// At index 0, go prev should wrap to last
 	m = pressOutputKey(m, "N")
-	if m.matchIndex != m.matchCount-1 {
-		t.Errorf("after wrap prev: matchIndex = %d, want %d", m.matchIndex, m.matchCount-1)
+	if m.MatchIndex() != m.MatchCount()-1 {
+		t.Errorf("after wrap prev: matchIndex = %d, want %d", m.MatchIndex(), m.MatchCount()-1)
 	}
 }
 
@@ -168,14 +169,14 @@ func TestOutputSearch_EscapeClears(t *testing.T) {
 
 	m = pressOutputKey(m, "escape")
 
-	if m.searching {
+	if m.Searching() {
 		t.Error("should not be searching after escape")
 	}
-	if m.navigating {
+	if m.Navigating() {
 		t.Error("should not be navigating after escape")
 	}
-	if m.matchCount != 0 {
-		t.Errorf("matchCount should be 0 after escape, got %d", m.matchCount)
+	if m.MatchCount() != 0 {
+		t.Errorf("matchCount should be 0 after escape, got %d", m.MatchCount())
 	}
 }
 
@@ -191,16 +192,16 @@ func TestOutputSearch_ViewShowsCounter(t *testing.T) {
 }
 
 func TestOutputSearch_EmptyBuffer(t *testing.T) {
-	m := New(60, 20, outputTestStyles())
+	m := New(60, 20, testutil.TestStyles())
 	m = typeOutputSearch(m, "anything")
 
-	if m.matchCount != 0 {
-		t.Errorf("matchCount = %d on empty buffer", m.matchCount)
+	if m.MatchCount() != 0 {
+		t.Errorf("matchCount = %d on empty buffer", m.MatchCount())
 	}
 }
 
 func TestOutputSearch_ScrollbarWhenContentExceedsHeight(t *testing.T) {
-	m := New(60, 5, outputTestStyles())
+	m := New(60, 5, testutil.TestStyles())
 	m.SetCommand("test")
 	for i := 0; i < 20; i++ {
 		m, _ = m.Update(OutputLineMsg{Text: "line", IsStderr: false})

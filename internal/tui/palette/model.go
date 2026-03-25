@@ -39,6 +39,9 @@ func defaultCommands() []PaletteCommand {
 	}
 }
 
+// Test query method.
+func (m Model) Cursor() int { return m.cursor }
+
 func (m Model) Init() tea.Cmd {
 	return nil
 }
