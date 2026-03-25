@@ -9,19 +9,19 @@ parameters:
     required: true
     description: Target deployment environment
     options: [dev, staging, prod]
-    scope: runbook
+    scope: local
     default: staging
   - name: version
     type: string
     required: true
     description: Semver tag to deploy (e.g. v1.2.3)
-    scope: runbook
+    scope: local
   - name: features
     type: multi_select
     required: true
     description: Platform features to enable
     options: [logging, monitoring, tracing, alerting]
-    scope: runbook
+    scope: local
   - name: api_token
     type: string
     required: true
@@ -32,5 +32,5 @@ parameters:
     type: boolean
     required: false
     description: Simulate the deploy without applying changes
-    scope: runbook
+    scope: local
     default: false
