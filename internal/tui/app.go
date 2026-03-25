@@ -22,6 +22,7 @@ import (
 	"dops/internal/tui/palette"
 	"dops/internal/tui/sidebar"
 	"dops/internal/tui/wizard"
+	"dops/internal/update"
 	"dops/internal/vars"
 
 	tea "charm.land/bubbletea/v2"
@@ -162,9 +163,16 @@ type AppDeps struct {
 	AltScreen  bool
 	DryRun     bool
 	ProgramRef *ProgramRef
+	Version    string // current build version for update checks
+	DopsDir    string // ~/.dops directory for cache files
 }
 
 type copiedFlashMsg struct{}
+
+// updateAvailableMsg is sent when a newer version of dops is found.
+type updateAvailableMsg struct {
+	Version string
+}
 
 type App struct {
 	sidebar     sidebar.Model
@@ -178,10 +186,11 @@ type App struct {
 	state       viewState
 	width       int
 	height      int
-	copiedFlash  bool // show "Copied to Clipboard!" in metadata
-	focus        focusTarget
-	cancelExec   context.CancelFunc
-	execRunning  bool
+	copiedFlash      bool // show "Copied to Clipboard!" in metadata
+	focus            focusTarget
+	cancelExec       context.CancelFunc
+	execRunning      bool
+	updateAvailable  string // non-empty if a newer version exists (e.g. "0.2.0")
 }
 
 func NewApp(catalogs []catalog.CatalogWithRunbooks, styles *theme.Styles) App {
@@ -216,7 +225,21 @@ func (m App) Output() output.Model            { return m.output }
 
 
 func (m App) Init() tea.Cmd {
-	return m.sidebar.Init()
+	cmds := []tea.Cmd{m.sidebar.Init()}
+
+	if m.deps.Version != "" && m.deps.DopsDir != "" {
+		version := m.deps.Version
+		dopsDir := m.deps.DopsDir
+		cmds = append(cmds, func() tea.Msg {
+			r := update.Check(version, dopsDir)
+			if r.Available {
+				return updateAvailableMsg{Version: r.Latest}
+			}
+			return nil
+		})
+	}
+
+	return tea.Batch(cmds...)
 }
 
 // resizeAll computes layout dimensions from the current terminal size and
@@ -382,6 +405,10 @@ func (m App) handleAppMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 				}),
 			), true
 		}
+		return m, nil, true
+
+	case updateAvailableMsg:
+		m.updateAvailable = msg.Version
 		return m, nil, true
 	}
 
@@ -724,18 +751,22 @@ func (m App) viewNormal() tea.View {
 
 	// --- Compose ---
 	rightPanel := lipgloss.JoinVertical(lipgloss.Left, metaView, outputView)
+	panels := lipgloss.JoinHorizontal(lipgloss.Top,
+		sidebarView,
+		strings.Repeat(" ", l.gap),
+		rightPanel,
+	)
 	body := lipgloss.NewStyle().
 		MarginLeft(layoutMarginLeft).
 		MarginTop(layoutMarginTop).
-		Render(lipgloss.JoinHorizontal(lipgloss.Top,
-			sidebarView,
-			strings.Repeat(" ", l.gap),
-			rightPanel,
-		))
+		Render(panels)
 
+	// Measure the actual rendered panel width so the footer's update badge
+	// right-aligns exactly with the output pane's right border.
+	footerW := lipgloss.Width(panels) - 1 // align badge inside the output pane's right border
 	footerView := lipgloss.NewStyle().
 		MarginLeft(layoutMarginLeft - 1).
-		Render(footer.Render(appFooterState(m.state), m.width-layoutMarginLeft, m.deps.Styles))
+		Render(footer.Render(appFooterState(m.state), footerW, m.deps.Styles, m.updateAvailable))
 
 	content := lipgloss.JoinVertical(lipgloss.Left, body, footerView)
 	content = lipgloss.NewStyle().
@@ -766,7 +797,7 @@ func (m App) viewHelpOverlay() tea.View {
 		helpView,
 	)
 
-	footerView := footer.Render(footer.StateHelp, m.width, m.deps.Styles)
+	footerView := footer.Render(footer.StateHelp, m.width, m.deps.Styles, "")
 	content = lipgloss.JoinVertical(lipgloss.Left, content, footerView)
 
 	return tea.NewView(content)
@@ -798,7 +829,7 @@ func (m App) viewConfirmOverlay() tea.View {
 		overlay,
 	)
 
-	footerView := footer.Render(footer.StateConfirm, m.width, m.deps.Styles)
+	footerView := footer.Render(footer.StateConfirm, m.width, m.deps.Styles, "")
 	content = lipgloss.JoinVertical(lipgloss.Left, content, footerView)
 
 	return tea.NewView(content)
@@ -831,7 +862,7 @@ func (m App) viewWizardOverlay() tea.View {
 		overlay,
 	)
 
-	footerView := footer.Render(footer.StateWizard, m.width, m.deps.Styles)
+	footerView := footer.Render(footer.StateWizard, m.width, m.deps.Styles, "")
 	content = lipgloss.JoinVertical(lipgloss.Left, content, footerView)
 
 	return tea.NewView(content)
@@ -844,7 +875,7 @@ func (m App) viewPaletteOverlay() tea.View {
 		Width(m.width).
 		Render(palView)
 
-	footerView := footer.Render(footer.StatePalette, m.width, m.deps.Styles)
+	footerView := footer.Render(footer.StatePalette, m.width, m.deps.Styles, "")
 	content := lipgloss.JoinVertical(lipgloss.Left, overlay, footerView)
 
 	return tea.NewView(content)
@@ -1058,6 +1089,7 @@ func injectBorderBadge(rendered, text string, styles *theme.Styles) string {
 
 	return strings.Join(lines, "\n")
 }
+
 
 func sidebarWidth(totalWidth int) int {
 	w := totalWidth / 3

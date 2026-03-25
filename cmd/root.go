@@ -92,6 +92,8 @@ func launchTUI(dopsDir string) error {
 		Catalogs:   catalogs,
 		AltScreen:  altScreen,
 		ProgramRef: progRef,
+		Version:    version,
+		DopsDir:    dopsDir,
 	})
 	p := tea.NewProgram(app)
 	progRef.P = p

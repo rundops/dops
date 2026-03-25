@@ -22,7 +22,9 @@ type binding struct {
 	desc string
 }
 
-func Render(state State, width int, styles *theme.Styles) string {
+// Render returns the footer bar with keybindings on the left.
+// If updateVersion is non-empty, a right-aligned update notice is appended.
+func Render(state State, width int, styles *theme.Styles, updateVersion string) string {
 	var bindings []binding
 
 	switch state {
@@ -66,24 +68,46 @@ func Render(state State, width int, styles *theme.Styles) string {
 
 	keyStyle := lipgloss.NewStyle()
 	descStyle := lipgloss.NewStyle()
-	barStyle := lipgloss.NewStyle().Width(width)
 
 	if styles != nil {
 		keyStyle = styles.Primary
 		descStyle = styles.TextMuted
 	}
 
-	var content string
+	var left string
 	for i, b := range bindings {
 		if i > 0 {
-			content += descStyle.Render(" • ")
+			left += descStyle.Render(" • ")
 		}
 		if b.key != "" {
-			content += keyStyle.Render(b.key) + " " + descStyle.Render(b.desc)
+			left += keyStyle.Render(b.key) + " " + descStyle.Render(b.desc)
 		} else {
-			content += descStyle.Render(b.desc)
+			left += descStyle.Render(b.desc)
 		}
 	}
+	left = "  " + left
 
-	return barStyle.Render("  " + content)
+	if updateVersion == "" {
+		return lipgloss.NewStyle().Width(width).Render(left)
+	}
+
+	// Build right-aligned update notice.
+	warnStyle := lipgloss.NewStyle()
+	boldStyle := lipgloss.NewStyle().Bold(true)
+	if styles != nil {
+		warnStyle = styles.Warning
+		boldStyle = styles.Warning.Bold(true)
+	}
+	right := warnStyle.Render("Update available! Run: ") + boldStyle.Render("brew upgrade dops")
+
+	rightW := lipgloss.Width(right)
+	leftW := lipgloss.Width(left)
+	gap := width - leftW - rightW
+	if gap < 1 {
+		// Not enough room — just show keybindings.
+		return lipgloss.NewStyle().Width(width).Render(left)
+	}
+
+	row := left + lipgloss.NewStyle().Width(gap).Render("") + right
+	return lipgloss.NewStyle().Width(width).Render(row)
 }
