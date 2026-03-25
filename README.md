@@ -237,6 +237,16 @@ make docker      # Build Docker image
 make ci          # Run CI checks (vet + test + build)
 ```
 
+## Support
+
+If you find dops useful, consider [buying me a coffee](https://buymeacoffee.com/jacobhuemmer)!
+
+<p align="center">
+  <a href="https://buymeacoffee.com/jacobhuemmer">
+    <img src="assets/buymeacoffee.png" alt="Buy Me a Coffee" width="200" />
+  </a>
+</p>
+
 ## License
 
 MIT
