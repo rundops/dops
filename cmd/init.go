@@ -74,7 +74,7 @@ func runInit(cmd *cobra.Command, dopsDir string) error {
 		}
 
 		rbPath := filepath.Join(rbDir, "runbook.yaml")
-		if err := os.WriteFile(rbPath, []byte(helloWorldRunbook), 0o644); err != nil {
+		if err := os.WriteFile(rbPath, []byte(helloWorldRunbook), 0o600); err != nil {
 			return fmt.Errorf("write runbook.yaml: %w", err)
 		}
 
