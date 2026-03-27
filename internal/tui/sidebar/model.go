@@ -382,12 +382,9 @@ func (m Model) View() string {
 
 	needsScrollbar := totalLines > visibleLines
 
-	trackStyle := lipgloss.NewStyle()
 	thumbStyle := lipgloss.NewStyle()
 	if m.styles != nil {
-		bg := m.styles.BackgroundElem.GetForeground()
-		trackStyle = lipgloss.NewStyle().Background(bg)
-		thumbStyle = lipgloss.NewStyle().Background(bg).Foreground(m.styles.Primary.GetForeground())
+		thumbStyle = m.styles.TextMuted
 	}
 
 	var b strings.Builder
@@ -396,7 +393,7 @@ func (m Model) View() string {
 			if isScrollThumb(i+start, totalLines, visibleLines) {
 				b.WriteString(line + " " + thumbStyle.Render("▐") + "\n")
 			} else {
-				b.WriteString(line + " " + trackStyle.Render(" ") + "\n")
+				b.WriteString(line + "  \n")
 			}
 		} else {
 			b.WriteString(line + "\n")
