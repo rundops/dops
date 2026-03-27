@@ -172,22 +172,14 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 				return fmt.Errorf("git clone failed: %w", err)
 			}
 
-			// Validate sub-path exists if specified.
+			// Validate sub-path stays within the cloned repository.
 			if subPath != "" {
-				// Sanitize: resolve to a clean relative path and reject traversal.
-				cleaned := filepath.Clean(subPath)
-				if filepath.IsAbs(cleaned) || strings.HasPrefix(cleaned, "..") {
+				validated, err := validateSubPath(targetDir, subPath)
+				if err != nil {
 					_ = os.RemoveAll(targetDir)
-					return fmt.Errorf("sub-path %q must be a relative path within the repository", subPath)
+					return err
 				}
-				subPath = cleaned
-
-				sp := filepath.Join(targetDir, subPath)
-				info, err := os.Stat(sp)
-				if err != nil || !info.IsDir() {
-					_ = os.RemoveAll(targetDir)
-					return fmt.Errorf("sub-path %q does not exist in repository", subPath)
-				}
+				subPath = validated
 			}
 
 			// Add to config.
@@ -252,6 +244,36 @@ func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// validateSubPath ensures sub stays inside root by resolving symlinks and
+// checking the absolute prefix. Returns the cleaned relative path.
+func validateSubPath(root, sub string) (string, error) {
+	cleaned := filepath.Clean(sub)
+	if filepath.IsAbs(cleaned) || strings.HasPrefix(cleaned, "..") {
+		return "", fmt.Errorf("sub-path %q must be a relative path within the repository", sub)
+	}
+
+	// Resolve to an absolute, symlink-free path and verify containment.
+	absRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve root: %w", err)
+	}
+	candidate := filepath.Join(absRoot, cleaned)
+	resolved, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return "", fmt.Errorf("sub-path %q does not exist in repository", sub)
+	}
+	if !strings.HasPrefix(resolved, absRoot+string(filepath.Separator)) {
+		return "", fmt.Errorf("sub-path %q escapes the repository", sub)
+	}
+
+	info, err := os.Stat(resolved)
+	if err != nil || !info.IsDir() {
+		return "", fmt.Errorf("sub-path %q is not a directory", sub)
+	}
+
+	return cleaned, nil
 }
 
 func loadConfig(dopsDir string) (*domain.Config, error) {
