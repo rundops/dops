@@ -223,7 +223,10 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 }
 
 func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
-	return &cobra.Command{
+	var ref string
+	var riskLevel string
+
+	cmd := &cobra.Command{
 		Use:   "update <name>",
 		Short: "Update a git-installed catalog",
 		Args:  cobra.ExactArgs(1),
@@ -248,17 +251,49 @@ func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
 				return fmt.Errorf("catalog %q is local-only (no URL), cannot update", name)
 			}
 
-			gitCmd := exec.Command("git", "-C", cat.Path, "pull")
-			gitCmd.Stdout = os.Stdout
-			gitCmd.Stderr = os.Stderr
-			if err := gitCmd.Run(); err != nil {
-				return fmt.Errorf("git pull failed: %w", err)
+			// Switch ref if requested.
+			if ref != "" {
+				fetchCmd := exec.Command("git", "-C", cat.Path, "fetch", "--all")
+				fetchCmd.Stdout = os.Stdout
+				fetchCmd.Stderr = os.Stderr
+				if err := fetchCmd.Run(); err != nil {
+					return fmt.Errorf("git fetch failed: %w", err)
+				}
+				checkoutCmd := exec.Command("git", "-C", cat.Path, "checkout", ref)
+				checkoutCmd.Stdout = os.Stdout
+				checkoutCmd.Stderr = os.Stderr
+				if err := checkoutCmd.Run(); err != nil {
+					return fmt.Errorf("git checkout %q failed: %w", ref, err)
+				}
+			} else {
+				gitCmd := exec.Command("git", "-C", cat.Path, "pull")
+				gitCmd.Stdout = os.Stdout
+				gitCmd.Stderr = os.Stderr
+				if err := gitCmd.Run(); err != nil {
+					return fmt.Errorf("git pull failed: %w", err)
+				}
+			}
+
+			// Update risk policy if requested.
+			if riskLevel != "" {
+				rl, err := domain.ParseRiskLevel(riskLevel)
+				if err != nil {
+					return fmt.Errorf("invalid risk level %q (use low, medium, high, or critical)", riskLevel)
+				}
+				cat.Policy.MaxRiskLevel = rl
+				if err := saveConfig(dopsDir, cfg); err != nil {
+					return err
+				}
 			}
 
 			fmt.Printf("Updated catalog %q\n", name)
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&ref, "ref", "", "git ref to checkout (tag, branch, or commit)")
+	cmd.Flags().StringVar(&riskLevel, "risk", "", "update max risk level policy (low, medium, high, critical)")
+	return cmd
 }
 
 // validateSubPath ensures sub stays inside root by resolving symlinks and
