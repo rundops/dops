@@ -1,6 +1,9 @@
 package domain
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"path/filepath"
+)
 
 type Config struct {
 	Theme    string    `json:"theme"`
@@ -14,11 +17,21 @@ type Defaults struct {
 }
 
 type Catalog struct {
-	Name   string        `json:"name"`
-	Path   string        `json:"path"`
-	URL    string        `json:"url,omitempty"`
-	Active bool          `json:"active"`
-	Policy CatalogPolicy `json:"policy"`
+	Name    string        `json:"name"`
+	Path    string        `json:"path"`
+	SubPath string        `json:"sub_path,omitempty"`
+	URL     string        `json:"url,omitempty"`
+	Active  bool          `json:"active"`
+	Policy  CatalogPolicy `json:"policy"`
+}
+
+// RunbookRoot returns the effective directory the loader should read runbooks
+// from. When SubPath is set it is joined to Path; otherwise Path is returned.
+func (c Catalog) RunbookRoot() string {
+	if c.SubPath != "" {
+		return filepath.Join(c.Path, c.SubPath)
+	}
+	return c.Path
 }
 
 type CatalogPolicy struct {

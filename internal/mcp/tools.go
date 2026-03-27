@@ -53,7 +53,7 @@ func HandleToolCall(
 	}
 
 	// Build env and script path.
-	catPath := expandTilde(cat.Path)
+	catPath := expandTilde(cat.RunbookRoot())
 	scriptPath := filepath.Join(catPath, rb.Name, rb.Script)
 
 	env := make(map[string]string)
