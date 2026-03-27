@@ -137,6 +137,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 	var name string
 	var ref string
 	var subPath string
+	var riskLevel string
 
 	cmd := &cobra.Command{
 		Use:   "install <url>",
@@ -188,13 +189,22 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 				return err
 			}
 
-			cfg.Catalogs = append(cfg.Catalogs, domain.Catalog{
+			cat := domain.Catalog{
 				Name:    name,
 				Path:    targetDir,
 				SubPath: subPath,
 				URL:     url,
 				Active:  true,
-			})
+			}
+			if riskLevel != "" {
+				rl, err := domain.ParseRiskLevel(riskLevel)
+				if err != nil {
+					_ = os.RemoveAll(targetDir)
+					return fmt.Errorf("invalid risk level %q (use low, medium, high, or critical)", riskLevel)
+				}
+				cat.Policy.MaxRiskLevel = rl
+			}
+			cfg.Catalogs = append(cfg.Catalogs, cat)
 
 			fmt.Printf("Installed catalog %q from %s\n", name, url)
 			return saveConfig(dopsDir, cfg)
@@ -204,6 +214,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "catalog name (defaults to repo basename)")
 	cmd.Flags().StringVar(&ref, "ref", "", "git ref to checkout (tag, branch, or commit)")
 	cmd.Flags().StringVar(&subPath, "path", "", "subdirectory within the repo containing runbooks")
+	cmd.Flags().StringVar(&riskLevel, "risk", "", "max risk level policy (low, medium, high, critical)")
 	return cmd
 }
 
