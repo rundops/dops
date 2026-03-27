@@ -135,7 +135,7 @@ func TestScrollbar_NotNeededForSmallList(t *testing.T) {
 	m.Init()
 
 	view := m.View()
-	if strings.Contains(view, "█") || strings.Contains(view, "░") {
+	if strings.Contains(view, "▐") {
 		t.Error("scrollbar should not appear when content fits")
 	}
 }

@@ -371,10 +371,22 @@ func (m Model) View() string {
 
 	needsScrollbar := totalLines > visibleLines
 
+	trackStyle := lipgloss.NewStyle()
+	thumbStyle := lipgloss.NewStyle()
+	if m.styles != nil {
+		bg := m.styles.BackgroundElem.GetForeground()
+		trackStyle = lipgloss.NewStyle().Background(bg)
+		thumbStyle = lipgloss.NewStyle().Background(bg).Foreground(m.styles.Primary.GetForeground())
+	}
+
 	var b strings.Builder
 	for i, line := range visible {
 		if needsScrollbar {
-			b.WriteString(line + " " + scrollbarChar(i+start, totalLines, visibleLines) + "\n")
+			if isScrollThumb(i+start, totalLines, visibleLines) {
+				b.WriteString(line + " " + thumbStyle.Render("▐") + "\n")
+			} else {
+				b.WriteString(line + " " + trackStyle.Render(" ") + "\n")
+			}
 		} else {
 			b.WriteString(line + "\n")
 		}
@@ -502,17 +514,11 @@ func (m *Model) ensureVisible() {
 	}
 }
 
-func scrollbarChar(lineIdx, total, visible int) string {
-	if total <= visible {
-		return " "
-	}
+func isScrollThumb(lineIdx, total, visible int) bool {
 	thumbSize := max(1, visible*visible/total)
 	thumbStart := lineIdx * visible / total
 	pos := lineIdx - thumbStart
-	if pos >= 0 && pos < thumbSize {
-		return "█"
-	}
-	return "░"
+	return pos >= 0 && pos < thumbSize
 }
 
 func (m Model) Selected() *domain.Runbook {
