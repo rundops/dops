@@ -21,7 +21,7 @@ func Location(rb *domain.Runbook, cat *domain.Catalog) string {
 		return cat.URL
 	}
 	if cat.Path != "" {
-		return cat.Path + "/" + rb.Name + "/runbook.yaml"
+		return cat.RunbookRoot() + "/" + rb.Name + "/runbook.yaml"
 	}
 	return ""
 }

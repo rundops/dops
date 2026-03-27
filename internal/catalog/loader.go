@@ -48,7 +48,7 @@ func (l *DiskCatalogLoader) LoadAll(catalogs []domain.Catalog, defaultRisk domai
 			ceiling = defaultRisk
 		}
 
-		runbooks, err := l.loadCatalog(cat.Name, expandHome(cat.Path), ceiling)
+		runbooks, err := l.loadCatalog(cat.Name, expandHome(cat.RunbookRoot()), ceiling)
 		if err != nil {
 			return nil, fmt.Errorf("load catalog %q: %w", cat.Name, err)
 		}

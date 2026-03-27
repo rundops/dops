@@ -136,6 +136,7 @@ func newCatalogRemoveCmd(dopsDir string) *cobra.Command {
 func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 	var name string
 	var ref string
+	var subPath string
 
 	cmd := &cobra.Command{
 		Use:   "install <url>",
@@ -171,6 +172,17 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 				return fmt.Errorf("git clone failed: %w", err)
 			}
 
+			// Validate sub-path exists if specified.
+			if subPath != "" {
+				sp := filepath.Join(targetDir, subPath)
+				info, err := os.Stat(sp)
+				if err != nil || !info.IsDir() {
+					// Clean up the clone on failure.
+					_ = os.RemoveAll(targetDir)
+					return fmt.Errorf("sub-path %q does not exist in repository", subPath)
+				}
+			}
+
 			// Add to config.
 			cfg, err := loadConfig(dopsDir)
 			if err != nil {
@@ -178,10 +190,11 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 			}
 
 			cfg.Catalogs = append(cfg.Catalogs, domain.Catalog{
-				Name:   name,
-				Path:   targetDir,
-				URL:    url,
-				Active: true,
+				Name:    name,
+				Path:    targetDir,
+				SubPath: subPath,
+				URL:     url,
+				Active:  true,
 			})
 
 			fmt.Printf("Installed catalog %q from %s\n", name, url)
@@ -191,6 +204,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 
 	cmd.Flags().StringVar(&name, "name", "", "catalog name (defaults to repo basename)")
 	cmd.Flags().StringVar(&ref, "ref", "", "git ref to checkout (tag, branch, or commit)")
+	cmd.Flags().StringVar(&subPath, "path", "", "subdirectory within the repo containing runbooks")
 	return cmd
 }
 

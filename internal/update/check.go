@@ -16,7 +16,7 @@ const (
 	githubRepo = "jacobhuemmer/dops-cli"
 
 	// cacheTTL controls how often we re-check for updates.
-	cacheTTL = 24 * time.Hour
+	cacheTTL = 1 * time.Hour
 
 	// httpTimeout prevents blocking the TUI on slow networks.
 	httpTimeout = 3 * time.Second

@@ -504,7 +504,7 @@ func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[st
 		return m, nil
 	}
 
-	scriptPath := filepath.Join(expandTilde(cat.Path), rb.Name, rb.Script)
+	scriptPath := filepath.Join(expandTilde(cat.RunbookRoot()), rb.Name, rb.Script)
 
 	if m.deps.DryRun {
 		m.emitDryRun(scriptPath, params)
