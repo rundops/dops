@@ -10,6 +10,7 @@ import (
 	"dops/internal/theme"
 
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Location returns the raw path or URL string for a runbook's catalog.
@@ -55,6 +56,10 @@ func Render(rb *domain.Runbook, cat *domain.Catalog, width int, copied bool, sty
 	if cat != nil {
 		b.WriteString("\n\n")
 		location := Location(rb, cat)
+		// Truncate to available width (minus 2 for leading space and border padding)
+		// to prevent wrapping that misaligns the metadata and output panes.
+		locW := max(1, width-2)
+		location = ansi.Truncate(location, locW, "…")
 		if copied {
 			// Flash the path green on copy — don't replace the text.
 			fmt.Fprintf(&b, " %s", successStyle.Render(location))

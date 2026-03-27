@@ -445,13 +445,46 @@ func (m Model) View() string {
 	c := m.resolveColors()
 	padX := 1
 	cw := max(1, m.width-padX*2)
+	gap := lipgloss.NewStyle().Width(cw).Render("")
 
 	headerBox := m.renderHeader(cw, c)
 	footerBox := m.renderFooterSection(cw, c)
-	logBox := m.renderLogSection(cw, lipgloss.Height(headerBox), c)
+	headerH := lipgloss.Height(headerBox)
+	footerH := lipgloss.Height(footerBox)
 
-	gap := lipgloss.NewStyle().Width(cw).Render("")
-	inner := lipgloss.JoinVertical(lipgloss.Left, headerBox, gap, logBox, gap, footerBox)
+	// Chrome = header + 2 gaps + footer. Hide elements progressively
+	// when the pane is too short to fit everything.
+	chromeH := headerH + 2 + footerH // header + gap + gap + footer
+	showFooter := true
+	showGaps := true
+
+	if m.height > 0 && chromeH+1 > m.height { // +1 for at least 1 log line
+		// Drop footer first
+		showFooter = false
+		chromeH = headerH + 2
+		if chromeH+1 > m.height {
+			// Drop gaps too
+			showGaps = false
+			chromeH = headerH
+		}
+	}
+
+	logBox := m.renderLogSection(cw, headerH, c)
+
+	var parts []string
+	parts = append(parts, headerBox)
+	if showGaps {
+		parts = append(parts, gap)
+	}
+	parts = append(parts, logBox)
+	if showGaps {
+		parts = append(parts, gap)
+	}
+	if showFooter {
+		parts = append(parts, footerBox)
+	}
+
+	inner := lipgloss.JoinVertical(lipgloss.Left, parts...)
 	return lipgloss.NewStyle().PaddingLeft(padX).PaddingRight(padX).Render(inner)
 }
 
@@ -490,8 +523,10 @@ func (m Model) renderHeader(cw int, c viewColors) string {
 	for i, l := range lines {
 		l = strings.TrimSpace(l)
 		if i == 0 {
+			l = ansi.Truncate(l, lineW, "…")
 			headerLines = append(headerLines, dollarStyle.Render("$")+cmdStyle.Render(" "+l))
 		} else {
+			l = ansi.Truncate(l, lineW, "…")
 			headerLines = append(headerLines, cmdStyle.Render("  "+l))
 		}
 	}
@@ -502,12 +537,16 @@ func (m Model) renderHeader(cw int, c viewColors) string {
 func (m Model) renderFooterSection(cw int, c viewColors) string {
 	var footerLine string
 	if m.logPath != "" && !m.searching && !m.navigating {
-		label := lipgloss.NewStyle().Foreground(c.muted).Render("Saved to ")
+		prefix := "Saved to "
+		label := lipgloss.NewStyle().Foreground(c.muted).Render(prefix)
 		pathFg := c.muted
 		if m.copiedFooter {
 			pathFg = c.success
 		}
-		path := lipgloss.NewStyle().Foreground(pathFg).Render(m.logPath)
+		// Truncate path to prevent wrapping inside the Width constraint.
+		pathW := max(1, cw-ansi.StringWidth(prefix))
+		truncated := ansi.Truncate(m.logPath, pathW, "…")
+		path := lipgloss.NewStyle().Foreground(pathFg).Render(truncated)
 		footerLine = label + path
 	}
 	return lipgloss.NewStyle().Width(cw).Render(footerLine)
@@ -535,7 +574,7 @@ func (m Model) renderLogSection(cw, headerH int, c viewColors) string {
 	blankLine := logContentStyle.Width(logW).Render("")
 
 	yOffset := m.vp.YOffset()
-	if searchBarH > 0 && len(m.lines) > visibleH {
+	if len(m.lines) > visibleH {
 		maxOff := len(m.lines) - visibleH
 		if yOffset > maxOff {
 			yOffset = maxOff

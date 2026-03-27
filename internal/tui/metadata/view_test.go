@@ -31,8 +31,32 @@ func TestRender(t *testing.T) {
 	if !strings.Contains(out, "Prints a hello world message") {
 		t.Error("output should contain description")
 	}
-	if !strings.Contains(out, "runbook.yaml") {
+	if !strings.Contains(out, "catalogs/default") {
 		t.Error("output should contain local path")
+	}
+}
+
+func TestRender_PathTruncation(t *testing.T) {
+	rb := &domain.Runbook{
+		Name:      "hello-world",
+		Version:   "1.0.0",
+		RiskLevel: domain.RiskLow,
+	}
+	cat := &domain.Catalog{Name: "default", Path: "~/.dops/catalogs/default"}
+
+	// Wide enough to show full path.
+	wide := Render(rb, cat, 60, false, testutil.TestStyles())
+	if !strings.Contains(wide, "runbook.yaml") {
+		t.Error("wide render should show full path")
+	}
+
+	// Narrow should truncate with ellipsis.
+	narrow := Render(rb, cat, 30, false, testutil.TestStyles())
+	if strings.Contains(narrow, "runbook.yaml") {
+		t.Error("narrow render should truncate path")
+	}
+	if !strings.Contains(narrow, "…") {
+		t.Error("narrow render should show ellipsis")
 	}
 }
 
@@ -57,7 +81,7 @@ func TestRender_CopiedFlash(t *testing.T) {
 		RiskLevel: domain.RiskLow,
 	}
 	cat := &domain.Catalog{Name: "default", Path: "~/.dops/catalogs/default"}
-	out := Render(rb, cat, 40, true, testutil.TestStyles())
+	out := Render(rb, cat, 60, true, testutil.TestStyles())
 
 	// Path should still be visible (flashed green, not replaced).
 	if !strings.Contains(out, "runbook.yaml") {

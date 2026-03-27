@@ -720,6 +720,16 @@ func (m App) viewNormal() tea.View {
 
 	// --- Metadata ---
 	metaContent := metadata.Render(m.selected, m.selCat, l.contentW, m.copiedFlash, m.deps.Styles)
+
+	// Cap metadata height so the output pane keeps a minimum of 3 rows.
+	// The meta border adds 2 rows, so max content lines = sidebarH - 3(output min) - 2(border).
+	actualSidebarH := lipgloss.Height(sidebarView)
+	metaMaxContentH := clamp(actualSidebarH-3-l.borderSize, 1)
+	metaLines := strings.Split(metaContent, "\n")
+	if len(metaLines) > metaMaxContentH {
+		metaContent = strings.Join(metaLines[:metaMaxContentH], "\n")
+	}
+
 	metaView := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderColor).
@@ -731,9 +741,6 @@ func (m App) viewNormal() tea.View {
 
 	// --- Output ---
 	// Derive output height from actual rendered sidebar and metadata heights.
-	// lipgloss Height() pads but does NOT clip, so the sidebar may render
-	// taller than Height(N) if content overflows. We must measure, not estimate.
-	actualSidebarH := lipgloss.Height(sidebarView)
 	actualMetaH := lipgloss.Height(metaView)
 	outputTotalH := clamp(actualSidebarH-actualMetaH, 3)
 	outputContentH := clamp(outputTotalH-l.borderSize, 1)

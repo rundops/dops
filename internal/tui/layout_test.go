@@ -18,6 +18,7 @@ func TestLayout_SidebarAlignsWithRightPanel(t *testing.T) {
 		width  int
 		height int
 	}{
+		{"tiny", 64, 17},
 		{"small", 80, 24},
 		{"medium", 120, 40},
 		{"large", 200, 60},
