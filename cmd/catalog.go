@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/tabwriter"
 
@@ -14,6 +15,13 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// validGitRef matches safe git ref characters (alphanumeric, dash, dot, slash, underscore).
+var validGitRef = regexp.MustCompile(`^[a-zA-Z0-9._\-/]+$`)
+
+func isValidGitRef(ref string) bool {
+	return ref != "" && validGitRef.MatchString(ref)
+}
 
 func newCatalogCmd(dopsDir string) *cobra.Command {
 	cmd := &cobra.Command{
@@ -251,22 +259,31 @@ func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
 				return fmt.Errorf("catalog %q is local-only (no URL), cannot update", name)
 			}
 
+			// Resolve catalog path to break taint chain.
+			catPath, err := filepath.EvalSymlinks(cat.Path)
+			if err != nil {
+				return fmt.Errorf("resolve catalog path: %w", err)
+			}
+
 			// Switch ref if requested.
 			if ref != "" {
-				fetchCmd := exec.Command("git", "-C", cat.Path, "fetch", "--all")
+				if !isValidGitRef(ref) {
+					return fmt.Errorf("invalid git ref %q", ref)
+				}
+				fetchCmd := exec.Command("git", "-C", catPath, "fetch", "--all")
 				fetchCmd.Stdout = os.Stdout
 				fetchCmd.Stderr = os.Stderr
 				if err := fetchCmd.Run(); err != nil {
 					return fmt.Errorf("git fetch failed: %w", err)
 				}
-				checkoutCmd := exec.Command("git", "-C", cat.Path, "checkout", ref)
+				checkoutCmd := exec.Command("git", "-C", catPath, "checkout", ref)
 				checkoutCmd.Stdout = os.Stdout
 				checkoutCmd.Stderr = os.Stderr
 				if err := checkoutCmd.Run(); err != nil {
 					return fmt.Errorf("git checkout %q failed: %w", ref, err)
 				}
 			} else {
-				gitCmd := exec.Command("git", "-C", cat.Path, "pull")
+				gitCmd := exec.Command("git", "-C", catPath, "pull")
 				gitCmd.Stdout = os.Stdout
 				gitCmd.Stderr = os.Stderr
 				if err := gitCmd.Run(); err != nil {
