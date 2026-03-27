@@ -179,6 +179,12 @@ func (m Model) updateNormal(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		return m.collapseOrJumpToParent()
 	case msg.Code == tea.KeyRight:
 		return m.expandHeader()
+	case msg.Code == tea.KeyEscape:
+		if m.searchQuery != "" {
+			m.searchQuery = ""
+			m.cursor = 0
+			return m, m.selectionCmd()
+		}
 	case msg.Text == "/" || msg.String() == "/":
 		m.searching = true
 		m.searchQuery = ""
@@ -247,6 +253,11 @@ func (m Model) toggleOrSelect() (Model, tea.Cmd) {
 
 func (m Model) updateSearch(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch {
+	case msg.Code == tea.KeyEnter:
+		// Stop typing but keep filtered results visible.
+		m.searching = false
+		return m, m.selectionCmd()
+
 	case msg.Code == tea.KeyEscape:
 		m.searching = false
 		m.searchQuery = ""
@@ -287,7 +298,7 @@ func (m Model) updateSearch(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 
 // visible returns indices into m.entries for items currently visible.
 func (m Model) visible() []int {
-	if m.searching && m.searchQuery != "" {
+	if m.searchQuery != "" {
 		return m.filteredVisible()
 	}
 
@@ -346,9 +357,9 @@ func (m Model) View() string {
 	vis := m.visible()
 	lines := m.buildLines(vis)
 
-	// Reserve bottom rows for filter input when searching
+	// Reserve bottom rows for filter bar when a query is active
 	filterHeight := 0
-	if m.searching {
+	if m.searching || m.searchQuery != "" {
 		filterHeight = 2 // blank separator + filter line
 	}
 
@@ -399,16 +410,20 @@ func (m Model) View() string {
 		renderedLines++
 	}
 
-	if m.searching {
-		// Filter input pinned at bottom with separator
+	if m.searching || m.searchQuery != "" {
+		// Filter bar pinned at bottom with separator
 		filterLabel := lipgloss.NewStyle()
 		filterInput := lipgloss.NewStyle()
 		if m.styles != nil {
 			filterLabel = m.styles.TextMuted
 			filterInput = m.styles.Text
 		}
+		cursor := ""
+		if m.searching {
+			cursor = "█"
+		}
 		b.WriteString("\n")
-		b.WriteString("  " + filterLabel.Render("Filter: ") + filterInput.Render(m.searchQuery) + "█")
+		b.WriteString("  " + filterLabel.Render("Filter: ") + filterInput.Render(m.searchQuery) + cursor)
 	}
 
 	return b.String()
