@@ -145,6 +145,17 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			url := args[0]
+
+			// Validate risk level early, before cloning.
+			var maxRisk domain.RiskLevel
+			if riskLevel != "" {
+				rl, err := domain.ParseRiskLevel(riskLevel)
+				if err != nil {
+					return fmt.Errorf("invalid risk level %q (use low, medium, high, or critical)", riskLevel)
+				}
+				maxRisk = rl
+			}
+
 			if name == "" {
 				// Derive name from URL: "https://github.com/org/repo.git" → "repo"
 				base := filepath.Base(url)
@@ -196,14 +207,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 				URL:     url,
 				Active:  true,
 			}
-			if riskLevel != "" {
-				rl, err := domain.ParseRiskLevel(riskLevel)
-				if err != nil {
-					_ = os.RemoveAll(targetDir)
-					return fmt.Errorf("invalid risk level %q (use low, medium, high, or critical)", riskLevel)
-				}
-				cat.Policy.MaxRiskLevel = rl
-			}
+			cat.Policy.MaxRiskLevel = maxRisk
 			cfg.Catalogs = append(cfg.Catalogs, cat)
 
 			fmt.Printf("Installed catalog %q from %s\n", name, url)
