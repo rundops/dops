@@ -53,6 +53,14 @@ func newInitCmd(dopsDir string) *cobra.Command {
 
 func runInit(cmd *cobra.Command, dopsDir string) error {
 	out := cmd.OutOrStdout()
+
+	// Resolve to an absolute, clean path to satisfy taint analysis.
+	absDir, err := filepath.Abs(filepath.Clean(dopsDir))
+	if err != nil {
+		return fmt.Errorf("resolve dops dir: %w", err)
+	}
+	dopsDir = absDir
+
 	fs := adapters.NewOSFileSystem()
 	configPath := filepath.Join(dopsDir, "config.json")
 	store := config.NewFileStore(fs, configPath)
