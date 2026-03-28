@@ -36,6 +36,14 @@
 
 <br />
 
+<div align="center">
+  <em>Also available in the browser:</em> <code>dops open</code>
+  <br /><br />
+  <img src="assets/web-ui-catalog.png" alt="dops web UI" width="900" />
+</div>
+
+<br />
+
 <!-- TABLE OF CONTENTS -->
 <details>
   <summary>Table of Contents</summary>
@@ -128,6 +136,16 @@ dops is built for DevOps and platform engineering teams who need a consistent, s
   **TUI — Help overlay**
   <br />
   <img src="assets/hero-help.png" alt="dops help" width="900" />
+  <br /><br />
+
+  **Web UI — Catalog & parameter form**
+  <br />
+  <img src="assets/web-ui-catalog.png" alt="dops web UI catalog" width="900" />
+  <br /><br />
+
+  **Web UI — Execution log**
+  <br />
+  <img src="assets/web-ui-execution.png" alt="dops web UI execution" width="900" />
 
 </details>
 

@@ -54,6 +54,10 @@ vet:
 screenshots: build
 	@echo "Generating README hero screenshots and demo GIF..."
 	vhs tapes/readme-hero.tape
+	@echo "Generating web UI screenshots..."
+	@command -v google-chrome >/dev/null 2>&1 && CHROME=google-chrome || CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"; \
+	"$$CHROME" --headless=new --disable-gpu --screenshot=assets/web-ui-catalog.png --window-size=1800,1000 "file://$(CURDIR)/web/mockups/catalog-and-form.html" 2>/dev/null; \
+	"$$CHROME" --headless=new --disable-gpu --screenshot=assets/web-ui-execution.png --window-size=1800,1000 "file://$(CURDIR)/web/mockups/execution-log.html" 2>/dev/null
 	@echo "Done. Assets in assets/"
 
 tapes: build
