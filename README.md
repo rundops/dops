@@ -39,7 +39,7 @@
 <div align="center">
   <em>Also available in the browser:</em> <code>dops open</code>
   <br /><br />
-  <img src="assets/web-ui-catalog.png" alt="dops web UI" width="900" />
+  <img src="assets/web-ui-execution.png" alt="dops web UI" width="900" />
 </div>
 
 <br />
