@@ -3,7 +3,7 @@ VERSION := 0.1.0
 BUILD_DIR := bin
 LDFLAGS := -ldflags "-s -w -X dops/cmd.version=$(VERSION)"
 
-.PHONY: all build test lint clean install screenshots docker
+.PHONY: all build test lint clean install screenshots docker web web-dev
 
 ## Build
 
@@ -58,6 +58,14 @@ tapes: build
 		vhs $$tape; \
 	done
 	@echo "Done. Screenshots in tapes/screenshots/, GIFs in tapes/gifs/"
+
+## Web UI
+
+web:
+	cd web && npm ci && npm run build
+
+web-dev:
+	cd web && npm run dev
 
 ## Docker
 
