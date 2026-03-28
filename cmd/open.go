@@ -117,15 +117,18 @@ func runWebUI(dopsDir string, port int, noBrowser bool) error {
 	return srv.Shutdown(ctx)
 }
 
+// openBrowser opens the given URL in the user's default browser.
+// The URL is always constructed internally (http://localhost:<port>),
+// never from external input.
 func openBrowser(url string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", url) // #nosec G204 -- URL is constructed internally
 	case "linux":
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", url) // #nosec G204 -- URL is constructed internally
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) // #nosec G204 -- URL is constructed internally
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
