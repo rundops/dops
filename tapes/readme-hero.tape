@@ -13,166 +13,124 @@ Sleep 2s
 
 Screenshot assets/hero-startup.png
 
-# Navigate to demo catalog → deploy-app
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
-Down
-Sleep 200ms
+# Search for deploy-app using filter
+Type "/"
+Sleep 500ms
+Type "deploy-app"
+Sleep 1s
 
 Screenshot assets/hero-sidebar.png
 
-# Execute deploy-app
+# Confirm filter, navigate to deploy-app, execute
 Enter
-Sleep 1s
+Sleep 500ms
+Down
+Sleep 500ms
+Enter
+Sleep 1500ms
 
 Screenshot assets/hero-wizard-select.png
 
 # Select "staging" (default)
 Down
-Sleep 300ms
-Enter
 Sleep 500ms
 Enter
-Sleep 500ms
+Sleep 1s
+Enter
+Sleep 1s
 
 # Type version
 Type "v1.2.3"
-Sleep 1s
+Sleep 1500ms
 
 Screenshot assets/hero-wizard-input.png
 
 Enter
-Sleep 500ms
+Sleep 1s
 Enter
-Sleep 500ms
+Sleep 1s
 
 # Multi-select features: toggle logging, monitoring, tracing
+Sleep 500ms
+Space
+Sleep 300ms
+Down
 Sleep 300ms
 Space
-Sleep 200ms
+Sleep 300ms
 Down
-Sleep 200ms
+Sleep 300ms
 Space
-Sleep 200ms
-Down
-Sleep 200ms
-Space
-Sleep 200ms
+Sleep 500ms
 
 Screenshot assets/hero-wizard-multiselect.png
 
 Enter
-Sleep 500ms
+Sleep 1s
 
 # Save prompt for features — decline
 Enter
-Sleep 500ms
+Sleep 1s
 
 # Secret field — type a fake API token
 Type "sk-dops-a1b2c3d4e5f6"
-Sleep 1s
+Sleep 1500ms
 
 Screenshot assets/hero-wizard-secret.png
 
 Enter
-Sleep 500ms
+Sleep 1s
 Enter
-Sleep 500ms
+Sleep 1s
 
 # Boolean dry_run — default No
 Enter
+Sleep 1s
+
+# Risk confirmation (high risk = y/N) — toggle to Yes first
+Left
 Sleep 500ms
 
-# Risk confirmation (high risk = y/N)
 Screenshot assets/hero-confirm.png
 
-# Toggle to Yes, then confirm
-Left
-Sleep 300ms
 Enter
-Sleep 4s
+Sleep 6s
 
 Screenshot assets/hero-execution.png
 
 # Tab to output, scroll
 Tab
+Sleep 500ms
+Up
 Sleep 300ms
 Up
-Sleep 200ms
+Sleep 300ms
 Up
-Sleep 200ms
+Sleep 300ms
 Up
-Sleep 200ms
-Up
-Sleep 200ms
+Sleep 300ms
 
 Screenshot assets/hero-scroll.png
 
 # Search
 Type "/"
-Sleep 300ms
-Type "Deploy"
 Sleep 500ms
+Type "Deploy"
+Sleep 2s
 
 Screenshot assets/hero-search.png
 
 Escape
-Sleep 300ms
+Sleep 500ms
 
 # Help
 Type "?"
-Sleep 1s
+Sleep 1500ms
 
 Screenshot assets/hero-help.png
 
 Escape
-Sleep 300ms
+Sleep 500ms
 
 Type "q"
 Sleep 500ms
