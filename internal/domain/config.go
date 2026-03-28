@@ -2,7 +2,9 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"unicode"
 )
 
 type Config struct {
@@ -17,12 +19,35 @@ type Defaults struct {
 }
 
 type Catalog struct {
-	Name    string        `json:"name"`
-	Path    string        `json:"path"`
-	SubPath string        `json:"sub_path,omitempty"`
-	URL     string        `json:"url,omitempty"`
-	Active  bool          `json:"active"`
-	Policy  CatalogPolicy `json:"policy"`
+	Name        string        `json:"name"`
+	DisplayName string        `json:"display_name,omitempty"`
+	Path        string        `json:"path"`
+	SubPath     string        `json:"sub_path,omitempty"`
+	URL         string        `json:"url,omitempty"`
+	Active      bool          `json:"active"`
+	Policy      CatalogPolicy `json:"policy"`
+}
+
+// Label returns the display name if set, otherwise the canonical name.
+func (c Catalog) Label() string {
+	if c.DisplayName != "" {
+		return c.DisplayName
+	}
+	return c.Name
+}
+
+// ValidateDisplayName checks that a display name is within length limits
+// and contains only printable characters.
+func ValidateDisplayName(name string) error {
+	if len(name) > 50 {
+		return fmt.Errorf("display name must be 50 characters or fewer (got %d)", len(name))
+	}
+	for _, r := range name {
+		if !unicode.IsPrint(r) {
+			return fmt.Errorf("display name contains non-printable character: %U", r)
+		}
+	}
+	return nil
 }
 
 // RunbookRoot returns the effective directory the loader should read runbooks

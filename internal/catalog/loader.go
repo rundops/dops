@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -19,6 +20,7 @@ type CatalogWithRunbooks struct {
 type CatalogLoader interface {
 	LoadAll(catalogs []domain.Catalog, defaultRisk domain.RiskLevel) ([]CatalogWithRunbooks, error)
 	FindByID(id string) (*domain.Runbook, *domain.Catalog, error)
+	FindByAlias(alias string) (*domain.Runbook, *domain.Catalog, error)
 }
 
 type FileSystem interface {
@@ -26,9 +28,15 @@ type FileSystem interface {
 	ReadDir(path string) ([]os.DirEntry, error)
 }
 
+type aliasEntry struct {
+	catalogIdx int
+	runbookIdx int
+}
+
 type DiskCatalogLoader struct {
-	fs     FileSystem
-	loaded []CatalogWithRunbooks
+	fs      FileSystem
+	loaded  []CatalogWithRunbooks
+	aliases map[string]aliasEntry // alias → location in loaded
 }
 
 func NewDiskLoader(fs FileSystem) *DiskCatalogLoader {
@@ -62,7 +70,43 @@ func (l *DiskCatalogLoader) LoadAll(catalogs []domain.Catalog, defaultRisk domai
 	}
 
 	l.loaded = result
+	l.buildAliasIndex()
 	return result, nil
+}
+
+// buildAliasIndex creates a map from alias → runbook location.
+// Duplicate aliases and aliases colliding with IDs are logged and skipped.
+func (l *DiskCatalogLoader) buildAliasIndex() {
+	l.aliases = make(map[string]aliasEntry)
+
+	// Collect all IDs first to detect collisions.
+	ids := make(map[string]bool)
+	for _, cwr := range l.loaded {
+		for _, rb := range cwr.Runbooks {
+			ids[rb.ID] = true
+		}
+	}
+
+	for ci, cwr := range l.loaded {
+		for ri, rb := range cwr.Runbooks {
+			for _, alias := range rb.Aliases {
+				if err := domain.ValidateAlias(alias); err != nil {
+					log.Printf("warning: runbook %q: skipping invalid alias %q: %v", rb.ID, alias, err)
+					continue
+				}
+				if ids[alias] {
+					log.Printf("warning: runbook %q: alias %q collides with an existing runbook ID, skipping", rb.ID, alias)
+					continue
+				}
+				if existing, ok := l.aliases[alias]; ok {
+					existingID := l.loaded[existing.catalogIdx].Runbooks[existing.runbookIdx].ID
+					log.Printf("warning: runbook %q: alias %q already claimed by %q, skipping", rb.ID, alias, existingID)
+					continue
+				}
+				l.aliases[alias] = aliasEntry{catalogIdx: ci, runbookIdx: ri}
+			}
+		}
+	}
 }
 
 func (l *DiskCatalogLoader) FindByID(id string) (*domain.Runbook, *domain.Catalog, error) {
@@ -74,6 +118,15 @@ func (l *DiskCatalogLoader) FindByID(id string) (*domain.Runbook, *domain.Catalo
 		}
 	}
 	return nil, nil, fmt.Errorf("runbook %q not found", id)
+}
+
+func (l *DiskCatalogLoader) FindByAlias(alias string) (*domain.Runbook, *domain.Catalog, error) {
+	entry, ok := l.aliases[alias]
+	if !ok {
+		return nil, nil, fmt.Errorf("runbook alias %q not found", alias)
+	}
+	return &l.loaded[entry.catalogIdx].Runbooks[entry.runbookIdx],
+		&l.loaded[entry.catalogIdx].Catalog, nil
 }
 
 func (l *DiskCatalogLoader) loadCatalog(catalogName, catalogPath string, ceiling domain.RiskLevel) ([]domain.Runbook, error) {

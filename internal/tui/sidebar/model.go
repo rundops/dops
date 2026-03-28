@@ -404,7 +404,7 @@ func (m Model) View() string {
 			cursor = "█"
 		}
 		b.WriteString("\n")
-		b.WriteString("  " + filterLabel.Render("Filter: ") + filterInput.Render(m.searchQuery) + cursor)
+		b.WriteString(filterLabel.Render("Filter: ") + filterInput.Render(m.searchQuery) + cursor)
 	}
 
 	return b.String()
@@ -462,7 +462,7 @@ func (m Model) buildLines(vis []int) []string {
 			if m.collapsed[e.catalog.Name] {
 				indicator = "▶"
 			}
-			label := indicator + " " + e.catalog.Name + "/"
+			label := indicator + " " + e.catalog.Label() + "/"
 
 			switch {
 			case idx == selectedIdx:

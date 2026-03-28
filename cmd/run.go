@@ -31,10 +31,6 @@ func newRunCmd(dopsDir string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
 
-			if err := domain.ValidateRunbookID(id); err != nil {
-				return err
-			}
-
 			configPath := filepath.Join(dopsDir, "config.json")
 			keysDir := filepath.Join(dopsDir, "keys")
 			fs := adapters.NewOSFileSystem()
@@ -60,9 +56,17 @@ func newRunCmd(dopsDir string) *cobra.Command {
 				return fmt.Errorf("load catalogs: %w", err)
 			}
 
-			rb, cat, err := loader.FindByID(id)
+			// Try ID first, then fall back to alias.
+			var rb *domain.Runbook
+			var cat *domain.Catalog
+			if domain.ValidateRunbookID(id) == nil {
+				rb, cat, err = loader.FindByID(id)
+			}
+			if rb == nil {
+				rb, cat, err = loader.FindByAlias(id)
+			}
 			if err != nil {
-				return fmt.Errorf("runbook %q not found", id)
+				return fmt.Errorf("runbook %q not found (tried ID and alias)", id)
 			}
 
 			// Check risk policy

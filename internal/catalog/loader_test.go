@@ -169,6 +169,144 @@ func TestDiskCatalogLoader_FindByID(t *testing.T) {
 	})
 }
 
+const aliasedYAML = `name: "deploy-app"
+description: "Deploy application"
+version: "1.0.0"
+risk_level: "low"
+script: "./script.sh"
+aliases:
+  - deploy
+  - dp
+`
+
+const aliasConflictYAML = `name: "other-deploy"
+description: "Another deploy"
+version: "1.0.0"
+risk_level: "low"
+script: "./script.sh"
+aliases:
+  - deploy
+  - rollback
+`
+
+func setupAliasFS() *fakeFS {
+	ffs := newFakeFS()
+	ffs.dirs["/catalogs/default"] = []os.DirEntry{
+		fakeDirEntry{name: "deploy-app", isDir: true},
+		fakeDirEntry{name: "other-deploy", isDir: true},
+	}
+	ffs.files["/catalogs/default/deploy-app/runbook.yaml"] = []byte(aliasedYAML)
+	ffs.files["/catalogs/default/other-deploy/runbook.yaml"] = []byte(aliasConflictYAML)
+	return ffs
+}
+
+func TestDiskCatalogLoader_FindByAlias(t *testing.T) {
+	ffs := setupAliasFS()
+	loader := NewDiskLoader(ffs)
+
+	catalogs := []domain.Catalog{
+		{Name: "default", Path: "/catalogs/default", Active: true, Policy: domain.CatalogPolicy{MaxRiskLevel: domain.RiskCritical}},
+	}
+
+	_, err := loader.LoadAll(catalogs, domain.RiskCritical)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+
+	t.Run("resolve alias", func(t *testing.T) {
+		rb, cat, err := loader.FindByAlias("deploy")
+		if err != nil {
+			t.Fatalf("FindByAlias: %v", err)
+		}
+		if rb.Name != "deploy-app" {
+			t.Errorf("expected deploy-app, got %q", rb.Name)
+		}
+		if cat.Name != "default" {
+			t.Errorf("expected default catalog, got %q", cat.Name)
+		}
+	})
+
+	t.Run("resolve second alias", func(t *testing.T) {
+		rb, _, err := loader.FindByAlias("dp")
+		if err != nil {
+			t.Fatalf("FindByAlias: %v", err)
+		}
+		if rb.Name != "deploy-app" {
+			t.Errorf("expected deploy-app, got %q", rb.Name)
+		}
+	})
+
+	t.Run("duplicate alias goes to first loaded", func(t *testing.T) {
+		// "deploy" is claimed by deploy-app (loaded first), other-deploy is skipped
+		rb, _, err := loader.FindByAlias("deploy")
+		if err != nil {
+			t.Fatalf("FindByAlias: %v", err)
+		}
+		if rb.Name != "deploy-app" {
+			t.Errorf("expected first-loaded deploy-app, got %q", rb.Name)
+		}
+	})
+
+	t.Run("unique alias from second runbook", func(t *testing.T) {
+		rb, _, err := loader.FindByAlias("rollback")
+		if err != nil {
+			t.Fatalf("FindByAlias: %v", err)
+		}
+		if rb.Name != "other-deploy" {
+			t.Errorf("expected other-deploy, got %q", rb.Name)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		_, _, err := loader.FindByAlias("nonexistent")
+		if err == nil {
+			t.Error("expected error for unknown alias")
+		}
+	})
+}
+
+func TestDiskCatalogLoader_AliasCollidesWithID(t *testing.T) {
+	ffs := newFakeFS()
+	ffs.dirs["/catalogs/default"] = []os.DirEntry{
+		fakeDirEntry{name: "deploy-app", isDir: true},
+	}
+	// Alias matches the auto-generated ID format
+	yaml := `name: "deploy-app"
+description: "Deploy"
+version: "1.0.0"
+risk_level: "low"
+script: "./script.sh"
+aliases:
+  - default.deploy-app
+`
+	ffs.files["/catalogs/default/deploy-app/runbook.yaml"] = []byte(yaml)
+
+	loader := NewDiskLoader(ffs)
+	catalogs := []domain.Catalog{
+		{Name: "default", Path: "/catalogs/default", Active: true, Policy: domain.CatalogPolicy{MaxRiskLevel: domain.RiskCritical}},
+	}
+
+	_, err := loader.LoadAll(catalogs, domain.RiskCritical)
+	if err != nil {
+		t.Fatalf("LoadAll: %v", err)
+	}
+
+	// Alias collides with ID — should be skipped
+	_, _, err = loader.FindByAlias("default.deploy-app")
+	if err == nil {
+		t.Error("expected alias to be skipped (collides with ID)")
+	}
+
+	// ID still works
+	rb, _, err := loader.FindByID("default.deploy-app")
+	if err != nil {
+		t.Fatalf("FindByID: %v", err)
+	}
+	if rb.Name != "deploy-app" {
+		t.Errorf("expected deploy-app, got %q", rb.Name)
+	}
+}
+
 func TestRiskFilter(t *testing.T) {
 	tests := []struct {
 		name     string

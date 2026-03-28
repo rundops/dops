@@ -156,3 +156,109 @@ func TestNewModel_FooterHints(t *testing.T) {
 	}
 }
 
+func TestSkipSavedFields_PartialPrefill(t *testing.T) {
+	rb := testRunbook()
+	cat := domain.Catalog{Name: "default"}
+	// Pre-fill region and env, leave namespace and dry_run empty.
+	resolved := map[string]string{
+		"region": "us-east-1",
+		"env":    "prod",
+	}
+
+	m := New(rb, cat, resolved)
+
+	// region (index 0) should be skipped.
+	if !m.skipped[0] {
+		t.Error("region (index 0) should be skipped — it has a saved value")
+	}
+
+	// Current field should be namespace (index 1) — first non-prefilled.
+	if m.current != 1 {
+		t.Errorf("current field should be 1 (namespace), got %d", m.current)
+	}
+
+	// env (index 3) not yet skipped — it will be skipped when we advance past dry_run.
+	if m.skipped[3] {
+		t.Error("env (index 3) should not be skipped yet — advance hasn't reached it")
+	}
+
+	// Skipped count should be 1 (just region so far).
+	if m.SkippedCount() != 1 {
+		t.Errorf("expected 1 skipped field, got %d", m.SkippedCount())
+	}
+
+	// View should show the skipped summary.
+	view := m.View()
+	if !strings.Contains(view, "Applied 1 saved value") {
+		t.Error("view should show 'Applied 1 saved value' message")
+	}
+}
+
+func TestSkipSavedFields_AllPrefilled(t *testing.T) {
+	rb := testRunbook()
+	cat := domain.Catalog{Name: "default"}
+	resolved := map[string]string{
+		"region":    "us-east-1",
+		"namespace": "platform",
+		"dry_run":   "false",
+		"env":       "prod",
+	}
+
+	m := New(rb, cat, resolved)
+
+	// All fields should be skipped.
+	if m.SkippedCount() != 4 {
+		t.Errorf("expected 4 skipped fields, got %d", m.SkippedCount())
+	}
+
+	// current should be past all fields.
+	if m.current < len(m.params) {
+		t.Errorf("current should be >= len(params), got %d", m.current)
+	}
+
+	// Init should return a submit command.
+	cmd := m.Init()
+	if cmd == nil {
+		t.Error("Init should return a submit command when all fields are skipped")
+	}
+}
+
+func TestSkipSavedFields_PromptAll(t *testing.T) {
+	rb := testRunbook()
+	cat := domain.Catalog{Name: "default"}
+	resolved := map[string]string{
+		"region":    "us-east-1",
+		"namespace": "platform",
+		"dry_run":   "false",
+		"env":       "prod",
+	}
+
+	m := NewWithOptions(rb, cat, resolved, true)
+
+	// No fields should be skipped when promptAll is true.
+	if m.SkippedCount() != 0 {
+		t.Errorf("expected 0 skipped fields with promptAll, got %d", m.SkippedCount())
+	}
+
+	// Should start at first field.
+	if m.current != 0 {
+		t.Errorf("current should be 0, got %d", m.current)
+	}
+}
+
+func TestSkipSavedFields_CtrlEHint(t *testing.T) {
+	rb := testRunbook()
+	cat := domain.Catalog{Name: "default"}
+	resolved := map[string]string{
+		"region": "us-east-1",
+		"env":    "prod",
+	}
+
+	m := New(rb, cat, resolved)
+	hints := m.FooterHints()
+
+	if !strings.Contains(hints, "ctrl+e") {
+		t.Error("footer hints should mention ctrl+e when fields are skipped")
+	}
+}
+

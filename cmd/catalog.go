@@ -49,7 +49,7 @@ func newCatalogListCmd(dopsDir string) *cobra.Command {
 			}
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(w, "NAME\tPATH\tURL\tACTIVE\tRISK POLICY")
+			fmt.Fprintln(w, "NAME\tDISPLAY NAME\tPATH\tURL\tACTIVE\tRISK POLICY")
 			for _, c := range cfg.Catalogs {
 				risk := string(c.Policy.MaxRiskLevel)
 				if risk == "" {
@@ -59,7 +59,11 @@ func newCatalogListCmd(dopsDir string) *cobra.Command {
 				if url == "" {
 					url = "—"
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\n", c.Name, c.Path, url, c.Active, risk)
+				displayName := c.DisplayName
+				if displayName == "" {
+					displayName = "—"
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%v\t%s\n", c.Name, displayName, c.Path, url, c.Active, risk)
 			}
 			return w.Flush()
 		},
@@ -67,7 +71,9 @@ func newCatalogListCmd(dopsDir string) *cobra.Command {
 }
 
 func newCatalogAddCmd(dopsDir string) *cobra.Command {
-	return &cobra.Command{
+	var displayName string
+
+	cmd := &cobra.Command{
 		Use:   "add <path>",
 		Short: "Add a local catalog",
 		Args:  cobra.ExactArgs(1),
@@ -79,6 +85,12 @@ func newCatalogAddCmd(dopsDir string) *cobra.Command {
 			}
 			if !info.IsDir() {
 				return fmt.Errorf("path is not a directory: %s", catalogPath)
+			}
+
+			if displayName != "" {
+				if err := domain.ValidateDisplayName(displayName); err != nil {
+					return err
+				}
 			}
 
 			name := filepath.Base(catalogPath)
@@ -100,14 +112,18 @@ func newCatalogAddCmd(dopsDir string) *cobra.Command {
 			}
 
 			cfg.Catalogs = append(cfg.Catalogs, domain.Catalog{
-				Name:   name,
-				Path:   absPath,
-				Active: true,
+				Name:        name,
+				DisplayName: displayName,
+				Path:        absPath,
+				Active:      true,
 			})
 
 			return saveConfig(dopsDir, cfg)
 		},
 	}
+
+	cmd.Flags().StringVar(&displayName, "display-name", "", "friendly display name for the sidebar")
+	return cmd
 }
 
 func newCatalogRemoveCmd(dopsDir string) *cobra.Command {
@@ -146,6 +162,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 	var ref string
 	var subPath string
 	var riskLevel string
+	var displayName string
 
 	cmd := &cobra.Command{
 		Use:   "install <url>",
@@ -154,7 +171,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			url := args[0]
 
-			// Validate risk level early, before cloning.
+			// Validate flags early, before cloning.
 			var maxRisk domain.RiskLevel
 			if riskLevel != "" {
 				rl, err := domain.ParseRiskLevel(riskLevel)
@@ -162,6 +179,11 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 					return fmt.Errorf("invalid risk level %q (use low, medium, high, or critical)", riskLevel)
 				}
 				maxRisk = rl
+			}
+			if displayName != "" {
+				if err := domain.ValidateDisplayName(displayName); err != nil {
+					return err
+				}
 			}
 
 			if name == "" {
@@ -209,11 +231,12 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 			}
 
 			cat := domain.Catalog{
-				Name:    name,
-				Path:    targetDir,
-				SubPath: subPath,
-				URL:     url,
-				Active:  true,
+				Name:        name,
+				DisplayName: displayName,
+				Path:        targetDir,
+				SubPath:     subPath,
+				URL:         url,
+				Active:      true,
 			}
 			cat.Policy.MaxRiskLevel = maxRisk
 			cfg.Catalogs = append(cfg.Catalogs, cat)
@@ -227,12 +250,14 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 	cmd.Flags().StringVar(&ref, "ref", "", "git ref to checkout (tag, branch, or commit)")
 	cmd.Flags().StringVar(&subPath, "path", "", "subdirectory within the repo containing runbooks")
 	cmd.Flags().StringVar(&riskLevel, "risk", "", "max risk level policy (low, medium, high, critical)")
+	cmd.Flags().StringVar(&displayName, "display-name", "", "friendly display name for the sidebar")
 	return cmd
 }
 
 func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
 	var ref string
 	var riskLevel string
+	var displayName string
 
 	cmd := &cobra.Command{
 		Use:   "update <name>",
@@ -255,39 +280,61 @@ func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
 			if cat == nil {
 				return fmt.Errorf("catalog %q not found", name)
 			}
-			if cat.URL == "" {
-				return fmt.Errorf("catalog %q is local-only (no URL), cannot update", name)
+
+			// Update display name if flag was explicitly set.
+			if cmd.Flags().Changed("display-name") {
+				if displayName != "" {
+					if err := domain.ValidateDisplayName(displayName); err != nil {
+						return err
+					}
+				}
+				cat.DisplayName = displayName
+				if err := saveConfig(dopsDir, cfg); err != nil {
+					return err
+				}
+				if displayName == "" {
+					fmt.Printf("Cleared display name for catalog %q\n", name)
+				} else {
+					fmt.Printf("Set display name for catalog %q to %q\n", name, displayName)
+				}
 			}
 
-			// Resolve catalog path to break taint chain.
-			catPath, err := filepath.EvalSymlinks(cat.Path)
-			if err != nil {
-				return fmt.Errorf("resolve catalog path: %w", err)
-			}
+			// Git operations require a URL.
+			if ref != "" || !cmd.Flags().Changed("display-name") {
+				if cat.URL == "" {
+					return fmt.Errorf("catalog %q is local-only (no URL), cannot update", name)
+				}
 
-			// Switch ref if requested.
-			if ref != "" {
-				if !isValidGitRef(ref) {
-					return fmt.Errorf("invalid git ref %q", ref)
+				// Resolve catalog path to break taint chain.
+				catPath, err := filepath.EvalSymlinks(cat.Path)
+				if err != nil {
+					return fmt.Errorf("resolve catalog path: %w", err)
 				}
-				fetchCmd := exec.Command("git", "-C", catPath, "fetch", "--all") // #nosec G204 -- catPath resolved via EvalSymlinks
-				fetchCmd.Stdout = os.Stdout
-				fetchCmd.Stderr = os.Stderr
-				if err := fetchCmd.Run(); err != nil {
-					return fmt.Errorf("git fetch failed: %w", err)
-				}
-				checkoutCmd := exec.Command("git", "-C", catPath, "checkout", ref) // #nosec G204 -- ref validated by isValidGitRef
-				checkoutCmd.Stdout = os.Stdout
-				checkoutCmd.Stderr = os.Stderr
-				if err := checkoutCmd.Run(); err != nil {
-					return fmt.Errorf("git checkout %q failed: %w", ref, err)
-				}
-			} else {
-				gitCmd := exec.Command("git", "-C", catPath, "pull") // #nosec G204 -- catPath resolved via EvalSymlinks
-				gitCmd.Stdout = os.Stdout
-				gitCmd.Stderr = os.Stderr
-				if err := gitCmd.Run(); err != nil {
-					return fmt.Errorf("git pull failed: %w", err)
+
+				// Switch ref if requested.
+				if ref != "" {
+					if !isValidGitRef(ref) {
+						return fmt.Errorf("invalid git ref %q", ref)
+					}
+					fetchCmd := exec.Command("git", "-C", catPath, "fetch", "--all") // #nosec G204 -- catPath resolved via EvalSymlinks
+					fetchCmd.Stdout = os.Stdout
+					fetchCmd.Stderr = os.Stderr
+					if err := fetchCmd.Run(); err != nil {
+						return fmt.Errorf("git fetch failed: %w", err)
+					}
+					checkoutCmd := exec.Command("git", "-C", catPath, "checkout", ref) // #nosec G204 -- ref validated by isValidGitRef
+					checkoutCmd.Stdout = os.Stdout
+					checkoutCmd.Stderr = os.Stderr
+					if err := checkoutCmd.Run(); err != nil {
+						return fmt.Errorf("git checkout %q failed: %w", ref, err)
+					}
+				} else if !cmd.Flags().Changed("display-name") {
+					gitCmd := exec.Command("git", "-C", catPath, "pull") // #nosec G204 -- catPath resolved via EvalSymlinks
+					gitCmd.Stdout = os.Stdout
+					gitCmd.Stderr = os.Stderr
+					if err := gitCmd.Run(); err != nil {
+						return fmt.Errorf("git pull failed: %w", err)
+					}
 				}
 			}
 
@@ -310,6 +357,7 @@ func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
 
 	cmd.Flags().StringVar(&ref, "ref", "", "git ref to checkout (tag, branch, or commit)")
 	cmd.Flags().StringVar(&riskLevel, "risk", "", "update max risk level policy (low, medium, high, critical)")
+	cmd.Flags().StringVar(&displayName, "display-name", "", "set display name (empty to clear)")
 	return cmd
 }
 
