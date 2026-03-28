@@ -1,0 +1,45 @@
+{
+  "$schema": "https://dops.sh/theme.json",
+  "name": "espresso",
+  "defs": {
+    "bg":        "#1b1511",
+    "bgDark":    "#151010",
+    "bgElem":    "#2e2420",
+    "fg":        "#d4c4b0",
+    "fgMuted":   "#7a6a5a",
+    "caramel":   "#c89b6e",
+    "green":     "#a3b95c",
+    "orange":    "#d48c4e",
+    "red":       "#c25a5a",
+    "redDark":   "#a33a3a",
+    "yellow":    "#d4a84e",
+    "dayBg":     "#f0e8df",
+    "dayBgPanel":"#e5ddd4",
+    "dayBgElem": "#d5cdc4",
+    "dayFg":     "#4a3728",
+    "dayFgMuted":"#8a7a6a",
+    "dayCaramel":"#8a6030",
+    "dayGreen":  "#5a7030",
+    "dayOrange": "#9a5a20",
+    "dayRed":    "#a03030"
+  },
+  "theme": {
+    "background":        { "dark": "bg",       "light": "dayBg"      },
+    "backgroundPanel":   { "dark": "bgDark",   "light": "dayBgPanel" },
+    "backgroundElement": { "dark": "bgElem",   "light": "dayBgElem"  },
+    "text":              { "dark": "fg",        "light": "dayFg"      },
+    "textMuted":         { "dark": "fgMuted",   "light": "dayFgMuted" },
+    "primary":           { "dark": "caramel",   "light": "dayCaramel" },
+    "border":            { "dark": "fgMuted",   "light": "dayFgMuted" },
+    "borderActive":      { "dark": "caramel",   "light": "dayCaramel" },
+    "success":           { "dark": "green",     "light": "dayGreen"   },
+    "warning":           { "dark": "orange",    "light": "dayOrange"  },
+    "error":             { "dark": "red",       "light": "dayRed"     },
+    "risk": {
+      "low":      { "dark": "green",   "light": "dayGreen"  },
+      "medium":   { "dark": "yellow",  "light": "dayOrange" },
+      "high":     { "dark": "orange",  "light": "dayOrange" },
+      "critical": { "dark": "redDark", "light": "dayRed"    }
+    }
+  }
+}
