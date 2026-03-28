@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: vedantmgoyal9/winget-releaser@v2
         with:
-          identifier: JacobHuemmer.dops
+          identifier: RunDops.dops
           installers-regex: '\.zip$'
           max-versions-to-keep: 5
           token: ${{ secrets.WINGET_TOKEN }}

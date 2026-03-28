@@ -3,10 +3,10 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "dops",
   description: "a runbook toolkit for operators and AI agents",
-  base: "/dops-cli/",
+  base: "/dops/",
 
   head: [
-    ["link", { rel: "icon", type: "image/png", href: "/dops-cli/logo.png" }],
+    ["link", { rel: "icon", type: "image/png", href: "/dops/logo.png" }],
   ],
 
   appearance: "dark",
@@ -27,7 +27,7 @@ export default defineConfig({
       },
       {
         text: "GitHub",
-        link: "https://github.com/jacobhuemmer/dops-cli",
+        link: "https://github.com/rundops/dops",
       },
     ],
 
@@ -73,20 +73,20 @@ export default defineConfig({
     socialLinks: [
       {
         icon: "github",
-        link: "https://github.com/jacobhuemmer/dops-cli",
+        link: "https://github.com/rundops/dops",
       },
     ],
 
     footer: {
       message:
-        'Released under the <a href="https://github.com/jacobhuemmer/dops-cli/blob/main/LICENSE">MIT License</a>.',
+        'Released under the <a href="https://github.com/rundops/dops/blob/main/LICENSE">MIT License</a>.',
       copyright:
-        'Copyright © 2025 <a href="https://github.com/jacobhuemmer">Jacob Huemmer</a>',
+        'Copyright © 2025 Mason Huemmer',
     },
 
     editLink: {
       pattern:
-        "https://github.com/jacobhuemmer/dops-cli/edit/main/docs/:path",
+        "https://github.com/rundops/dops/edit/main/docs/:path",
       text: "Edit this page on GitHub",
     },
 

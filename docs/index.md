@@ -14,7 +14,7 @@ hero:
       link: /guides/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/jacobhuemmer/dops-cli
+      link: https://github.com/rundops/dops
 
 features:
   - icon: "🖥️"
@@ -108,7 +108,7 @@ features:
 <div class="demo-section">
   <h2>Terminal UI</h2>
   <p>Navigate catalogs, fill parameters, confirm risk, and watch live output — all from the terminal.</p>
-  <img src="https://raw.githubusercontent.com/jacobhuemmer/dops-cli/main/assets/demo.gif" alt="dops TUI demo" />
+  <img src="https://raw.githubusercontent.com/rundops/dops/main/assets/demo.gif" alt="dops TUI demo" />
 </div>
 
 <div class="demo-divider"></div>
@@ -116,7 +116,7 @@ features:
 <div class="demo-section">
   <h2>Web UI</h2>
   <p>The same experience in the browser. Launch with <code>dops open</code>.</p>
-  <img src="https://raw.githubusercontent.com/jacobhuemmer/dops-cli/main/assets/web-demo.gif" alt="dops web UI demo" />
+  <img src="https://raw.githubusercontent.com/rundops/dops/main/assets/web-demo.gif" alt="dops web UI demo" />
 </div>
 
 <div class="demo-divider"></div>
@@ -124,35 +124,35 @@ features:
 <div class="commands-section">
   <h2>Commands</h2>
   <div class="commands-grid">
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops">
+    <a class="cmd-card" href="/dops/reference/cli/dops">
       <code>dops</code>
       <span>Launch the interactive TUI</span>
     </a>
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops-run">
+    <a class="cmd-card" href="/dops/reference/cli/dops-run">
       <code>dops run</code>
       <span>Execute a runbook non-interactively</span>
     </a>
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops-open">
+    <a class="cmd-card" href="/dops/reference/cli/dops-open">
       <code>dops open</code>
       <span>Launch the web UI in a browser</span>
     </a>
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops-init">
+    <a class="cmd-card" href="/dops/reference/cli/dops-init">
       <code>dops init</code>
       <span>Initialize configuration</span>
     </a>
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops-catalog">
+    <a class="cmd-card" href="/dops/reference/cli/dops-catalog">
       <code>dops catalog</code>
       <span>Manage runbook catalogs</span>
     </a>
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops-config">
+    <a class="cmd-card" href="/dops/reference/cli/dops-config">
       <code>dops config</code>
       <span>Read and write configuration</span>
     </a>
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops-mcp">
+    <a class="cmd-card" href="/dops/reference/cli/dops-mcp">
       <code>dops mcp</code>
       <span>MCP server for AI agents</span>
     </a>
-    <a class="cmd-card" href="/dops-cli/reference/cli/dops-completion">
+    <a class="cmd-card" href="/dops/reference/cli/dops-completion">
       <code>dops completion</code>
       <span>Generate shell completions</span>
     </a>

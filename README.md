@@ -20,11 +20,11 @@
   <p>A browsable catalog of automation scripts that operators can select, parameterize, and execute directly from the terminal.</p>
 
   <p>
-    <a href="https://jacobhuemmer.github.io/dops-cli/">Documentation</a>
+    <a href="https://rundops.github.io/dops/">Documentation</a>
     &middot;
-    <a href="https://github.com/jacobhuemmer/dops-cli/issues">Report Bug</a>
+    <a href="https://github.com/rundops/dops/issues">Report Bug</a>
     &middot;
-    <a href="https://github.com/jacobhuemmer/dops-cli/issues">Request Feature</a>
+    <a href="https://github.com/rundops/dops/issues">Request Feature</a>
   </p>
 </div>
 
@@ -159,27 +159,27 @@ dops is built for DevOps and platform engineering teams who need a consistent, s
 ### Homebrew (recommended)
 
 ```bash
-brew tap jacobhuemmer/tap
+brew tap rundops/tap
 brew install dops
 ```
 
 ### Go
 
 ```bash
-go install github.com/jacobhuemmer/dops-cli@latest
+go install github.com/rundops/dops@latest
 ```
 
 ### Docker (MCP server)
 
 ```bash
-docker run -i -v ~/.dops:/data/dops ghcr.io/jacobhuemmer/dops-cli:latest
+docker run -i -v ~/.dops:/data/dops ghcr.io/rundops/dops:latest
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/jacobhuemmer/dops-cli.git
-cd dops-cli
+git clone https://github.com/rundops/dops.git
+cd dops
 make build
 ./bin/dops
 ```
@@ -249,7 +249,7 @@ parameters:
     scope: global
 ```
 
-See the [runbook guide](https://jacobhuemmer.github.io/dops-cli/guides/runbooks) for the full YAML schema, parameter types, and shell scripting conventions.
+See the [runbook guide](https://rundops.github.io/dops/guides/runbooks) for the full YAML schema, parameter types, and shell scripting conventions.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -274,7 +274,7 @@ dops config set theme=dracula
 
 Set `theme=rainbow` for a random theme on every launch.
 
-Custom themes go in `~/.dops/themes/<name>.json`. See the [configuration reference](https://jacobhuemmer.github.io/dops-cli/reference/configuration) for the theme schema.
+Custom themes go in `~/.dops/themes/<name>.json`. See the [configuration reference](https://rundops.github.io/dops/reference/configuration) for the theme schema.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -298,7 +298,7 @@ The web UI provides:
 - Real-time execution log streaming with ANSI color support
 - Full theme support — mirrors your configured dops theme
 
-The SPA is embedded in the Go binary — no Node.js required at runtime. See the [Web UI guide](https://jacobhuemmer.github.io/dops-cli/guides/web-ui) for details.
+The SPA is embedded in the Go binary — no Node.js required at runtime. See the [Web UI guide](https://rundops.github.io/dops/guides/web-ui) for details.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -328,13 +328,13 @@ Add to `.claude/settings.json`:
 
 ```bash
 # stdio transport
-docker run -i -v ~/.dops:/data/dops ghcr.io/jacobhuemmer/dops-cli:latest
+docker run -i -v ~/.dops:/data/dops ghcr.io/rundops/dops:latest
 
 # HTTP transport
-docker run -p 8080:8080 -v ~/.dops:/data/dops ghcr.io/jacobhuemmer/dops-cli:latest --transport http --port 8080
+docker run -p 8080:8080 -v ~/.dops:/data/dops ghcr.io/rundops/dops:latest --transport http --port 8080
 ```
 
-See the [MCP guide](https://jacobhuemmer.github.io/dops-cli/guides/mcp) for details on risk controls, resources, and streaming.
+See the [MCP guide](https://rundops.github.io/dops/guides/mcp) for details on risk controls, resources, and streaming.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -355,7 +355,7 @@ See the [MCP guide](https://jacobhuemmer.github.io/dops-cli/guides/mcp) for deta
 | `ctrl+shift+p` | Command palette |
 | `q` | Quit |
 
-See the full [keyboard reference](https://jacobhuemmer.github.io/dops-cli/reference/keyboard-shortcuts) for output pane controls, search navigation, and wizard shortcuts.
+See the full [keyboard reference](https://rundops.github.io/dops/reference/keyboard-shortcuts) for output pane controls, search navigation, and wizard shortcuts.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -404,9 +404,9 @@ make ci           # Run CI checks (vet + test + build)
 <!-- GETTING HELP -->
 ## Getting Help
 
-- [Documentation](https://jacobhuemmer.github.io/dops-cli/) — guides, reference, and configuration
-- [GitHub Issues](https://github.com/jacobhuemmer/dops-cli/issues) — bug reports and feature requests
-- [CLI Reference](https://jacobhuemmer.github.io/dops-cli/reference/cli) — all commands and flags
+- [Documentation](https://rundops.github.io/dops/) — guides, reference, and configuration
+- [GitHub Issues](https://github.com/rundops/dops/issues) — bug reports and feature requests
+- [CLI Reference](https://rundops.github.io/dops/reference/cli) — all commands and flags
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -435,13 +435,13 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[release-shield]: https://img.shields.io/github/v/release/jacobhuemmer/dops-cli?style=for-the-badge
-[release-url]: https://github.com/jacobhuemmer/dops-cli/releases
-[go-shield]: https://img.shields.io/github/go-mod/go-version/jacobhuemmer/dops-cli?style=for-the-badge
+[release-shield]: https://img.shields.io/github/v/release/rundops/dops?style=for-the-badge
+[release-url]: https://github.com/rundops/dops/releases
+[go-shield]: https://img.shields.io/github/go-mod/go-version/rundops/dops?style=for-the-badge
 [go-url]: https://go.dev/
-[license-shield]: https://img.shields.io/github/license/jacobhuemmer/dops-cli?style=for-the-badge
-[license-url]: https://github.com/jacobhuemmer/dops-cli/blob/main/LICENSE
-[tests-shield]: https://img.shields.io/github/actions/workflow/status/jacobhuemmer/dops-cli/test.yml?style=for-the-badge&label=tests
-[tests-url]: https://github.com/jacobhuemmer/dops-cli/actions/workflows/test.yml
-[security-shield]: https://img.shields.io/github/actions/workflow/status/jacobhuemmer/dops-cli/security.yml?style=for-the-badge&label=security
-[security-url]: https://github.com/jacobhuemmer/dops-cli/actions/workflows/security.yml
+[license-shield]: https://img.shields.io/github/license/rundops/dops?style=for-the-badge
+[license-url]: https://github.com/rundops/dops/blob/main/LICENSE
+[tests-shield]: https://img.shields.io/github/actions/workflow/status/rundops/dops/test.yml?style=for-the-badge&label=tests
+[tests-url]: https://github.com/rundops/dops/actions/workflows/test.yml
+[security-shield]: https://img.shields.io/github/actions/workflow/status/rundops/dops/security.yml?style=for-the-badge&label=security
+[security-url]: https://github.com/rundops/dops/actions/workflows/security.yml

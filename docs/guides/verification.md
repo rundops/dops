@@ -36,7 +36,7 @@ Each GitHub Release includes:
 cosign verify-blob \
   --certificate checksums.txt.pem \
   --signature checksums.txt.sig \
-  --certificate-identity-regexp "https://github.com/jacobhuemmer/dops-cli" \
+  --certificate-identity-regexp "https://github.com/rundops/dops" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   checksums.txt
 ```
@@ -64,9 +64,9 @@ if ($expected -eq $actual) { "OK" } else { "MISMATCH" }
 
 ```sh
 cosign verify \
-  --certificate-identity-regexp "https://github.com/jacobhuemmer/dops-cli" \
+  --certificate-identity-regexp "https://github.com/rundops/dops" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  ghcr.io/jacobhuemmer/dops-cli:v0.1.0
+  ghcr.io/rundops/dops:v0.1.0
 ```
 
 Replace `v0.1.0` with the version you pulled.

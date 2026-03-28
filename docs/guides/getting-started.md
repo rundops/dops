@@ -9,26 +9,26 @@ title: Getting Started
 ### Homebrew (macOS/Linux)
 
 ```sh
-brew install jacobhuemmer/tap/dops
+brew install rundops/tap/dops
 ```
 
 ### Go
 
 ```sh
-go install github.com/jacobhuemmer/dops-cli@latest
+go install github.com/rundops/dops@latest
 ```
 
 ### Docker
 
 ```sh
-docker pull ghcr.io/jacobhuemmer/dops-cli:latest
+docker pull ghcr.io/rundops/dops:latest
 ```
 
 ### From Source
 
 ```sh
-git clone https://github.com/jacobhuemmer/dops-cli.git
-cd dops-cli
+git clone https://github.com/rundops/dops.git
+cd dops
 make install
 ```
 

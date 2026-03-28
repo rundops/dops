@@ -6,7 +6,7 @@ title: Web UI
 
 dops includes a browser-based interface that mirrors the TUI experience. Launch it with `dops open`.
 
-<img src="https://raw.githubusercontent.com/jacobhuemmer/dops-cli/main/assets/web-demo.gif" alt="dops web UI demo" width="900" />
+<img src="https://raw.githubusercontent.com/rundops/dops/main/assets/web-demo.gif" alt="dops web UI demo" width="900" />
 
 ---
 
