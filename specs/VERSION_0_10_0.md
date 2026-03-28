@@ -22,7 +22,7 @@ v0.10.0 focuses on user experience improvements across CLI, TUI, and introduces 
 
 **Spec:** [web-ui](./web-ui.md)
 **Plan:** [plans/version_0_10_0/2026-03-28-web-ui.md](../plans/version_0_10_0/2026-03-28-web-ui.md)
-**Status:** TODO — requires research
+**Status:** IN PROGRESS — scaffold + API + frontend views built, needs Node.js for build
 
 ### 4. Skip Saved Fields in Wizard
 

@@ -64,3 +64,15 @@ Accumulated knowledge from developing dops-cli. Updated as discoveries are made.
 - When all fields are auto-applied, `Init()` returns `WizardSubmitMsg` immediately (no empty wizard shown)
 - Ctrl+E clears the `skipped` map and sets `showAll = true` — works mid-wizard
 - `goBack()` skips over auto-applied fields to find the previous user-editable field
+
+### Web UI Research (Idea 3)
+- **Vue 3 + Go embed**: Use `//go:embed all:dist` — the `all:` prefix is critical (without it, Go skips `_`-prefixed dirs like Vite's output)
+- **SPA fallback**: `fs.Stat` check in Go handler; if file not found, serve `index.html`
+- **shadcn-vue**: v1.x stable, 60+ components, backed by Reka UI v2 (headless, accessible). Copy-paste model, not npm dependency.
+- **TailwindCSS v4**: CSS-first config (`@theme` directive), `@tailwindcss/vite` plugin, auto content detection. Replace `tailwindcss-animate` with `tw-animate-css`.
+- **Streaming**: SSE over WebSocket — simpler, auto-reconnect, standard HTTP, `http.Flusher` in Go (~20 LOC)
+- **ANSI rendering**: `ansi_up` (4KB, zero-dep) for client-side. `terminal-to-html` (Buildkite) for server-side alternative.
+- **Theme mapping**: dops JSON tokens → CSS custom properties (`--primary`, `--background`, etc.) served as `<style>` block
+- **Build pipeline**: Makefile (`make web`), `dist/` gitignored, `.gitkeep` placeholder for embed compile
+- **Binary impact**: ~200KB-1MB added (3-15% of Go binary). Negligible.
+- **Real-world precedent**: Gitea, AdGuard Home, Flipt all embed SPAs in Go binaries this way
