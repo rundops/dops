@@ -41,9 +41,17 @@ func (f *OSFileSystem) Stat(path string) (os.FileInfo, error) {
 	return os.Stat(path)
 }
 
-// ExpandHome replaces a leading "~/" with the user's home directory.
+// ExpandHome replaces a leading "~/" or "~\" with the user's home directory.
+// A bare "~" is also expanded. Works on both Unix and Windows.
 func ExpandHome(path string) string {
-	if strings.HasPrefix(path, "~/") {
+	if path == "~" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return path
+		}
+		return home
+	}
+	if strings.HasPrefix(path, "~/") || strings.HasPrefix(path, `~\`) {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return path

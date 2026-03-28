@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dops – Confirmation Dialog Mockup</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-panel: #161b22;
+    --bg-element: #21262d;
+    --bg-hover: #292e36;
+    --fg: #e6edf3;
+    --fg-muted: #7d8590;
+    --fg-subtle: #484f58;
+    --primary: #58a6ff;
+    --primary-muted: #58a6ff22;
+    --border: #30363d;
+    --border-active: #58a6ff;
+    --success: #3fb950;
+    --warning: #d29922;
+    --warning-muted: #d2992222;
+    --error: #f85149;
+    --error-muted: #f8514922;
+    --radius: 8px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── The page behind (blurred) ── */
+  .page-behind {
+    height: 100vh;
+    display: flex;
+    filter: blur(2px);
+    opacity: 0.4;
+  }
+
+  .sidebar-placeholder {
+    width: 280px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+  }
+
+  .main-placeholder {
+    flex: 1;
+    padding: 40px;
+  }
+
+  .main-placeholder h2 {
+    font-size: 22px;
+    color: var(--fg);
+    margin-bottom: 16px;
+  }
+
+  .main-placeholder .bar {
+    height: 12px;
+    background: var(--bg-element);
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+
+  .main-placeholder .bar.w60 { width: 60%; }
+  .main-placeholder .bar.w80 { width: 80%; }
+  .main-placeholder .bar.w40 { width: 40%; }
+
+  /* ── Overlay ── */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+
+  /* ── Dialog (High Risk) ── */
+  .dialog {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    width: 420px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  }
+
+  .dialog-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .dialog-icon.warning {
+    background: var(--warning-muted);
+    color: var(--warning);
+  }
+
+  .dialog-icon.critical {
+    background: var(--error-muted);
+    color: var(--error);
+  }
+
+  .dialog h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+
+  .dialog p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--fg-muted);
+    margin-bottom: 20px;
+  }
+
+  .dialog p strong {
+    color: var(--fg);
+  }
+
+  .dialog p code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--bg-element);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--fg);
+  }
+
+  .dialog-input {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: var(--font-mono);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--fg);
+    outline: none;
+    margin-bottom: 20px;
+    transition: border-color 0.15s;
+  }
+
+  .dialog-input::placeholder { color: var(--fg-subtle); }
+  .dialog-input:focus { border-color: var(--border-active); }
+
+  .dialog-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--fg-subtle);
+    color: var(--fg);
+  }
+
+  .btn-danger {
+    background: var(--error);
+    color: #fff;
+  }
+
+  .btn-danger:hover { opacity: 0.9; }
+
+  .btn-danger:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .btn-warning {
+    background: var(--warning);
+    color: #000;
+  }
+
+  .btn-warning:hover { opacity: 0.9; }
+
+  /* ── Two dialogs side by side for mockup ── */
+  .mockup-container {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding: 40px;
+    z-index: 200;
+  }
+
+  .mockup-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-subtle);
+    margin-bottom: 12px;
+  }
+
+  .mockup-row {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+
+  .mockup-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- Show both dialog variants side by side -->
+<div class="mockup-container">
+  <h2 style="color: var(--fg); font-size: 18px; font-weight: 600; margin-bottom: 8px;">Risk Confirmation Dialogs</h2>
+  <div class="mockup-row">
+    <!-- High Risk -->
+    <div class="mockup-cell">
+      <div class="mockup-label">High Risk</div>
+      <div class="dialog">
+        <div class="dialog-icon warning">⚠</div>
+        <h3>Confirm Execution</h3>
+        <p>
+          You are about to execute <strong>deploy-app</strong> in <strong>staging</strong>. This is a high-risk operation that may affect running services.
+        </p>
+        <div class="dialog-actions">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-warning">Execute</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Critical Risk -->
+    <div class="mockup-cell">
+      <div class="mockup-label">Critical Risk</div>
+      <div class="dialog">
+        <div class="dialog-icon critical">✕</div>
+        <h3>Critical Operation</h3>
+        <p>
+          You are about to execute <strong>drain-node</strong>. This is a <strong style="color: var(--error)">critical</strong> operation that cannot be easily reversed. Type <code>CONFIRM</code> to proceed.
+        </p>
+        <input class="dialog-input" type="text" placeholder="Type CONFIRM" />
+        <div class="dialog-actions">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-danger" disabled>Execute</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

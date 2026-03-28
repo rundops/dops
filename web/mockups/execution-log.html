@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dops – Execution Log Mockup</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-panel: #161b22;
+    --bg-element: #21262d;
+    --bg-hover: #292e36;
+    --fg: #e6edf3;
+    --fg-muted: #7d8590;
+    --fg-subtle: #484f58;
+    --primary: #58a6ff;
+    --primary-muted: #58a6ff22;
+    --border: #30363d;
+    --border-active: #58a6ff;
+    --success: #3fb950;
+    --success-muted: #3fb95022;
+    --warning: #d29922;
+    --error: #f85149;
+    --error-muted: #f8514922;
+    --radius: 8px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .shell { display: flex; height: 100vh; }
+
+  /* ── Sidebar (collapsed reference) ── */
+  .sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-header h1 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sidebar-header h1 span { color: var(--primary); font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+
+  .search-box { padding: 12px 16px; }
+
+  .search-input {
+    width: 100%;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--fg);
+    outline: none;
+  }
+  .search-input::placeholder { color: var(--fg-subtle); }
+
+  .sidebar-nav { flex: 1; overflow-y: auto; padding: 4px 8px 16px; }
+  .catalog-group { margin-bottom: 4px; }
+  .catalog-label {
+    display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--fg-muted); cursor: pointer;
+  }
+  .runbook-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 24px;
+    font-size: 13px; color: var(--fg-muted); border-radius: 6px; cursor: pointer;
+    text-decoration: none; transition: all 0.1s;
+  }
+  .runbook-item:hover { background: var(--bg-hover); color: var(--fg); }
+  .runbook-item.active { background: var(--primary-muted); color: var(--primary); }
+  .runbook-item .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .risk-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .risk-dot.high { background: var(--warning); }
+  .risk-dot.low { background: var(--fg-subtle); }
+  .risk-dot.critical { background: var(--error); }
+  .risk-dot.medium { background: var(--primary); }
+
+  /* ── Main: Execution View ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Execution Header */
+  .exec-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-panel);
+  }
+
+  .exec-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .exec-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--fg);
+  }
+
+  .exec-runbook {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--fg-muted);
+    padding: 2px 8px;
+    background: var(--bg-element);
+    border-radius: 4px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 20px;
+  }
+
+  .status-pill.running {
+    background: var(--primary-muted);
+    color: var(--primary);
+  }
+
+  .status-pill.success {
+    background: var(--success-muted);
+    color: var(--success);
+  }
+
+  .status-pill.error {
+    background: var(--error-muted);
+    color: var(--error);
+  }
+
+  .status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .status-pill.running .dot {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .btn-cancel {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    border: 1px solid var(--error);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--error);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-cancel:hover {
+    background: var(--error-muted);
+  }
+
+  /* Execution params summary */
+  .exec-params {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    background: var(--bg);
+  }
+
+  .exec-param {
+    font-size: 12px;
+  }
+
+  .exec-param .label {
+    color: var(--fg-subtle);
+    margin-right: 4px;
+  }
+
+  .exec-param .value {
+    font-family: var(--font-mono);
+    color: var(--fg-muted);
+  }
+
+  /* Log output */
+  .log-output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    background: var(--bg);
+  }
+
+  .log-line {
+    display: flex;
+    gap: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .log-line .lineno {
+    color: var(--fg-subtle);
+    user-select: none;
+    text-align: right;
+    min-width: 28px;
+    flex-shrink: 0;
+  }
+
+  .log-line .text { color: var(--fg-muted); }
+  .log-line .text .bold { color: var(--fg); font-weight: 600; }
+  .log-line .text .green { color: var(--success); }
+  .log-line .text .yellow { color: var(--warning); }
+  .log-line .text .blue { color: var(--primary); }
+  .log-line .text .red { color: var(--error); }
+  .log-line .text .dim { color: var(--fg-subtle); }
+
+  /* Completion banner */
+  .exec-footer {
+    padding: 12px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-panel);
+  }
+
+  .exec-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .exec-footer .duration {
+    color: var(--fg-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .btn-back {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--fg-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .btn-back:hover {
+    border-color: var(--fg-subtle);
+    color: var(--fg);
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1><span>dops</span> runbooks</h1>
+    </div>
+    <div class="search-box">
+      <input class="search-input" type="text" placeholder="Search runbooks…" />
+    </div>
+    <nav class="sidebar-nav">
+      <div class="catalog-group">
+        <div class="catalog-label"><span class="chevron">▼</span> demo</div>
+        <a class="runbook-item active"><span class="name">deploy-app</span><span class="risk-dot high"></span></a>
+        <a class="runbook-item"><span class="name">build-image</span><span class="risk-dot medium"></span></a>
+        <a class="runbook-item"><span class="name">rollback</span><span class="risk-dot critical"></span></a>
+        <a class="runbook-item"><span class="name">canary-deploy</span><span class="risk-dot high"></span></a>
+        <a class="runbook-item"><span class="name">backup-database</span><span class="risk-dot medium"></span></a>
+        <a class="runbook-item"><span class="name">audit-permissions</span><span class="risk-dot low"></span></a>
+      </div>
+      <div class="catalog-group">
+        <div class="catalog-label"><span class="chevron">▼</span> infra</div>
+        <a class="runbook-item"><span class="name">health-check</span><span class="risk-dot low"></span></a>
+        <a class="runbook-item"><span class="name">restart-pods</span><span class="risk-dot high"></span></a>
+        <a class="runbook-item"><span class="name">scale-deployment</span><span class="risk-dot medium"></span></a>
+        <a class="runbook-item"><span class="name">drain-node</span><span class="risk-dot critical"></span></a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ── Main: Running Execution ── -->
+  <div class="main">
+    <div class="exec-header">
+      <div class="exec-header-left">
+        <span class="exec-title">Execution</span>
+        <span class="exec-runbook">deploy-app</span>
+        <span class="status-pill running"><span class="dot"></span> Running</span>
+      </div>
+      <button class="btn-cancel">Cancel</button>
+    </div>
+
+    <div class="exec-params">
+      <div class="exec-param"><span class="label">environment:</span><span class="value">staging</span></div>
+      <div class="exec-param"><span class="label">image_tag:</span><span class="value">v2.4.1-rc3</span></div>
+      <div class="exec-param"><span class="label">replicas:</span><span class="value">3</span></div>
+      <div class="exec-param"><span class="label">dry_run:</span><span class="value">true</span></div>
+    </div>
+
+    <div class="log-output">
+      <div class="log-line"><span class="lineno">1</span><span class="text"><span class="bold">deploy-app</span> <span class="dim">v1.2.0</span></span></div>
+      <div class="log-line"><span class="lineno">2</span><span class="text"><span class="dim">────────────────────────────────────────</span></span></div>
+      <div class="log-line"><span class="lineno">3</span><span class="text"><span class="blue">→</span> Validating deployment configuration...</span></div>
+      <div class="log-line"><span class="lineno">4</span><span class="text">  <span class="green">✓</span> Image <span class="bold">v2.4.1-rc3</span> found in registry</span></div>
+      <div class="log-line"><span class="lineno">5</span><span class="text">  <span class="green">✓</span> Environment <span class="bold">staging</span> is healthy</span></div>
+      <div class="log-line"><span class="lineno">6</span><span class="text">  <span class="green">✓</span> Replica count: 3</span></div>
+      <div class="log-line"><span class="lineno">7</span><span class="text"></span></div>
+      <div class="log-line"><span class="lineno">8</span><span class="text"><span class="blue">→</span> Building deployment manifest...</span></div>
+      <div class="log-line"><span class="lineno">9</span><span class="text">  namespace: <span class="yellow">staging</span></span></div>
+      <div class="log-line"><span class="lineno">10</span><span class="text">  deployment: <span class="bold">myapp</span></span></div>
+      <div class="log-line"><span class="lineno">11</span><span class="text">  image: registry.io/myapp:<span class="bold">v2.4.1-rc3</span></span></div>
+      <div class="log-line"><span class="lineno">12</span><span class="text">  replicas: 3</span></div>
+      <div class="log-line"><span class="lineno">13</span><span class="text">  strategy: RollingUpdate</span></div>
+      <div class="log-line"><span class="lineno">14</span><span class="text"></span></div>
+      <div class="log-line"><span class="lineno">15</span><span class="text"><span class="yellow">⚠</span> <span class="yellow">DRY RUN MODE</span> — no changes will be applied</span></div>
+      <div class="log-line"><span class="lineno">16</span><span class="text"></span></div>
+      <div class="log-line"><span class="lineno">17</span><span class="text"><span class="blue">→</span> Simulating rollout...</span></div>
+      <div class="log-line"><span class="lineno">18</span><span class="text">  <span class="dim">[1/3]</span> Pod myapp-7d4f8b-x2k9p would be updated</span></div>
+      <div class="log-line"><span class="lineno">19</span><span class="text">  <span class="dim">[2/3]</span> Pod myapp-7d4f8b-m3n1q would be updated</span></div>
+      <div class="log-line"><span class="lineno">20</span><span class="text">  <span class="dim">[3/3]</span> Pod myapp-7d4f8b-j7p2r would be updated</span></div>
+      <div class="log-line"><span class="lineno">21</span><span class="text"></span></div>
+      <div class="log-line"><span class="lineno">22</span><span class="text"><span class="blue">→</span> Checking readiness probes...</span></div>
+      <div class="log-line"><span class="lineno">23</span><span class="text">  <span class="green">✓</span> All probes passing</span></div>
+      <div class="log-line"><span class="lineno">24</span><span class="text"></span></div>
+      <div class="log-line"><span class="lineno">25</span><span class="text"><span class="green">✓</span> <span class="green">Dry run complete.</span> 3 pods would be updated.</span></div>
+      <div class="log-line"><span class="lineno">26</span><span class="text"><span class="dim">Elapsed: 4.2s</span></span></div>
+    </div>
+
+    <div class="exec-footer">
+      <div class="exec-footer-left">
+        <span class="status-pill success"><span class="dot"></span> Completed</span>
+        <span class="duration">4.2s</span>
+      </div>
+      <a class="btn-back" href="#">← Back to runbook</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

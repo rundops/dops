@@ -23,6 +23,7 @@ export interface RunbookDetail {
   risk_level: string;
   script: string;
   parameters: Parameter[];
+  saved_values?: Record<string, string>;
 }
 
 export interface Parameter {

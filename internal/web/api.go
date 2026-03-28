@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 
+	"dops/internal/adapters"
 	"dops/internal/domain"
 	"dops/internal/executor"
 	"dops/internal/vars"
@@ -61,6 +63,7 @@ type runbookDetail struct {
 	RiskLevel   string             `json:"risk_level"`
 	Script      string             `json:"script"`
 	Parameters  []domain.Parameter `json:"parameters"`
+	SavedValues map[string]string  `json:"saved_values,omitempty"`
 }
 
 func (a *api) handleListCatalogs(w http.ResponseWriter, _ *http.Request) {
@@ -89,10 +92,24 @@ func (a *api) handleListCatalogs(w http.ResponseWriter, _ *http.Request) {
 func (a *api) handleGetRunbook(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
-	rb, _, err := a.findRunbook(id)
+	rb, cat, err := a.findRunbook(id)
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
+	}
+
+	// Resolve saved values for pre-filling the form.
+	resolver := vars.NewDefaultResolver()
+	saved := resolver.Resolve(a.deps.Config, cat.Name, rb.Name, rb.Parameters)
+
+	// Mask secret values — the frontend should know a saved value exists
+	// but must not see the actual value.
+	for _, p := range rb.Parameters {
+		if p.Secret {
+			if _, ok := saved[p.Name]; ok {
+				saved[p.Name] = "••••••••"
+			}
+		}
 	}
 
 	writeJSON(w, http.StatusOK, runbookDetail{
@@ -104,6 +121,7 @@ func (a *api) handleGetRunbook(w http.ResponseWriter, r *http.Request) {
 		RiskLevel:   string(rb.RiskLevel),
 		Script:      rb.Script,
 		Parameters:  rb.Parameters,
+		SavedValues: saved,
 	})
 }
 
@@ -146,8 +164,8 @@ func (a *api) handleExecuteRunbook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Resolve script path.
-	catPath := cat.RunbookRoot()
-	scriptPath := catPath + "/" + rb.Name + "/" + rb.Script
+	catPath := adapters.ExpandHome(cat.RunbookRoot())
+	scriptPath := filepath.Join(catPath, rb.Name, rb.Script)
 
 	// Start execution.
 	exec := a.executions.start(scriptPath, env, a.deps.Runner)
