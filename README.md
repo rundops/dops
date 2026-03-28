@@ -45,6 +45,7 @@
     <li><a href="#installation">Installation</a></li>
     <li><a href="#quick-start">Quick Start</a></li>
     <li><a href="#themes">Themes</a></li>
+    <li><a href="#web-ui">Web UI</a></li>
     <li><a href="#mcp-integration">MCP Integration</a></li>
     <li><a href="#keyboard-shortcuts">Keyboard Shortcuts</a></li>
     <li><a href="#shell-completion">Shell Completion</a></li>
@@ -69,13 +70,66 @@ dops is built for DevOps and platform engineering teams who need a consistent, s
 ## Features
 
 - **Interactive TUI** — sidebar catalog tree, metadata panel, live output pane, and wizard-driven parameter input
+- **Web UI** — browser-based interface via `dops open` with real-time log streaming
 - **Catalog system** — organize runbooks locally or install shared catalogs from git repositories
+- **Runbook aliases** — short names for frequently used runbooks (`dops run deploy` instead of full IDs)
 - **Risk controls** — confirmation gates for high/critical risk runbooks, per-catalog risk policies
 - **Encrypted vault** — saved parameters encrypted with [age](https://github.com/FiloSottile/age) (X25519 + ChaCha20-Poly1305)
+- **Smart parameter input** — saved values auto-applied, only prompts for what's needed
 - **Live execution** — real-time stdout/stderr streaming with scroll, search, and text selection
 - **MCP server** — expose runbooks to AI agents via the [Model Context Protocol](https://modelcontextprotocol.io)
 - **20 themes** — github, dracula, gruvbox, nord, synthwave, unicorn, and more
 - **CLI mode** — run any runbook non-interactively with `dops run <id> --param key=value`
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- SCREENSHOTS -->
+<details>
+  <summary><strong>Screenshots</strong> (click to expand)</summary>
+  <br />
+
+  **TUI — Startup**
+  <br />
+  <img src="assets/hero-startup.png" alt="dops startup" width="900" />
+  <br /><br />
+
+  **TUI — Sidebar search**
+  <br />
+  <img src="assets/hero-sidebar.png" alt="dops sidebar search" width="900" />
+  <br /><br />
+
+  **TUI — Wizard parameter input**
+  <br />
+  <img src="assets/hero-wizard-input.png" alt="dops wizard input" width="900" />
+  <br /><br />
+
+  **TUI — Multi-select**
+  <br />
+  <img src="assets/hero-wizard-multiselect.png" alt="dops multi-select" width="900" />
+  <br /><br />
+
+  **TUI — Risk confirmation**
+  <br />
+  <img src="assets/hero-confirm.png" alt="dops risk confirmation" width="900" />
+  <br /><br />
+
+  **TUI — Live execution output**
+  <br />
+  <img src="assets/hero-execution.png" alt="dops execution" width="900" />
+  <br /><br />
+
+  **TUI — Output search**
+  <br />
+  <img src="assets/hero-search.png" alt="dops output search" width="900" />
+  <br /><br />
+
+  **TUI — Help overlay**
+  <br />
+  <img src="assets/hero-help.png" alt="dops help" width="900" />
+
+</details>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -135,7 +189,13 @@ dops
 
 **3. Navigate** with arrow keys, **run** with Enter, fill in parameters, and confirm.
 
-**4. Install a shared catalog:**
+**4. Or launch the web UI:**
+
+```bash
+dops open
+```
+
+**5. Install a shared catalog:**
 
 ```bash
 dops catalog install https://github.com/your-org/runbooks.git
@@ -197,6 +257,30 @@ dops config set theme=dracula
 Set `theme=rainbow` for a random theme on every launch.
 
 Custom themes go in `~/.dops/themes/<name>.json`. See the [configuration reference](https://jacobhuemmer.github.io/dops-cli/reference/configuration) for the theme schema.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
+<!-- WEB UI -->
+## Web UI
+
+Launch a browser-based interface with `dops open`:
+
+```bash
+dops open              # opens http://localhost:3000
+dops open --port 8080  # custom port
+dops open --no-browser # start server without opening browser
+```
+
+The web UI provides:
+- Searchable catalog sidebar with risk indicators
+- Parameter forms with saved values pre-filled
+- Risk confirmation dialogs for high/critical operations
+- Real-time execution log streaming with ANSI color support
+- Full theme support — mirrors your configured dops theme
+
+The SPA is embedded in the Go binary — no Node.js required at runtime.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -284,13 +368,14 @@ dops completion powershell | Out-String | Invoke-Expression
 ## Development
 
 ```bash
-make build       # Build binary
-make test        # Run tests
-make vet         # Go vet
-make lint        # golangci-lint
-make screenshots # Generate VHS screenshots
-make docker      # Build Docker image
-make ci          # Run CI checks (vet + test + build)
+make build        # Build binary
+make test         # Run tests
+make vet          # Go vet
+make lint         # golangci-lint
+make web          # Build web UI (requires Node.js)
+make screenshots  # Regenerate README hero screenshots and demo GIF (requires VHS)
+make docker       # Build Docker image
+make ci           # Run CI checks (vet + test + build)
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

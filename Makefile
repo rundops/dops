@@ -51,6 +51,11 @@ vet:
 
 ## Screenshots (VHS)
 
+screenshots: build
+	@echo "Generating README hero screenshots and demo GIF..."
+	vhs tapes/readme-hero.tape
+	@echo "Done. Assets in assets/"
+
 tapes: build
 	@echo "Generating feature screenshots..."
 	@for tape in tapes/demo-*.tape; do \
