@@ -45,6 +45,8 @@ type Model struct {
 	phase    wizardPhase         // current phase (input or save confirm)
 	changed  bool                // whether user typed a new value (vs accepting pre-fill)
 	prefill  map[string]bool     // tracks which fields had saved values
+	showAll  bool                // when true, show all fields including prefilled
+	skipped  map[int]bool        // indices of auto-applied (skipped) fields
 	width    int
 	styles   *theme.Styles
 	cfg      *domain.Config      // config to save into
@@ -52,6 +54,10 @@ type Model struct {
 }
 
 func New(rb domain.Runbook, cat domain.Catalog, resolved map[string]string) Model {
+	return NewWithOptions(rb, cat, resolved, false)
+}
+
+func NewWithOptions(rb domain.Runbook, cat domain.Catalog, resolved map[string]string, promptAll bool) Model {
 	m := Model{
 		runbook:  rb,
 		catalog:  cat,
@@ -59,6 +65,8 @@ func New(rb domain.Runbook, cat domain.Catalog, resolved map[string]string) Mode
 		values:   make(map[string]string),
 		checked:  make(map[int]bool),
 		prefill:  make(map[string]bool),
+		skipped:  make(map[int]bool),
+		showAll:  promptAll,
 		params:   rb.Parameters, // ALL params, not just missing
 	}
 
@@ -70,9 +78,60 @@ func New(rb domain.Runbook, cat domain.Catalog, resolved map[string]string) Mode
 	}
 
 	if len(m.params) > 0 {
-		m.initField(0)
+		// Find the first non-skippable field.
+		first := m.nextUnskipped(0)
+		if first >= len(m.params) {
+			// All fields skippable — auto-apply all and submit.
+			m.applyAllSkipped()
+			m.current = len(m.params) // signals completion
+		} else {
+			// Skip and auto-apply fields before the first non-skippable.
+			for i := 0; i < first; i++ {
+				if m.shouldSkipField(i) {
+					m.skipped[i] = true
+					m.values[m.params[i].Name] = m.resolved[m.params[i].Name]
+				}
+			}
+			m.initField(first)
+		}
 	}
 	return m
+}
+
+// shouldSkipField returns true if a field should be auto-applied (has a saved value
+// and showAll is false).
+func (m Model) shouldSkipField(idx int) bool {
+	if m.showAll {
+		return false
+	}
+	p := m.params[idx]
+	return m.prefill[p.Name]
+}
+
+// nextUnskipped returns the next field index >= start that should not be skipped.
+// Returns len(m.params) if all remaining fields are skippable.
+func (m Model) nextUnskipped(start int) int {
+	for i := start; i < len(m.params); i++ {
+		if !m.shouldSkipField(i) {
+			return i
+		}
+	}
+	return len(m.params)
+}
+
+// applyAllSkipped marks all prefilled fields as skipped and applies their values.
+func (m *Model) applyAllSkipped() {
+	for i, p := range m.params {
+		if m.prefill[p.Name] {
+			m.skipped[i] = true
+			m.values[p.Name] = m.resolved[p.Name]
+		}
+	}
+}
+
+// SkippedCount returns the number of auto-applied fields.
+func (m Model) SkippedCount() int {
+	return len(m.skipped)
 }
 
 func (m *Model) SetStyles(s *theme.Styles) {
@@ -186,8 +245,18 @@ func (m Model) Init() tea.Cmd {
 	if len(m.params) == 0 {
 		return nil
 	}
+	// All fields were auto-applied — submit immediately.
+	if m.current >= len(m.params) {
+		return func() tea.Msg {
+			return WizardSubmitMsg{
+				Runbook: m.runbook,
+				Catalog: m.catalog,
+				Params:  m.collectParams(),
+			}
+		}
+	}
 	// Only focus the text input if the first field uses it.
-	if m.fieldMode(m.params[0]) == modeTextInput {
+	if m.fieldMode(m.params[m.current]) == modeTextInput {
 		return m.input.Focus()
 	}
 	return nil
@@ -202,6 +271,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if msg.Code == tea.KeyEscape {
 			return m, func() tea.Msg { return WizardCancelMsg{} }
+		}
+
+		// Ctrl+E: reveal all skipped fields.
+		if msg.Text == "e" && msg.Mod == tea.ModCtrl && !m.showAll && len(m.skipped) > 0 {
+			m.showAll = true
+			m.skipped = make(map[int]bool) // clear skipped set
+			return m, nil
 		}
 
 		// Save confirmation phase.
@@ -441,6 +517,14 @@ func (m *Model) saveCurrentField() {
 
 func (m Model) advance() (Model, tea.Cmd) {
 	next := m.current + 1
+
+	// Skip prefilled fields.
+	for next < len(m.params) && m.shouldSkipField(next) {
+		m.skipped[next] = true
+		m.values[m.params[next].Name] = m.resolved[m.params[next].Name]
+		next++
+	}
+
 	if next >= len(m.params) {
 		return m, func() tea.Msg {
 			return WizardSubmitMsg{
@@ -461,7 +545,14 @@ func (m Model) goBack() (Model, tea.Cmd) {
 	if m.current == 0 {
 		return m, nil
 	}
+	// Skip back over auto-applied fields.
 	prev := m.current - 1
+	for prev > 0 && m.skipped[prev] {
+		prev--
+	}
+	if m.skipped[prev] {
+		return m, nil // all previous fields are skipped
+	}
 	delete(m.values, m.params[prev].Name)
 	m.initField(prev)
 	if m.fieldMode(m.params[prev]) == modeTextInput {
@@ -496,6 +587,9 @@ func (m Model) FooterHints() string {
 		if m.current > 0 {
 			hint += "  shift+tab back"
 		}
+		if len(m.skipped) > 0 && !m.showAll {
+			hint += "  ctrl+e edit all"
+		}
 		return hint + "  esc cancel"
 	}
 }
@@ -512,8 +606,23 @@ func (m Model) View() string {
 	b.WriteString(m.renderHeader(cmd))
 	b.WriteString("\n")
 
-	// --- Completed fields ---
+	// --- Skipped fields summary ---
+	if len(m.skipped) > 0 {
+		msg := fmt.Sprintf("Applied %d saved value", len(m.skipped))
+		if len(m.skipped) > 1 {
+			msg += "s"
+		}
+		msg += ". Ctrl+E to edit all."
+		b.WriteString(m.mutedStyle().Render(msg))
+		b.WriteString("\n\n")
+	}
+
+	// --- Completed fields (excluding skipped) ---
+	hasCompleted := false
 	for i := 0; i < m.current; i++ {
+		if m.skipped[i] {
+			continue
+		}
 		p := m.params[i]
 		val := m.values[p.Name]
 		if p.Secret {
@@ -521,8 +630,9 @@ func (m Model) View() string {
 		}
 		b.WriteString(m.renderCompletedField(p.Name, val))
 		b.WriteString("\n")
+		hasCompleted = true
 	}
-	if m.current > 0 {
+	if hasCompleted {
 		b.WriteString("\n")
 	}
 

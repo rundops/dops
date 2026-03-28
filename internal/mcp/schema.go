@@ -110,6 +110,9 @@ func RunbookToInputSchema(rb domain.Runbook, resolved map[string]string) json.Ra
 // Includes a warning if the runbook has sensitive inputs loaded from config.
 func RunbookToDescription(rb domain.Runbook) string {
 	desc := rb.Description
+	if len(rb.Aliases) > 0 {
+		desc += fmt.Sprintf(" [aliases: %s]", strings.Join(rb.Aliases, ", "))
+	}
 	if rb.RiskLevel != "" {
 		desc += fmt.Sprintf(" [risk: %s]", rb.RiskLevel)
 	}
