@@ -1,0 +1,47 @@
+{
+  "$schema": "https://dops.sh/theme.json",
+  "name": "everforest",
+  "defs": {
+    "bg":        "#2d353b",
+    "bgDark":    "#272e33",
+    "bgElem":    "#343f44",
+    "fg":        "#d3c6aa",
+    "fgMuted":   "#859289",
+    "green":     "#a7c080",
+    "aqua":      "#83c092",
+    "orange":    "#e69875",
+    "red":       "#e67e80",
+    "redDark":   "#c85a5c",
+    "yellow":    "#dbbc7f",
+    "blue":      "#7fbbb3",
+    "purple":    "#d699b6",
+    "dayBg":     "#fdf6e3",
+    "dayBgPanel":"#f3efda",
+    "dayBgElem": "#e5dfc8",
+    "dayFg":     "#5c6a72",
+    "dayFgMuted":"#829181",
+    "dayGreen":  "#608030",
+    "dayAqua":   "#35826b",
+    "dayOrange": "#b56a10",
+    "dayRed":    "#c43030"
+  },
+  "theme": {
+    "background":        { "dark": "bg",       "light": "dayBg"      },
+    "backgroundPanel":   { "dark": "bgDark",   "light": "dayBgPanel" },
+    "backgroundElement": { "dark": "bgElem",   "light": "dayBgElem"  },
+    "text":              { "dark": "fg",        "light": "dayFg"      },
+    "textMuted":         { "dark": "fgMuted",   "light": "dayFgMuted" },
+    "primary":           { "dark": "aqua",      "light": "dayAqua"    },
+    "border":            { "dark": "fgMuted",   "light": "dayFgMuted" },
+    "borderActive":      { "dark": "green",     "light": "dayGreen"   },
+    "success":           { "dark": "green",     "light": "dayGreen"   },
+    "warning":           { "dark": "orange",    "light": "dayOrange"  },
+    "error":             { "dark": "red",       "light": "dayRed"     },
+    "risk": {
+      "low":      { "dark": "aqua",    "light": "dayAqua"   },
+      "medium":   { "dark": "yellow",  "light": "dayOrange" },
+      "high":     { "dark": "orange",  "light": "dayOrange" },
+      "critical": { "dark": "redDark", "light": "dayRed"    }
+    }
+  }
+}

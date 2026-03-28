@@ -33,6 +33,42 @@ var bundledEspresso []byte
 //go:embed unicorn.json
 var bundledUnicorn []byte
 
+//go:embed dracula.json
+var bundledDracula []byte
+
+//go:embed solarized.json
+var bundledSolarized []byte
+
+//go:embed gruvbox.json
+var bundledGruvbox []byte
+
+//go:embed monokai.json
+var bundledMonokai []byte
+
+//go:embed kanagawa.json
+var bundledKanagawa []byte
+
+//go:embed everforest.json
+var bundledEverforest []byte
+
+//go:embed synthwave.json
+var bundledSynthwave []byte
+
+//go:embed one-dark.json
+var bundledOneDark []byte
+
+//go:embed nightowl.json
+var bundledNightowl []byte
+
+//go:embed github.json
+var bundledGithub []byte
+
+//go:embed ayu.json
+var bundledAyu []byte
+
+//go:embed zenburn.json
+var bundledZenburn []byte
+
 type ThemeLoader interface {
 	Load(name string) (*domain.ThemeFile, error)
 }
@@ -90,6 +126,30 @@ func (l *FileThemeLoader) loadBundled(name string) (*domain.ThemeFile, error) {
 		return parseTheme(bundledEspresso)
 	case "unicorn":
 		return parseTheme(bundledUnicorn)
+	case "dracula":
+		return parseTheme(bundledDracula)
+	case "solarized":
+		return parseTheme(bundledSolarized)
+	case "gruvbox":
+		return parseTheme(bundledGruvbox)
+	case "monokai":
+		return parseTheme(bundledMonokai)
+	case "kanagawa":
+		return parseTheme(bundledKanagawa)
+	case "everforest":
+		return parseTheme(bundledEverforest)
+	case "synthwave":
+		return parseTheme(bundledSynthwave)
+	case "one-dark":
+		return parseTheme(bundledOneDark)
+	case "nightowl":
+		return parseTheme(bundledNightowl)
+	case "github":
+		return parseTheme(bundledGithub)
+	case "ayu":
+		return parseTheme(bundledAyu)
+	case "zenburn":
+		return parseTheme(bundledZenburn)
 	default:
 		return nil, fmt.Errorf("no bundled theme %q", name)
 	}
