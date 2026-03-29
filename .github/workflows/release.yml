@@ -27,7 +27,7 @@ jobs:
           node-version: 22
 
       - name: Build web UI
-        run: make web
+        run: make web && git checkout -- internal/web/dist/.gitkeep
 
       - uses: sigstore/cosign-installer@v3
 
