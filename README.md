@@ -13,7 +13,7 @@
 
 <!-- PROJECT LOGO -->
 <div align="center">
-  <img src="assets/logos/logo-2048.png" alt="dops logo" width="600" />
+  <img src="assets/logos/logo-2048.png" alt="dops logo" width="320" />
   <h3>the do(ops) cli</h3>
 
   <p>A browsable catalog of automation scripts that operators can select, parameterize, and execute directly from the terminal.</p>
