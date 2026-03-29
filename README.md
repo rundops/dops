@@ -19,6 +19,8 @@
   <p>A browsable catalog of automation scripts that operators can select, parameterize, and execute directly from the terminal.</p>
 
   <p>
+    <a href="https://demo.rundops.dev"><strong>Try the Live Demo</strong></a>
+    &middot;
     <a href="https://rundops.dev/">Documentation</a>
     &middot;
     <a href="https://github.com/rundops/dops/issues">Report Bug</a>

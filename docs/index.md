@@ -7,6 +7,9 @@ hero:
   tagline: A browsable catalog of automation scripts that operators can select, parameterize, and execute directly from the terminal — or in the browser.
   actions:
     - theme: brand
+      text: Try Live Demo
+      link: https://demo.rundops.dev
+    - theme: alt
       text: Get Started
       link: /guides/getting-started
     - theme: alt
@@ -100,6 +103,38 @@ features:
   font-size: 0.85rem;
   color: var(--vp-c-text-2);
 }
+.try-cta {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+.try-cta h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--vp-c-text-1);
+}
+.try-cta p {
+  color: var(--vp-c-text-2);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+.try-btn {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-bg) !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.try-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
 </style>
 
 <div class="demo-section">
@@ -122,6 +157,14 @@ features:
   <h2>MCP Server</h2>
   <p>Expose runbooks as tools for AI agents. Run with <code>dops mcp serve</code>.</p>
   <img src="https://raw.githubusercontent.com/rundops/dops/main/assets/mcp-demo.gif" alt="dops MCP demo" />
+</div>
+
+<div class="demo-divider"></div>
+
+<div class="try-cta">
+  <h2>See it for yourself</h2>
+  <p>No install needed. Browse runbooks, fill parameters, and run scripts in a live sandbox.</p>
+  <a class="try-btn" href="https://demo.rundops.dev">Try the Live Demo &rarr;</a>
 </div>
 
 <div class="demo-divider"></div>
