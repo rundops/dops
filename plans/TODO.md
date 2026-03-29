@@ -1,6 +1,6 @@
 # dops-cli — Feature TODO
 
-All v0.1.0 features have been implemented.
+All v0.10.0 features have been implemented.
 
 ## Completed
 
@@ -46,3 +46,24 @@ All v0.1.0 features have been implemented.
 - [x] HTTP gzip compression middleware
 - [x] Risk confirmation via synthetic params
 - [x] CLI: dops mcp serve / dops mcp tools
+
+### 2026-03-25 — Vault Encryption
+- [x] Encrypted parameter storage using age (X25519/ChaCha20-Poly1305)
+- [x] Migration from plaintext config.json to encrypted vault.json
+- [x] Tamper detection and 0600 file permissions
+
+### 2026-03-28 — v0.10.0 Features
+- [x] Runbook ID aliases (`aliases` field in runbook.yaml, CLI fallback resolution)
+- [x] Catalog display names (`--display-name` flag, `Label()` method in sidebar)
+- [x] Skip saved fields in wizard (auto-apply, Ctrl+E reveal, auto-submit when all saved)
+- [x] Sidebar filter label alignment fix
+- [x] Web UI (`dops open`): Vue 3 + Tailwind v4 SPA embedded in Go binary
+  - [x] Sidebar with catalog tree, search, risk badges
+  - [x] Parameter form (text, select, multi-select, boolean, secret)
+  - [x] SSE execution streaming with ANSI rendering
+  - [x] Risk confirmation dialogs
+  - [x] Live theme switching (20 built-in themes)
+  - [x] Responsive layout with mobile drawer
+  - [x] Keyboard navigation (/, arrows, Enter, Escape)
+  - [x] Error boundary and fallback UI
+  - [x] Toast notifications
