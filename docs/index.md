@@ -5,9 +5,6 @@ hero:
   name: dops
   text: the do(ops) cli
   tagline: A browsable catalog of automation scripts that operators can select, parameterize, and execute directly from the terminal — or in the browser.
-  image:
-    src: /logo.png
-    alt: dops logo
   actions:
     - theme: brand
       text: Get Started
