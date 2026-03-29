@@ -86,4 +86,4 @@ EOF
 
 EXPOSE 3000
 
-ENTRYPOINT ["dops", "open", "--no-browser", "--port", "3000"]
+ENTRYPOINT ["dops", "open", "--no-browser", "--demo", "--port", "3000"]

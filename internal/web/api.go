@@ -139,6 +139,11 @@ type executeResponse struct {
 }
 
 func (a *api) handleExecuteRunbook(w http.ResponseWriter, r *http.Request) {
+	if a.deps.Demo {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "execution is disabled in demo mode"})
+		return
+	}
+
 	id := r.PathValue("id")
 
 	rb, cat, err := a.findRunbook(id)
@@ -301,8 +306,8 @@ func (a *api) handleSetTheme(w http.ResponseWriter, r *http.Request) {
 	a.deps.Theme = resolved
 	a.deps.Config.Theme = req.Name
 
-	// Persist to config file.
-	if a.deps.ConfigStore != nil {
+	// Persist to config file (skip in demo mode).
+	if a.deps.ConfigStore != nil && !a.deps.Demo {
 		if err := a.deps.ConfigStore.Save(a.deps.Config); err != nil {
 			log.Printf("failed to save theme config: %v", err)
 		}
