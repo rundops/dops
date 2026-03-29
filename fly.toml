@@ -1,4 +1,4 @@
-app = "dops-demo"
+app = "dops"
 primary_region = "ord"
 
 [build]

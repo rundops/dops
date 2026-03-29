@@ -32,5 +32,5 @@ title: Demo
 <div class="demo-container">
   <h1>Try dops</h1>
   <p>Browse runbooks, fill parameters, and run scripts — all in the browser. This is a live sandbox with sample runbooks.</p>
-  <iframe class="demo-frame" src="https://dops-demo.fly.dev" allow="clipboard-write" loading="lazy"></iframe>
+  <iframe class="demo-frame" src="https://demo.rundops.dev" allow="clipboard-write" loading="lazy"></iframe>
 </div>
