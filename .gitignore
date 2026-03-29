@@ -40,3 +40,4 @@ tapes/web-demo-results/
 docs/node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+mcp-demo.cast

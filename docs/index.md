@@ -121,6 +121,14 @@ features:
 
 <div class="demo-divider"></div>
 
+<div class="demo-section">
+  <h2>MCP Server</h2>
+  <p>Expose runbooks as tools for AI agents. Run with <code>dops mcp serve</code>.</p>
+  <img src="https://raw.githubusercontent.com/rundops/dops/main/assets/mcp-demo.gif" alt="dops MCP demo" />
+</div>
+
+<div class="demo-divider"></div>
+
 <div class="commands-section">
   <h2>Commands</h2>
   <div class="commands-grid">

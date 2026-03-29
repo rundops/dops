@@ -43,6 +43,14 @@
 
 <br />
 
+<div align="center">
+  <em>Or let AI agents run your runbooks:</em> <code>dops mcp serve</code>
+  <br /><br />
+  <img src="assets/mcp-demo.gif" alt="dops MCP demo" width="900" />
+</div>
+
+<br />
+
 <!-- TABLE OF CONTENTS -->
 <details>
   <summary>Table of Contents</summary>
