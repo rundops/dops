@@ -27,10 +27,6 @@ export default defineConfig({
           { text: "Keyboard Shortcuts", link: "/reference/keyboard-shortcuts" },
         ],
       },
-      {
-        text: "GitHub",
-        link: "https://github.com/rundops/dops",
-      },
     ],
 
     sidebar: {
