@@ -35,6 +35,7 @@ internal/web/dist/
 # Node
 web/node_modules/
 web/dist/
+web/tsconfig.tsbuildinfo
 tapes/node_modules/
 tapes/web-demo-results/
 docs/node_modules/
