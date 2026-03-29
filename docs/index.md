@@ -38,10 +38,6 @@ features:
 ---
 
 <style>
-.VPHero .VPImage {
-  max-width: 320px !important;
-  max-height: 320px !important;
-}
 .demo-section {
   max-width: 960px;
   margin: 0 auto;

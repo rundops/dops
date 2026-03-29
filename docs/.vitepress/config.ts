@@ -6,14 +6,15 @@ export default defineConfig({
   base: "/",
 
   head: [
-    ["link", { rel: "icon", type: "image/png", href: "/logo.png" }],
-    ["link", { rel: "apple-touch-icon", href: "/logo.png" }],
+    ["link", { rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "180x180", href: "/favicon.png" }],
+    ["link", { rel: "apple-touch-icon", sizes: "180x180", href: "/favicon.png" }],
   ],
 
   appearance: "dark",
 
   themeConfig: {
-    logo: "/logo.png",
+    logo: "/favicon.png",
     siteTitle: "dops",
 
     nav: [

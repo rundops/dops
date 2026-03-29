@@ -56,6 +56,7 @@
   color: var(--vp-c-text-2);
 }
 
+
 /* Tighter code block styling */
 .vp-doc div[class*="language-"] {
   border-radius: 8px;
