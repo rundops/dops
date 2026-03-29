@@ -29,6 +29,7 @@ type ServerDeps struct {
 	ThemeLoader theme.ThemeLoader
 	IsDark      bool
 	Port        int
+	Demo        bool
 }
 
 // Server manages the HTTP server for the web UI.

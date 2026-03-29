@@ -25,22 +25,24 @@ import (
 func newOpenCmd(dopsDir string) *cobra.Command {
 	var port int
 	var noBrowser bool
+	var demo bool
 
 	cmd := &cobra.Command{
 		Use:   "open",
 		Short: "Launch the web UI in a browser",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runWebUI(dopsDir, port, noBrowser)
+			return runWebUI(dopsDir, port, noBrowser, demo)
 		},
 	}
 
 	cmd.Flags().IntVar(&port, "port", 3000, "HTTP server port")
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Start server without opening browser")
+	cmd.Flags().BoolVar(&demo, "demo", false, "Demo mode: disable script execution and config writes")
 
 	return cmd
 }
 
-func runWebUI(dopsDir string, port int, noBrowser bool) error {
+func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 	// Load config.
 	configPath := filepath.Join(dopsDir, "config.json")
 	fs := adapters.NewOSFileSystem()
@@ -95,6 +97,7 @@ func runWebUI(dopsDir string, port int, noBrowser bool) error {
 		ThemeLoader: themeLoader,
 		IsDark:      isDark,
 		Port:        port,
+		Demo:        demo,
 	})
 
 	if err := srv.Start(); err != nil {
