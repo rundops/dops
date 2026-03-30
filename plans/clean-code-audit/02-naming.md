@@ -9,7 +9,7 @@
 - [x] **internal/tui/app.go:75** — `sw` → `sidebarW` (consistent with `rightW`, `contentW`)
 - [x] **internal/tui/app.go, internal/mcp/tools.go** — `lw` → `logWriter`
 - [x] **internal/vars/decrypting_resolver.go, internal/vault/vault.go** — `enc` → `encrypter`
-- [ ] **internal/tui/*.go** — `b` → `sb` for `strings.Builder` (standardize across codebase)
+- [x] **internal/tui/*.go** — `b` → `sb` for `strings.Builder` (standardize across codebase)
 - [x] **internal/tui/output/model.go** — `cw` → `contentWidth`
 - [ ] **cmd/run.go** — `p` → `param` in range loops spanning 10+ lines
 - [x] **internal/mcp/server.go:274** — `mkerr` → `toolError`

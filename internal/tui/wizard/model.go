@@ -599,12 +599,12 @@ func (m Model) View() string {
 		return ""
 	}
 
-	var b strings.Builder
+	var sb strings.Builder
 
 	// --- Header ---
 	cmd := BuildCommand(m.runbook, m.collectParams(), m.resolved)
-	b.WriteString(m.renderHeader(cmd))
-	b.WriteString("\n")
+	sb.WriteString(m.renderHeader(cmd))
+	sb.WriteString("\n")
 
 	// --- Skipped fields summary ---
 	if len(m.skipped) > 0 {
@@ -613,8 +613,8 @@ func (m Model) View() string {
 			msg += "s"
 		}
 		msg += ". Ctrl+E to edit all."
-		b.WriteString(m.mutedStyle().Render(msg))
-		b.WriteString("\n\n")
+		sb.WriteString(m.mutedStyle().Render(msg))
+		sb.WriteString("\n\n")
 	}
 
 	// --- Completed fields (excluding skipped) ---
@@ -628,12 +628,12 @@ func (m Model) View() string {
 		if p.Secret {
 			val = "••••••••••"
 		}
-		b.WriteString(m.renderCompletedField(p.Name, val))
-		b.WriteString("\n")
+		sb.WriteString(m.renderCompletedField(p.Name, val))
+		sb.WriteString("\n")
 		hasCompleted = true
 	}
 	if hasCompleted {
-		b.WriteString("\n")
+		sb.WriteString("\n")
 	}
 
 	// --- Current field or save prompt ---
@@ -643,23 +643,23 @@ func (m Model) View() string {
 		if p.Secret {
 			val = "••••••••••"
 		}
-		b.WriteString(m.renderCompletedField(p.Name, val))
-		b.WriteString("\n\n")
-		b.WriteString(m.renderSavePrompt())
+		sb.WriteString(m.renderCompletedField(p.Name, val))
+		sb.WriteString("\n\n")
+		sb.WriteString(m.renderSavePrompt())
 	} else {
 		p := m.params[m.current]
-		b.WriteString(m.renderCurrentField(p))
+		sb.WriteString(m.renderCurrentField(p))
 	}
 
 	if m.err != "" {
-		b.WriteString("\n")
-		b.WriteString(m.renderError(m.err))
+		sb.WriteString("\n")
+		sb.WriteString(m.renderError(m.err))
 	}
 
-	b.WriteString("\n\n")
-	b.WriteString(m.renderFooter())
+	sb.WriteString("\n\n")
+	sb.WriteString(m.renderFooter())
 
-	return b.String()
+	return sb.String()
 }
 
 // style helpers — return a safe zero style when m.styles is nil.
@@ -736,23 +736,23 @@ func (m Model) renderCurrentField(p domain.Parameter) string {
 	primary := m.primaryStyle()
 	text := m.textStyle()
 
-	var b strings.Builder
-	b.WriteString(primary.Render(p.Name+":") + "\n\n")
+	var sb strings.Builder
+	sb.WriteString(primary.Render(p.Name+":") + "\n\n")
 
 	switch m.fieldMode(p) {
 	case modeTextInput:
 		if p.Secret && m.prefill[p.Name] && m.input.Value() == "" {
-			b.WriteString(text.Render("> ") + m.mutedStyle().Render("••••••••••  (enter to keep, type to override)"))
+			sb.WriteString(text.Render("> ") + m.mutedStyle().Render("••••••••••  (enter to keep, type to override)"))
 		} else {
 			// textinput has its own styles with panelBg — don't wrap in another Render.
-			b.WriteString(m.input.View())
+			sb.WriteString(m.input.View())
 		}
 	case modeSelect:
 		for i, opt := range p.Options {
 			if i == m.cursor {
-				b.WriteString(primary.Render("> ") + text.Render(opt) + "\n")
+				sb.WriteString(primary.Render("> ") + text.Render(opt) + "\n")
 			} else {
-				b.WriteString("  " + text.Render(opt) + "\n")
+				sb.WriteString("  " + text.Render(opt) + "\n")
 			}
 		}
 	case modeMultiSelect:
@@ -762,23 +762,23 @@ func (m Model) renderCurrentField(p domain.Parameter) string {
 				check = "[x]"
 			}
 			if i == m.cursor {
-				b.WriteString(primary.Render("> "+check) + " " + text.Render(opt) + "\n")
+				sb.WriteString(primary.Render("> "+check) + " " + text.Render(opt) + "\n")
 			} else {
-				b.WriteString("  " + check + " " + text.Render(opt) + "\n")
+				sb.WriteString("  " + check + " " + text.Render(opt) + "\n")
 			}
 		}
 	case modeBoolean:
-		b.WriteString(m.renderToggle(m.cursor))
+		sb.WriteString(m.renderToggle(m.cursor))
 	}
 
-	return b.String()
+	return sb.String()
 }
 
 func (m Model) renderSavePrompt() string {
-	var b strings.Builder
-	b.WriteString(m.primaryStyle().Render("Save for future runs?") + "\n\n")
-	b.WriteString(m.renderToggle(m.cursor))
-	return b.String()
+	var sb strings.Builder
+	sb.WriteString(m.primaryStyle().Render("Save for future runs?") + "\n\n")
+	sb.WriteString(m.renderToggle(m.cursor))
+	return sb.String()
 }
 
 func (m Model) renderError(msg string) string {
@@ -829,8 +829,8 @@ func missingParams(params []domain.Parameter, resolved map[string]string) []doma
 // BuildCommand formats the dops run command for display.
 // Only includes --param flags for values NOT in the config (overrides only).
 func BuildCommand(rb domain.Runbook, params map[string]string, configParams ...map[string]string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "dops run %s", rb.ID)
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "dops run %s", rb.ID)
 
 	// If config params provided, only show params that differ or aren't in config.
 	var saved map[string]string
@@ -850,10 +850,10 @@ func BuildCommand(rb domain.Runbook, params map[string]string, configParams ...m
 			}
 		}
 		if p.Secret {
-			fmt.Fprintf(&b, " --param %s=••••••••••", p.Name)
+			fmt.Fprintf(&sb, " --param %s=••••••••••", p.Name)
 		} else {
-			fmt.Fprintf(&b, " --param %s=%s", p.Name, v)
+			fmt.Fprintf(&sb, " --param %s=%s", p.Name, v)
 		}
 	}
-	return b.String()
+	return sb.String()
 }

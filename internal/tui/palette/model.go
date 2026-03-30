@@ -113,22 +113,22 @@ func (m Model) Filtered() []PaletteCommand {
 }
 
 func (m Model) View() string {
-	var b strings.Builder
+	var sb strings.Builder
 
-	b.WriteString(fmt.Sprintf("  > %s\n", m.query))
-	b.WriteString(strings.Repeat("─", m.width) + "\n")
+	sb.WriteString(fmt.Sprintf("  > %s\n", m.query))
+	sb.WriteString(strings.Repeat("─", m.width) + "\n")
 
 	for i, cmd := range m.filtered {
 		prefix := "  "
 		if i == m.cursor {
 			prefix = "> "
 		}
-		fmt.Fprintf(&b, "%s%-20s  %s\n", prefix, cmd.Name, cmd.Description)
+		fmt.Fprintf(&sb, "%s%-20s  %s\n", prefix, cmd.Name, cmd.Description)
 	}
 
 	if len(m.filtered) == 0 {
-		b.WriteString("  No matching commands\n")
+		sb.WriteString("  No matching commands\n")
 	}
 
-	return b.String()
+	return sb.String()
 }

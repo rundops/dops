@@ -379,15 +379,15 @@ func (m Model) View() string {
 	}
 	visible := lines[start:end]
 
-	var b strings.Builder
+	var sb strings.Builder
 	for _, line := range visible {
-		b.WriteString(line + "\n")
+		sb.WriteString(line + "\n")
 	}
 
 	// Pad remaining lines to push filter to bottom
 	renderedLines := len(visible)
 	for renderedLines < visibleLines {
-		b.WriteString("\n")
+		sb.WriteString("\n")
 		renderedLines++
 	}
 
@@ -403,11 +403,11 @@ func (m Model) View() string {
 		if m.searching {
 			cursor = "█"
 		}
-		b.WriteString("\n")
-		b.WriteString(filterLabel.Render("Filter: ") + filterInput.Render(m.searchQuery) + cursor)
+		sb.WriteString("\n")
+		sb.WriteString(filterLabel.Render("Filter: ") + filterInput.Render(m.searchQuery) + cursor)
 	}
 
-	return b.String()
+	return sb.String()
 }
 
 func (m Model) buildLines(vis []int) []string {

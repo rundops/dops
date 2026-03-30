@@ -121,31 +121,31 @@ func (m Model) View() string {
 		successStyle = m.styles.Success
 	}
 
-	var b strings.Builder
+	var sb strings.Builder
 
 	// Header: $ dops run <id>
-	b.WriteString(successStyle.Render("$") + " " + textStyle.Bold(true).Render(fmt.Sprintf("dops run %s", m.runbook.ID)))
-	b.WriteString("\n\n")
+	sb.WriteString(successStyle.Render("$") + " " + textStyle.Bold(true).Render(fmt.Sprintf("dops run %s", m.runbook.ID)))
+	sb.WriteString("\n\n")
 
 	// Risk warning
 	riskLabel := strings.ToUpper(string(m.risk))
 	switch m.risk {
 	case domain.RiskHigh:
-		b.WriteString(warningStyle.Render(fmt.Sprintf("⚠  %s RISK", riskLabel)))
+		sb.WriteString(warningStyle.Render(fmt.Sprintf("⚠  %s RISK", riskLabel)))
 	case domain.RiskCritical:
-		b.WriteString(errorStyle.Render(fmt.Sprintf("⚠  %s RISK", riskLabel)))
+		sb.WriteString(errorStyle.Render(fmt.Sprintf("⚠  %s RISK", riskLabel)))
 	}
-	b.WriteString("\n\n")
+	sb.WriteString("\n\n")
 
 	// Runbook ID in muted
-	b.WriteString(mutedStyle.Render(fmt.Sprintf("Runbook: %s", m.runbook.ID)))
-	b.WriteString("\n\n")
+	sb.WriteString(mutedStyle.Render(fmt.Sprintf("Runbook: %s", m.runbook.ID)))
+	sb.WriteString("\n\n")
 
 	// Prompt
 	switch m.risk {
 	case domain.RiskHigh:
-		b.WriteString(primaryStyle.Render("Confirm execution?"))
-		b.WriteString("\n\n")
+		sb.WriteString(primaryStyle.Render("Confirm execution?"))
+		sb.WriteString("\n\n")
 
 		// [Yes] [No] toggle — same style as wizard boolean/save prompt.
 		yesStyle := lipgloss.NewStyle()
@@ -165,25 +165,25 @@ func (m Model) View() string {
 					Padding(0, 1)
 			}
 		}
-		b.WriteString("  " + yesStyle.Render("Yes") + "  " + noStyle.Render("No"))
+		sb.WriteString("  " + yesStyle.Render("Yes") + "  " + noStyle.Render("No"))
 
 	case domain.RiskCritical:
-		b.WriteString(primaryStyle.Render("Type the runbook ID to confirm:"))
-		b.WriteString("\n")
-		b.WriteString(mutedStyle.Render(m.runbook.ID))
-		b.WriteString("\n\n")
-		b.WriteString(textStyle.Render(fmt.Sprintf("> %s▎", m.input)))
+		sb.WriteString(primaryStyle.Render("Type the runbook ID to confirm:"))
+		sb.WriteString("\n")
+		sb.WriteString(mutedStyle.Render(m.runbook.ID))
+		sb.WriteString("\n\n")
+		sb.WriteString(textStyle.Render(fmt.Sprintf("> %s▎", m.input)))
 	}
 
-	b.WriteString("\n\n")
+	sb.WriteString("\n\n")
 
 	// Footer hints
 	switch m.risk {
 	case domain.RiskHigh:
-		b.WriteString(mutedStyle.Render("← → toggle  enter confirm  esc cancel"))
+		sb.WriteString(mutedStyle.Render("← → toggle  enter confirm  esc cancel"))
 	case domain.RiskCritical:
-		b.WriteString(mutedStyle.Render("enter confirm  esc cancel"))
+		sb.WriteString(mutedStyle.Render("enter confirm  esc cancel"))
 	}
 
-	return b.String()
+	return sb.String()
 }

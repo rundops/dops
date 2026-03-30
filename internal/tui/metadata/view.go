@@ -47,14 +47,14 @@ func Render(rb *domain.Runbook, cat *domain.Catalog, width int, copied bool, sty
 		successStyle = styles.Success
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, " %s %s\n", nameStyle.Render(rb.Name), mutedStyle.Render(rb.Version))
-	fmt.Fprintf(&b, " %s\n", riskBadge(rb.RiskLevel, styles))
-	fmt.Fprintf(&b, "\n")
-	fmt.Fprintf(&b, " %s", descStyle.Render(rb.Description))
+	var sb strings.Builder
+	fmt.Fprintf(&sb, " %s %s\n", nameStyle.Render(rb.Name), mutedStyle.Render(rb.Version))
+	fmt.Fprintf(&sb, " %s\n", riskBadge(rb.RiskLevel, styles))
+	fmt.Fprintf(&sb, "\n")
+	fmt.Fprintf(&sb, " %s", descStyle.Render(rb.Description))
 
 	if cat != nil {
-		b.WriteString("\n\n")
+		sb.WriteString("\n\n")
 		location := Location(rb, cat)
 		// Truncate to available width (minus 2 for leading space and border padding)
 		// to prevent wrapping that misaligns the metadata and output panes.
@@ -62,7 +62,7 @@ func Render(rb *domain.Runbook, cat *domain.Catalog, width int, copied bool, sty
 		location = ansi.Truncate(location, locW, "…")
 		if copied {
 			// Flash the path green on copy — don't replace the text.
-			fmt.Fprintf(&b, " %s", successStyle.Render(location))
+			fmt.Fprintf(&sb, " %s", successStyle.Render(location))
 		} else {
 			linkStyle := mutedStyle
 			if cat.URL != "" {
@@ -70,11 +70,11 @@ func Render(rb *domain.Runbook, cat *domain.Catalog, width int, copied bool, sty
 			} else {
 				linkStyle = linkStyle.Hyperlink("file://" + expandPath(location))
 			}
-			fmt.Fprintf(&b, " %s", linkStyle.Render(location))
+			fmt.Fprintf(&sb, " %s", linkStyle.Render(location))
 		}
 	}
 
-	return b.String()
+	return sb.String()
 }
 
 func expandPath(path string) string {
