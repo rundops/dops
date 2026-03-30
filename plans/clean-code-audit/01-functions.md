@@ -8,7 +8,7 @@
 - [ ] **cmd/root.go:52** — `launchTUI` (~73 lines). Extract shared `loadDeps(dopsDir)`.
 - [ ] **cmd/open.go:45** — `runWebUI` (~84 lines). Reuse shared `loadDeps()` with `launchTUI`.
 - [ ] **internal/mcp/tools.go:32** — `HandleToolCall` (~86 lines). Extract `prepareExecution()`, `collectResult()`.
-- [ ] **internal/mcp/schema.go:12** — `RunbookToInputSchema` (~95 lines). Extract `paramToSchemaProperty()`.
+- [x] **internal/mcp/schema.go:12** — `RunbookToInputSchema` (~95 lines). Extract `paramToSchemaProperty()`.
 - [ ] **internal/tui/app.go:695** — `viewNormal` (~102 lines). Extract `renderSidebar()`, `renderRightPanel()`.
 - [ ] **internal/tui/app.go:1006** — `applySelectionHighlight` (~62 lines). Extract `highlightLine()`.
 - [ ] **internal/tui/output/model.go:556** — `renderLogSection` (~71 lines). Extract `renderSearchBar()`.
@@ -21,10 +21,10 @@
 ## Too Many Parameters (>3-4)
 
 - [x] **internal/mcp/tools.go:32** — `HandleToolCall` has 7 params. Introduce `ToolCallRequest` struct.
-- [ ] **internal/tui/app.go:1006** — `applySelectionHighlight` has 7 params. Collapse 4 bounds ints into `Bounds` struct.
+- [x] **internal/tui/app.go:1006** — `applySelectionHighlight` has 7 params. Collapse 4 bounds ints into `Bounds` struct.
 - [x] **internal/tui/confirm/model.go:25** — `confirm.New` has 5 params. Group into `confirm.Params`.
 - [ ] **internal/metadata/view.go:33** — `metadata.Render` has 5 params. Group into `RenderParams`.
-- [ ] **internal/tui/output/model.go:645** — `renderScrollbar` has 5+ params. Use `scrollbarParams` struct.
+- [x] **internal/tui/output/model.go:645** — `renderScrollbar` has 5+ params. Use `scrollbarParams` struct.
 - [ ] **cmd/run.go:140** — `saveInputs` has 5 params. Group `cfg`+`vlt` into a struct.
 
 ## Boolean Flag Parameters
