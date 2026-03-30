@@ -139,11 +139,6 @@ type executeResponse struct {
 }
 
 func (a *api) handleExecuteRunbook(w http.ResponseWriter, r *http.Request) {
-	if a.deps.Demo {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "execution is disabled in demo mode"})
-		return
-	}
-
 	id := r.PathValue("id")
 
 	rb, cat, err := a.findRunbook(id)
