@@ -1,6 +1,8 @@
 package vars
 
 import (
+	"log"
+
 	"dops/internal/crypto"
 	"dops/internal/domain"
 )
@@ -20,9 +22,12 @@ func (r *DecryptingVarResolver) Resolve(cfg *domain.Config, catalogName, runbook
 	for k, v := range resolved {
 		if crypto.IsEncrypted(v) {
 			decrypted, err := r.enc.Decrypt(v)
-			if err == nil {
-				resolved[k] = decrypted
+			if err != nil {
+				log.Printf("warning: failed to decrypt variable %q: %v", k, err)
+				resolved[k] = "DECRYPTION_FAILED"
+				continue
 			}
+			resolved[k] = decrypted
 		}
 	}
 
