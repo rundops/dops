@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 
 	"dops/internal/adapters"
-	catpkg "dops/internal/catalog"
+	"dops/internal/catalog"
 	"dops/internal/config"
 	"dops/internal/domain"
 	"dops/internal/executor"
-	mcppkg "dops/internal/mcp"
+	"dops/internal/mcp"
 	"dops/internal/vault"
 
 	"github.com/spf13/cobra"
@@ -46,7 +46,7 @@ func newMCPServeCmd(dopsDir string) *cobra.Command {
 			}
 
 			runner := executor.NewScriptRunner()
-			srv := mcppkg.NewServer(mcppkg.ServerConfig{
+			srv := mcp.NewServer(mcp.ServerConfig{
 				Version:  "0.1.0",
 				DopsHome: dopsDir,
 				Catalogs: catalogs,
@@ -95,7 +95,7 @@ func newMCPToolsCmd(dopsDir string) *cobra.Command {
 					if domain.RiskLevel(allowRisk) != "" && rb.RiskLevel.Exceeds(domain.RiskLevel(allowRisk)) {
 						continue
 					}
-					fmt.Printf("%-30s %s\n", rb.ID, mcppkg.RunbookToDescription(rb))
+					fmt.Printf("%-30s %s\n", rb.ID, mcp.RunbookToDescription(rb))
 				}
 			}
 			return nil
@@ -106,7 +106,7 @@ func newMCPToolsCmd(dopsDir string) *cobra.Command {
 	return cmd
 }
 
-func loadMCPDeps(dopsDir string, maxRisk domain.RiskLevel) (*domain.Config, []catpkg.CatalogWithRunbooks, error) {
+func loadMCPDeps(dopsDir string, maxRisk domain.RiskLevel) (*domain.Config, []catalog.CatalogWithRunbooks, error) {
 	configPath := filepath.Join(dopsDir, "config.json")
 	keysDir := filepath.Join(dopsDir, "keys")
 	fs := adapters.NewOSFileSystem()
@@ -126,7 +126,7 @@ func loadMCPDeps(dopsDir string, maxRisk domain.RiskLevel) (*domain.Config, []ca
 	}
 	cfg.Vars = *vars
 
-	loader := catpkg.NewDiskLoader(fs)
+	loader := catalog.NewDiskLoader(fs)
 	catalogs, err := loader.LoadAll(cfg.Catalogs, cfg.Defaults.MaxRiskLevel)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load catalogs: %w", err)

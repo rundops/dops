@@ -17,8 +17,8 @@
 ## Inconsistent Naming
 
 - [x] **4 packages** — `expandHome`/`expandTilde`/`expandPath` — 3 names for the same operation. Remove all private wrappers, call `adapters.ExpandHome` directly.
-- [ ] **cmd/*.go** — `catpkg` import alias used inconsistently. Use unaliased `catalog` where no conflict.
-- [ ] **cmd/mcp.go** — `mcppkg` awkward alias. Use `mcp` unaliased or `dopmcp`.
+- [x] **cmd/*.go** — `catpkg` import alias used inconsistently. Use unaliased `catalog` where no conflict.
+- [x] **cmd/mcp.go** — `mcppkg` awkward alias. Use `mcp` unaliased or `dopmcp`.
 
 ## Stuttering Type Names
 

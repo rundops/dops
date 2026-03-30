@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"dops/internal/adapters"
-	catpkg "dops/internal/catalog"
+	"dops/internal/catalog"
 	"dops/internal/config"
 	"dops/internal/executor"
 	"dops/internal/theme"
@@ -77,7 +77,7 @@ func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 	}
 
 	// Load catalogs.
-	loader := catpkg.NewDiskLoader(fs)
+	loader := catalog.NewDiskLoader(fs)
 	catalogs, err := loader.LoadAll(cfg.Catalogs, cfg.Defaults.MaxRiskLevel)
 	if err != nil {
 		return fmt.Errorf("load catalogs: %w", err)

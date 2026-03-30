@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"dops/internal/adapters"
-	catpkg "dops/internal/catalog"
+	"dops/internal/catalog"
 	"dops/internal/cli"
 	"dops/internal/config"
 	"dops/internal/domain"
@@ -93,7 +93,7 @@ func launchTUI(dopsDir string) error {
 	styles := theme.BuildStyles(resolved)
 
 	// Load catalogs
-	loader := catpkg.NewDiskLoader(fs)
+	loader := catalog.NewDiskLoader(fs)
 	catalogs, err := loader.LoadAll(cfg.Catalogs, cfg.Defaults.MaxRiskLevel)
 	if err != nil {
 		return fmt.Errorf("load catalogs: %w", err)
