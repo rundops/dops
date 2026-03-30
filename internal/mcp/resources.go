@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"dops/internal/catalog"
 	"dops/internal/domain"
@@ -35,7 +36,7 @@ func CatalogListJSON(catalogs []catalog.CatalogWithRunbooks) (string, error) {
 
 	data, err := json.MarshalIndent(summaries, "", "  ")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("marshal runbook list: %w", err)
 	}
 	return string(data), nil
 }
@@ -55,7 +56,7 @@ func RunbookDetailJSON(rb domain.Runbook, cat domain.Catalog) (string, error) {
 
 	data, err := json.MarshalIndent(detail, "", "  ")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("marshal runbook detail: %w", err)
 	}
 	return string(data), nil
 }

@@ -21,13 +21,13 @@
 - [x] **cmd/catalog.go:287** — `ValidateDisplayName` error not wrapped (3rd occurrence)
 - [x] **cmd/run.go:165** — `config.Set` error not wrapped
 - [x] **cmd/open.go:108** — `srv.Start` error not wrapped
-- [ ] **internal/mcp/server.go:216** — `srv.Connect` error not wrapped
-- [ ] **internal/mcp/watcher.go:30** — `fsnotify.NewWatcher` error not wrapped
-- [ ] **internal/update/check.go:126** — `client.Get` error not wrapped
-- [ ] **internal/update/check.go:136** — `json.Decode` error not wrapped
-- [ ] **internal/mcp/resources.go:37** — `json.MarshalIndent` error not wrapped
-- [ ] **internal/mcp/resources.go:57** — `json.MarshalIndent` error not wrapped
-- [ ] **internal/crypto/age.go:28** — `loadOrCreateIdentity` error not wrapped
+- [x] **internal/mcp/server.go:216** — `srv.Connect` error not wrapped
+- [x] **internal/mcp/watcher.go:30** — `fsnotify.NewWatcher` error not wrapped
+- [x] **internal/update/check.go:126** — `client.Get` error not wrapped
+- [x] **internal/update/check.go:136** — `json.Decode` error not wrapped
+- [x] **internal/mcp/resources.go:37** — `json.MarshalIndent` error not wrapped
+- [x] **internal/mcp/resources.go:57** — `json.MarshalIndent` error not wrapped
+- [x] **internal/crypto/age.go:28** — `loadOrCreateIdentity` error not wrapped
 
 ## Inconsistent Patterns
 

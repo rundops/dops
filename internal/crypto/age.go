@@ -26,7 +26,7 @@ func NewAgeEncrypter(keysDir string) (*AgeEncrypter, error) {
 
 	identity, err := loadOrCreateIdentity(keysFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load identity from %s: %w", keysFile, err)
 	}
 
 	recipient := identity.Recipient()

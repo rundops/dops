@@ -215,7 +215,7 @@ func (s *Server) registerSchemaResources() {
 func (s *Server) ServeStdio(ctx context.Context) error {
 	_, err := s.srv.Connect(ctx, &mcpsdk.StdioTransport{}, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("connect mcp stdio: %w", err)
 	}
 	<-ctx.Done()
 	return nil

@@ -122,9 +122,9 @@ func fetchLatest() (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubRepo)
 
 	client := &http.Client{Timeout: httpTimeout}
-	resp, err := client.Get(url)
+	resp, err := client.Get(url) // nolint:noctx -- fire-and-forget update check
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("fetch latest release: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -134,7 +134,7 @@ func fetchLatest() (string, error) {
 
 	var release githubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return "", err
+		return "", fmt.Errorf("decode release response: %w", err)
 	}
 
 	return strings.TrimPrefix(release.TagName, "v"), nil

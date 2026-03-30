@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +29,7 @@ type Watcher struct {
 func NewWatcher(dirs []string, debounce time.Duration, callback WatcherCallback) (*Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create file watcher: %w", err)
 	}
 
 	w := &Watcher{
