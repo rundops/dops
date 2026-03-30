@@ -35,7 +35,7 @@ func (d *DemoRunner) Run(ctx context.Context, scriptPath string, env map[string]
 			}
 
 			// Simulate realistic output timing.
-			delay := time.Duration(80+rand.Intn(120)) * time.Millisecond
+			delay := time.Duration(580+rand.Intn(120)) * time.Millisecond
 			time.Sleep(delay)
 
 			lines <- OutputLine{Text: line}
