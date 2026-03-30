@@ -132,7 +132,7 @@ function statusLabel(): string {
         v-else-if="status === 'success'"
         class="px-3.5 py-1.5 text-[13px] font-medium border border-success/40 rounded-md bg-success-muted text-success"
       >
-        Execution completed
+        Done
       </span>
       <span
         v-else-if="status === 'error'"
