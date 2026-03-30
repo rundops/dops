@@ -27,17 +27,25 @@ type ToolResult struct {
 	Summary     string `json:"summary,omitempty"`
 }
 
+// ToolCallRequest groups the inputs for HandleToolCall.
+type ToolCallRequest struct {
+	Runbook    domain.Runbook
+	Catalog    domain.Catalog
+	Config     *domain.Config
+	Runner     executor.Runner
+	Args       map[string]any
+	OnProgress ProgressCallback
+}
+
 // HandleToolCall executes a runbook and returns a truncated result.
-// The optional onProgress callback receives batched output during execution.
-func HandleToolCall(
-	ctx context.Context,
-	rb domain.Runbook,
-	cat domain.Catalog,
-	cfg *domain.Config,
-	runner executor.Runner,
-	args map[string]any,
-	onProgress ProgressCallback,
-) (*ToolResult, error) {
+// The optional OnProgress callback receives batched output during execution.
+func HandleToolCall(ctx context.Context, req ToolCallRequest) (*ToolResult, error) {
+	rb := req.Runbook
+	cat := req.Catalog
+	cfg := req.Config
+	runner := req.Runner
+	args := req.Args
+	onProgress := req.OnProgress
 	// Validate risk confirmation.
 	if err := validateRiskConfirmation(rb, args); err != nil {
 		return nil, err
