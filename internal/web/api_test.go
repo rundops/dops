@@ -2,9 +2,11 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"dops/internal/domain"
 	"dops/internal/theme"
@@ -106,5 +108,94 @@ func TestGetTheme(t *testing.T) {
 	}
 	if theme.Colors["primary"] != "#58a6ff" {
 		t.Errorf("primary = %q", theme.Colors["primary"])
+	}
+}
+
+func TestExecutionStoreEviction(t *testing.T) {
+	store := newExecutionStore()
+
+	// Seed the store with maxCompleted+10 completed executions.
+	for i := 0; i < maxCompleted+10; i++ {
+		id := fmt.Sprintf("exec-%d", i+1)
+		store.execs[id] = &execution{
+			id:          id,
+			done:        true,
+			completedAt: time.Now().Add(time.Duration(i) * time.Second),
+			notify:      make(chan struct{}, 1),
+		}
+	}
+	store.seq = maxCompleted + 10
+
+	if len(store.execs) != maxCompleted+10 {
+		t.Fatalf("setup: expected %d execs, got %d", maxCompleted+10, len(store.execs))
+	}
+
+	// Trigger eviction by calling evict under lock.
+	store.mu.Lock()
+	store.evict()
+	store.mu.Unlock()
+
+	if len(store.execs) != maxCompleted {
+		t.Fatalf("after eviction: expected %d execs, got %d", maxCompleted, len(store.execs))
+	}
+
+	// The 10 oldest (exec-1 through exec-10) should have been removed.
+	for i := 1; i <= 10; i++ {
+		id := fmt.Sprintf("exec-%d", i)
+		if _, ok := store.execs[id]; ok {
+			t.Errorf("expected %s to be evicted", id)
+		}
+	}
+
+	// The newest should still be present.
+	newest := fmt.Sprintf("exec-%d", maxCompleted+10)
+	if _, ok := store.execs[newest]; !ok {
+		t.Errorf("expected %s to still be present", newest)
+	}
+}
+
+func TestExecutionStoreEvictionKeepsRunning(t *testing.T) {
+	store := newExecutionStore()
+
+	// Add maxCompleted+5 completed and 3 still-running executions.
+	for i := 0; i < maxCompleted+5; i++ {
+		id := fmt.Sprintf("exec-done-%d", i)
+		store.execs[id] = &execution{
+			id:          id,
+			done:        true,
+			completedAt: time.Now().Add(time.Duration(i) * time.Second),
+			notify:      make(chan struct{}, 1),
+		}
+	}
+	for i := 0; i < 3; i++ {
+		id := fmt.Sprintf("exec-running-%d", i)
+		store.execs[id] = &execution{
+			id:     id,
+			done:   false,
+			notify: make(chan struct{}, 1),
+		}
+	}
+
+	store.mu.Lock()
+	store.evict()
+	store.mu.Unlock()
+
+	// Running executions must survive eviction.
+	for i := 0; i < 3; i++ {
+		id := fmt.Sprintf("exec-running-%d", i)
+		if _, ok := store.execs[id]; !ok {
+			t.Errorf("running execution %s was incorrectly evicted", id)
+		}
+	}
+
+	// Completed count should be exactly maxCompleted.
+	completed := 0
+	for _, e := range store.execs {
+		if e.done {
+			completed++
+		}
+	}
+	if completed != maxCompleted {
+		t.Errorf("completed count = %d, want %d", completed, maxCompleted)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"dops/internal/config"
 	"dops/internal/domain"
 	"dops/internal/theme"
+	"dops/internal/vars"
 	"dops/internal/vault"
 
 	"charm.land/bubbles/v2/textinput"
@@ -524,17 +525,7 @@ func (m *Model) saveCurrentField() {
 	val := m.values[p.Name]
 
 	// Set the value in the in-memory config (vault stores plaintext — no per-value encryption).
-	var keyPath string
-	switch p.Scope {
-	case "global":
-		keyPath = fmt.Sprintf("vars.global.%s", p.Name)
-	case "catalog":
-		keyPath = fmt.Sprintf("vars.catalog.%s.%s", m.catalog.Name, p.Name)
-	case "runbook":
-		keyPath = fmt.Sprintf("vars.catalog.%s.runbooks.%s.%s", m.catalog.Name, m.runbook.Name, p.Name)
-	default:
-		keyPath = fmt.Sprintf("vars.global.%s", p.Name)
-	}
+	keyPath := vars.VarKeyPath(p.Scope, p.Name, m.catalog.Name, m.runbook.Name)
 
 	if err := config.Set(m.cfg, keyPath, val); err != nil {
 		m.err = fmt.Sprintf("save failed: %v", err)

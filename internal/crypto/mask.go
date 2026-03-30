@@ -4,13 +4,13 @@ import "dops/internal/domain"
 
 const maskedValue = "****"
 
-func MaskSecrets(cfg *domain.Config) *domain.Config {
-	out := *cfg
+func MaskSecrets(vars domain.Vars) domain.Vars {
+	out := vars
 
-	out.Vars.Global = maskMap(cfg.Vars.Global)
+	out.Global = maskMap(vars.Global)
 
-	out.Vars.Catalog = make(map[string]domain.CatalogVars, len(cfg.Vars.Catalog))
-	for catName, cat := range cfg.Vars.Catalog {
+	out.Catalog = make(map[string]domain.CatalogVars, len(vars.Catalog))
+	for catName, cat := range vars.Catalog {
 		masked := domain.CatalogVars{
 			Vars:     maskMap(cat.Vars),
 			Runbooks: make(map[string]map[string]any, len(cat.Runbooks)),
@@ -18,10 +18,10 @@ func MaskSecrets(cfg *domain.Config) *domain.Config {
 		for rbName, rb := range cat.Runbooks {
 			masked.Runbooks[rbName] = maskMap(rb)
 		}
-		out.Vars.Catalog[catName] = masked
+		out.Catalog[catName] = masked
 	}
 
-	return &out
+	return out
 }
 
 func maskMap(m map[string]any) map[string]any {

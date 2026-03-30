@@ -1,12 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"dops/internal/adapters"
 	"dops/internal/catalog"
@@ -173,17 +171,7 @@ func saveInputs(p saveInputsParams) error {
 			continue
 		}
 
-		var keyPath string
-		switch param.Scope {
-		case "global":
-			keyPath = fmt.Sprintf("vars.global.%s", param.Name)
-		case "catalog":
-			keyPath = fmt.Sprintf("vars.catalog.%s.%s", p.CatName, param.Name)
-		case "runbook":
-			keyPath = fmt.Sprintf("vars.catalog.%s.runbooks.%s.%s", p.CatName, p.Runbook.Name, param.Name)
-		default:
-			keyPath = fmt.Sprintf("vars.global.%s", param.Name)
-		}
+		keyPath := vars.VarKeyPath(param.Scope, param.Name, p.CatName, p.Runbook.Name)
 
 		if err := config.Set(p.Cfg, keyPath, val); err != nil {
 			return fmt.Errorf("save input %q: %w", keyPath, err)
@@ -193,27 +181,26 @@ func saveInputs(p saveInputsParams) error {
 	return p.Vault.Save(&p.Cfg.Vars)
 }
 
-func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string, catName, rbName string) error {
-	shell, shellArgs := executor.ShellFor(scriptPath)
-	c := exec.Command(shell, shellArgs...) // #nosec G204 -- shell resolved by ShellFor from script extension
-	c.Env = os.Environ()
-	for k, v := range env {
-		c.Env = append(c.Env, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
-	}
-	c.Stdout = cmd.OutOrStdout()
-	c.Stderr = cmd.ErrOrStderr()
-
-	logPath := filepath.Join(os.TempDir(), fmt.Sprintf("%s-%s-%s.log",
-		time.Now().Format("2006.01.02-150405"),
-		catName, rbName,
-	))
-
-	logFile, err := os.Create(logPath)
-	if err == nil {
-		defer logFile.Close()
+func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string, _, _ string) error {
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
-	if err := c.Run(); err != nil {
+	runner := executor.NewScriptRunner()
+	lines, errs := runner.Run(ctx, scriptPath, env)
+
+	stdout := cmd.OutOrStdout()
+	stderr := cmd.ErrOrStderr()
+	for line := range lines {
+		if line.IsStderr {
+			fmt.Fprintln(stderr, line.Text)
+		} else {
+			fmt.Fprintln(stdout, line.Text)
+		}
+	}
+
+	if err := <-errs; err != nil {
 		return fmt.Errorf("script failed: %w", err)
 	}
 

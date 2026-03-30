@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sort"
 	"sync"
+	"time"
 
 	"dops/internal/adapters"
 	"dops/internal/domain"
@@ -340,14 +342,19 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 // --- Execution Store ---
 
+// maxCompleted is the number of finished executions to keep.
+// When exceeded, the oldest completed executions are evicted.
+const maxCompleted = 100
+
 type execution struct {
-	id      string
-	lines   []string
-	done    bool
-	exitErr error
-	cancel  func()
-	notify  chan struct{}
-	mu      sync.Mutex
+	id          string
+	lines       []string
+	done        bool
+	completedAt time.Time
+	exitErr     error
+	cancel      func()
+	notify      chan struct{}
+	mu          sync.Mutex
 }
 
 type executionStore struct {
@@ -375,6 +382,7 @@ func (s *executionStore) start(scriptPath string, env map[string]string, runner 
 
 	s.mu.Lock()
 	s.execs[id] = exec
+	s.evict()
 	s.mu.Unlock()
 
 	lines, errs := runner.Run(ctx, scriptPath, env)
@@ -395,6 +403,7 @@ func (s *executionStore) start(scriptPath string, env map[string]string, runner 
 		err := <-errs
 		exec.mu.Lock()
 		exec.done = true
+		exec.completedAt = time.Now()
 		exec.exitErr = err
 		exec.mu.Unlock()
 
@@ -413,4 +422,31 @@ func (s *executionStore) get(id string) (*execution, bool) {
 	defer s.mu.Unlock()
 	exec, ok := s.execs[id]
 	return exec, ok
+}
+
+// evict removes the oldest completed executions when the count exceeds
+// maxCompleted. Must be called with s.mu held.
+func (s *executionStore) evict() {
+	var completed []*execution
+	for _, e := range s.execs {
+		e.mu.Lock()
+		done := e.done
+		e.mu.Unlock()
+		if done {
+			completed = append(completed, e)
+		}
+	}
+
+	if len(completed) <= maxCompleted {
+		return
+	}
+
+	sort.Slice(completed, func(i, j int) bool {
+		return completed[i].completedAt.Before(completed[j].completedAt)
+	})
+
+	toRemove := len(completed) - maxCompleted
+	for _, e := range completed[:toRemove] {
+		delete(s.execs, e.id)
+	}
 }

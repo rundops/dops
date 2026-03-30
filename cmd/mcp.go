@@ -47,7 +47,7 @@ func newMCPServeCmd(dopsDir string) *cobra.Command {
 
 			runner := executor.NewScriptRunner()
 			srv := mcp.NewServer(mcp.ServerConfig{
-				Version:  "0.1.0",
+				Version:  version,
 				DopsHome: dopsDir,
 				Catalogs: catalogs,
 				Runner:   runner,
