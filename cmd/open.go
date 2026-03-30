@@ -6,19 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"time"
 
-	"dops/internal/adapters"
-	"dops/internal/catalog"
-	"dops/internal/config"
 	"dops/internal/executor"
-	"dops/internal/theme"
-	"dops/internal/vault"
 	"dops/internal/web"
 
-	lipgloss "charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -56,44 +49,9 @@ type WebUIOptions struct {
 }
 
 func runWebUI(opts WebUIOptions) error {
-	// Load config.
-	configPath := filepath.Join(opts.DopsDir, "config.json")
-	fs := adapters.NewOSFileSystem()
-	store := config.NewFileStore(fs, configPath)
-
-	cfg, err := store.EnsureDefaults()
+	deps, err := loadDeps(opts.DopsDir)
 	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	// Load vault.
-	vaultPath := filepath.Join(opts.DopsDir, "vault.json")
-	keysDir := filepath.Join(opts.DopsDir, "keys")
-	vlt := vault.New(vaultPath, keysDir)
-	vars, err := vlt.Load()
-	if err != nil {
-		return fmt.Errorf("load vault: %w", err)
-	}
-	cfg.Vars = *vars
-
-	// Load theme.
-	themesDir := filepath.Join(opts.DopsDir, "themes")
-	themeLoader := theme.NewFileLoader(fs, themesDir)
-	themeFile, err := themeLoader.Load(cfg.Theme)
-	if err != nil {
-		return fmt.Errorf("load theme: %w", err)
-	}
-	isDark := lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
-	resolved, err := theme.Resolve(themeFile, isDark)
-	if err != nil {
-		return fmt.Errorf("resolve theme: %w", err)
-	}
-
-	// Load catalogs.
-	loader := catalog.NewDiskLoader(fs)
-	catalogs, err := loader.LoadAll(cfg.Catalogs, cfg.Defaults.MaxRiskLevel)
-	if err != nil {
-		return fmt.Errorf("load catalogs: %w", err)
+		return err
 	}
 
 	var runner executor.Runner
@@ -105,15 +63,15 @@ func runWebUI(opts WebUIOptions) error {
 
 	// Start web server.
 	srv := web.NewServer(web.ServerDeps{
-		Config:      cfg,
-		ConfigStore: store,
-		Catalogs:    catalogs,
-		Loader:      loader,
+		Config:      deps.Cfg,
+		ConfigStore: deps.Store,
+		Catalogs:    deps.Catalogs,
+		Loader:      deps.Loader,
 		Runner:      runner,
-		Vault:       vlt,
-		Theme:       resolved,
-		ThemeLoader: themeLoader,
-		IsDark:      isDark,
+		Vault:       deps.Vault,
+		Theme:       deps.Resolved,
+		ThemeLoader: deps.ThemeLoader,
+		IsDark:      deps.IsDark,
 		Port:        opts.Port,
 		Demo:        opts.Demo,
 	})

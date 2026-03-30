@@ -8,17 +8,14 @@ import (
 	"strings"
 
 	"dops/internal/adapters"
-	"dops/internal/catalog"
 	"dops/internal/cli"
 	"dops/internal/config"
 	"dops/internal/domain"
 	"dops/internal/executor"
-	"dops/internal/theme"
 	"dops/internal/tui"
 	"dops/internal/vault"
 
 	tea "charm.land/bubbletea/v2"
-	lipgloss "charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -50,53 +47,15 @@ func newRootCmd(dopsDir string) *cobra.Command {
 }
 
 func launchTUI(dopsDir string) error {
-	configPath := filepath.Join(dopsDir, "config.json")
-	themesDir := filepath.Join(dopsDir, "themes")
-	fs := adapters.NewOSFileSystem()
-	store := config.NewFileStore(fs, configPath)
-
-	cfg, err := store.EnsureDefaults()
+	deps, err := loadDeps(dopsDir)
 	if err != nil {
-		return fmt.Errorf("load config: %w", err)
+		return err
 	}
-
-	// Vault: encrypted parameter storage.
-	vaultPath := filepath.Join(dopsDir, "vault.json")
-	keysDir := filepath.Join(dopsDir, "keys")
-	vlt := vault.New(vaultPath, keysDir)
 
 	// Migrate vars from config.json to vault.json (one-time).
-	if err := migrateVarsToVault(configPath, vlt, fs); err != nil {
+	configPath := filepath.Join(dopsDir, "config.json")
+	if err := migrateVarsToVault(configPath, deps.Vault, deps.FS); err != nil {
 		return fmt.Errorf("vault migration: %w", err)
-	}
-
-	// Load vars from vault into config.
-	vars, err := vlt.Load()
-	if err != nil {
-		return fmt.Errorf("load vault: %w", err)
-	}
-	cfg.Vars = *vars
-
-	// Load theme
-	themeLoader := theme.NewFileLoader(fs, themesDir)
-	themeFile, err := themeLoader.Load(cfg.Theme)
-	if err != nil {
-		return fmt.Errorf("load theme: %w", err)
-	}
-
-	isDark := lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
-	resolved, err := theme.Resolve(themeFile, isDark)
-	if err != nil {
-		return fmt.Errorf("resolve theme: %w", err)
-	}
-
-	styles := theme.BuildStyles(resolved)
-
-	// Load catalogs
-	loader := catalog.NewDiskLoader(fs)
-	catalogs, err := loader.LoadAll(cfg.Catalogs, cfg.Defaults.MaxRiskLevel)
-	if err != nil {
-		return fmt.Errorf("load catalogs: %w", err)
 	}
 
 	runner := executor.NewScriptRunner()
@@ -106,17 +65,17 @@ func launchTUI(dopsDir string) error {
 	progRef := &tui.ProgramRef{}
 
 	app := tui.NewAppWithDeps(tui.AppDeps{
-		Styles:     styles,
-		Store:      store,
+		Styles:     deps.Styles,
+		Store:      deps.Store,
 		Runner:     runner,
 		LogWriter:  logWriter,
-		Config:     cfg,
-		Catalogs:   catalogs,
+		Config:     deps.Cfg,
+		Catalogs:   deps.Catalogs,
 		AltScreen:  altScreen,
 		ProgramRef: progRef,
 		Version:    version,
 		DopsDir:    dopsDir,
-		Vault:      vlt,
+		Vault:      deps.Vault,
 	})
 	p := tea.NewProgram(app)
 	progRef.P = p

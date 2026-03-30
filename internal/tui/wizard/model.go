@@ -159,72 +159,94 @@ func (m *Model) initField(idx int) {
 
 	switch m.fieldMode(p) {
 	case modeTextInput:
-		ti := textinput.New()
-		ti.Focus()
-		ti.Prompt = "> "
-		// Style textinput to match theme foreground colors (no background —
-		// transparent, inherits from terminal background).
-		if m.styles != nil {
-			textFg := m.styles.Text.GetForeground()
-			mutedFg := m.styles.TextMuted.GetForeground()
-			ti.SetStyles(textinput.Styles{
-				Focused: textinput.StyleState{
-					Text:        lipgloss.NewStyle().Foreground(textFg),
-					Prompt:      lipgloss.NewStyle().Foreground(textFg),
-					Placeholder: lipgloss.NewStyle().Foreground(mutedFg),
-					Suggestion:  lipgloss.NewStyle().Foreground(mutedFg),
-				},
-				Blurred: textinput.StyleState{
-					Text:        lipgloss.NewStyle().Foreground(mutedFg),
-					Prompt:      lipgloss.NewStyle().Foreground(mutedFg),
-					Placeholder: lipgloss.NewStyle().Foreground(mutedFg),
-					Suggestion:  lipgloss.NewStyle().Foreground(mutedFg),
-				},
-			})
-		}
-		if p.Secret && prefilled == "" {
-			ti.EchoMode = textinput.EchoPassword
-		} else if p.Secret && prefilled != "" {
-			// Existing secret — don't use password echo, render dots manually.
-			// EchoPassword will be enabled once user starts typing (handled in Update).
-		} else if prefilled != "" {
-			ti.SetValue(prefilled)
-		} else if p.Default != nil {
-			ti.SetValue(fmt.Sprintf("%v", p.Default))
-		}
-		m.input = ti
+		m.initTextField(p, prefilled)
 	case modeSelect:
-		m.cursor = 0
-		// Set cursor to the pre-filled option if available.
-		if prefilled != "" {
-			for i, opt := range p.Options {
-				if opt == prefilled {
-					m.cursor = i
-					break
-				}
-			}
-		}
+		m.initSelectField(p, prefilled)
 	case modeMultiSelect:
-		m.cursor = 0
-		m.checked = make(map[int]bool)
-		// Pre-check saved multi-select values.
-		if prefilled != "" {
-			selected := strings.Split(prefilled, ", ")
-			selSet := make(map[string]bool)
-			for _, s := range selected {
-				selSet[strings.TrimSpace(s)] = true
-			}
-			for i, opt := range p.Options {
-				if selSet[opt] {
-					m.checked[i] = true
-				}
-			}
-		}
+		m.initMultiSelectField(p, prefilled)
 	case modeBoolean:
-		m.cursor = 1 // default No
-		if prefilled == "true" {
-			m.cursor = 0
+		m.initBoolField(prefilled)
+	}
+}
+
+// initTextField sets up the text input widget for text, integer, number,
+// float, password, filepath, and resourceid parameter types.
+func (m *Model) initTextField(p domain.Parameter, prefilled string) {
+	ti := textinput.New()
+	ti.Focus()
+	ti.Prompt = "> "
+	// Style textinput to match theme foreground colors (no background —
+	// transparent, inherits from terminal background).
+	if m.styles != nil {
+		textFg := m.styles.Text.GetForeground()
+		mutedFg := m.styles.TextMuted.GetForeground()
+		ti.SetStyles(textinput.Styles{
+			Focused: textinput.StyleState{
+				Text:        lipgloss.NewStyle().Foreground(textFg),
+				Prompt:      lipgloss.NewStyle().Foreground(textFg),
+				Placeholder: lipgloss.NewStyle().Foreground(mutedFg),
+				Suggestion:  lipgloss.NewStyle().Foreground(mutedFg),
+			},
+			Blurred: textinput.StyleState{
+				Text:        lipgloss.NewStyle().Foreground(mutedFg),
+				Prompt:      lipgloss.NewStyle().Foreground(mutedFg),
+				Placeholder: lipgloss.NewStyle().Foreground(mutedFg),
+				Suggestion:  lipgloss.NewStyle().Foreground(mutedFg),
+			},
+		})
+	}
+	if p.Secret && prefilled == "" {
+		ti.EchoMode = textinput.EchoPassword
+	} else if p.Secret && prefilled != "" {
+		// Existing secret — don't use password echo, render dots manually.
+		// EchoPassword will be enabled once user starts typing (handled in Update).
+	} else if prefilled != "" {
+		ti.SetValue(prefilled)
+	} else if p.Default != nil {
+		ti.SetValue(fmt.Sprintf("%v", p.Default))
+	}
+	m.input = ti
+}
+
+// initSelectField positions the cursor on the pre-filled option (if any)
+// for single-select parameters.
+func (m *Model) initSelectField(p domain.Parameter, prefilled string) {
+	m.cursor = 0
+	if prefilled != "" {
+		for i, opt := range p.Options {
+			if opt == prefilled {
+				m.cursor = i
+				break
+			}
 		}
+	}
+}
+
+// initMultiSelectField resets the checked map and pre-checks any previously
+// saved multi-select values.
+func (m *Model) initMultiSelectField(p domain.Parameter, prefilled string) {
+	m.cursor = 0
+	m.checked = make(map[int]bool)
+	if prefilled != "" {
+		selected := strings.Split(prefilled, ", ")
+		selSet := make(map[string]bool)
+		for _, s := range selected {
+			selSet[strings.TrimSpace(s)] = true
+		}
+		for i, opt := range p.Options {
+			if selSet[opt] {
+				m.checked[i] = true
+			}
+		}
+	}
+}
+
+// initBoolField sets the cursor to Yes (0) or No (1) based on the
+// pre-filled value.
+func (m *Model) initBoolField(prefilled string) {
+	m.cursor = 1 // default No
+	if prefilled == "true" {
+		m.cursor = 0
 	}
 }
 

@@ -54,17 +54,24 @@ func HelpFunc(cmd *cobra.Command, args []string) {
 
 func renderHelp(w io.Writer, cmd *cobra.Command) {
 	fmt.Fprintln(w)
+	fmt.Fprint(w, renderHelpHeader(cmd))
+	fmt.Fprint(w, renderHelpUsage(cmd))
+	fmt.Fprintln(w)
+}
 
-	// Header: name + description
+// renderHelpHeader renders the name, description, and version header.
+func renderHelpHeader(cmd *cobra.Command) string {
+	var b strings.Builder
+
 	desc := cmd.Long
 	if desc == "" {
 		desc = cmd.Short
 	}
 
 	if cmd.HasParent() {
-		fmt.Fprintf(w, "  %s\n", helpHeaderStyle.Render(cmd.CommandPath()))
+		fmt.Fprintf(&b, "  %s\n", helpHeaderStyle.Render(cmd.CommandPath()))
 		if desc != "" {
-			fmt.Fprintf(w, "  %s\n", helpDescStyle.Render(desc))
+			fmt.Fprintf(&b, "  %s\n", helpDescStyle.Render(desc))
 		}
 	} else {
 		cat1 := helpMutedStyle.Render("/\\_/\\")
@@ -80,7 +87,7 @@ func renderHelp(w io.Writer, cmd *cobra.Command) {
 		if pad1 < 2 {
 			pad1 = 2
 		}
-		fmt.Fprintf(w, "%s%s%s\n", line1, strings.Repeat(" ", pad1), cat1)
+		fmt.Fprintf(&b, "%s%s%s\n", line1, strings.Repeat(" ", pad1), cat1)
 
 		line2 := ""
 		if desc != "" {
@@ -90,51 +97,59 @@ func renderHelp(w io.Writer, cmd *cobra.Command) {
 		if pad2 < 2 {
 			pad2 = 2
 		}
-		fmt.Fprintf(w, "%s%s%s\n", line2, strings.Repeat(" ", pad2), cat2)
+		fmt.Fprintf(&b, "%s%s%s\n", line2, strings.Repeat(" ", pad2), cat2)
 	}
 
+	return b.String()
+}
+
+// renderHelpUsage renders the usage, commands, and flags sections.
+func renderHelpUsage(cmd *cobra.Command) string {
+	var b strings.Builder
+
 	// Usage
-	fmt.Fprintf(w, "\n%s\n\n", helpSectionStyle.Render("  USAGE"))
+	fmt.Fprintf(&b, "\n%s\n\n", helpSectionStyle.Render("  USAGE"))
 
 	usageLine := cmd.UseLine()
 	if cmd.HasAvailableSubCommands() {
 		usageLine = cmd.CommandPath() + " [command]"
 	}
-	fmt.Fprintf(w, "    %s\n", helpExampleStyle.Render(usageLine))
+	fmt.Fprintf(&b, "    %s\n", helpExampleStyle.Render(usageLine))
 
 	// Examples
 	if cmd.Example != "" {
 		for _, line := range strings.Split(cmd.Example, "\n") {
-			fmt.Fprintf(w, "    %s\n", helpExampleStyle.Render(line))
+			fmt.Fprintf(&b, "    %s\n", helpExampleStyle.Render(line))
 		}
 	}
 
 	// Commands — group into sections
 	if cmd.HasAvailableSubCommands() {
-		fmt.Fprintf(w, "\n%s\n\n", helpSectionStyle.Render("  COMMANDS"))
-		renderCommands(w, cmd)
+		fmt.Fprintf(&b, "\n%s\n\n", helpSectionStyle.Render("  COMMANDS"))
+		renderCommands(&b, cmd)
 	}
 
 	// Flags
 	if cmd.HasAvailableLocalFlags() {
-		fmt.Fprintf(w, "\n%s\n\n", helpSectionStyle.Render("  FLAGS"))
-		renderFlags(w, cmd)
+		fmt.Fprintf(&b, "\n%s\n\n", helpSectionStyle.Render("  FLAGS"))
+		renderFlags(&b, cmd)
 	}
 
 	// Inherited flags
 	if cmd.HasAvailableInheritedFlags() {
-		fmt.Fprintf(w, "\n%s\n\n", helpSectionStyle.Render("  GLOBAL FLAGS"))
-		renderInheritedFlags(w, cmd)
+		fmt.Fprintf(&b, "\n%s\n\n", helpSectionStyle.Render("  GLOBAL FLAGS"))
+		renderInheritedFlags(&b, cmd)
 	}
 
 	// Footer
 	if cmd.HasAvailableSubCommands() {
-		fmt.Fprintf(w, "\n  %s\n",
+		fmt.Fprintf(&b, "\n  %s\n",
 			helpMutedStyle.Render(fmt.Sprintf(
 				"Use \"%s [command] --help\" for more information about a command.",
 				cmd.CommandPath())))
 	}
-	fmt.Fprintln(w)
+
+	return b.String()
 }
 
 func renderCommands(w io.Writer, parent *cobra.Command) {

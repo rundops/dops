@@ -40,48 +40,23 @@ type ToolCallRequest struct {
 // HandleToolCall executes a runbook and returns a truncated result.
 // The optional OnProgress callback receives batched output during execution.
 func HandleToolCall(ctx context.Context, req ToolCallRequest) (*ToolResult, error) {
-	rb := req.Runbook
-	cat := req.Catalog
-	cfg := req.Config
-	runner := req.Runner
-	args := req.Args
-	onProgress := req.OnProgress
-	// Validate risk confirmation.
-	if err := validateRiskConfirmation(rb, args); err != nil {
+	scriptPath, env, err := prepareExecution(req)
+	if err != nil {
 		return nil, err
-	}
-
-	// Resolve saved vars and merge with provided args.
-	resolver := vars.NewDefaultResolver()
-	resolved := resolver.Resolve(cfg, cat.Name, rb.Name, rb.Parameters)
-	for k, v := range args {
-		if strings.HasPrefix(k, "_confirm") {
-			continue // skip synthetic confirmation fields
-		}
-		resolved[k] = fmt.Sprintf("%v", v)
-	}
-
-	// Build env and script path.
-	catPath := adapters.ExpandHome(cat.RunbookRoot())
-	scriptPath := filepath.Join(catPath, rb.Name, rb.Script)
-
-	env := make(map[string]string)
-	for k, v := range resolved {
-		env[strings.ToUpper(k)] = v
 	}
 
 	// Create log file.
 	logWriter := adapters.NewLogWriter(os.TempDir())
 	logPath := ""
-	if lp, err := logWriter.Create(cat.Name, rb.Name, time.Now()); err == nil {
+	if lp, err := logWriter.Create(req.Catalog.Name, req.Runbook.Name, time.Now()); err == nil {
 		logPath = lp
 	}
 
 	// Execute with progress streaming.
 	start := time.Now()
-	lines, errs := runner.Run(ctx, scriptPath, env)
+	lines, errs := req.Runner.Run(ctx, scriptPath, env)
 
-	pw := NewProgressWriter(defaultProgressBatchSize, onProgress)
+	pw := NewProgressWriter(defaultProgressBatchSize, req.OnProgress)
 	var allLines []string
 	for line := range lines {
 		allLines = append(allLines, line.Text)
@@ -91,10 +66,43 @@ func HandleToolCall(ctx context.Context, req ToolCallRequest) (*ToolResult, erro
 	pw.Flush()
 	logWriter.Close()
 
-	err := <-errs
+	return collectResult(allLines, start, logPath, <-errs), nil
+}
+
+// prepareExecution validates the request, resolves variables, and builds
+// the script path and environment map needed for execution.
+func prepareExecution(req ToolCallRequest) (scriptPath string, env map[string]string, err error) {
+	if err = validateRiskConfirmation(req.Runbook, req.Args); err != nil {
+		return "", nil, err
+	}
+
+	// Resolve saved vars and merge with provided args.
+	resolver := vars.NewDefaultResolver()
+	resolved := resolver.Resolve(req.Config, req.Catalog.Name, req.Runbook.Name, req.Runbook.Parameters)
+	for k, v := range req.Args {
+		if strings.HasPrefix(k, "_confirm") {
+			continue // skip synthetic confirmation fields
+		}
+		resolved[k] = fmt.Sprintf("%v", v)
+	}
+
+	// Build env and script path.
+	catPath := adapters.ExpandHome(req.Catalog.RunbookRoot())
+	scriptPath = filepath.Join(catPath, req.Runbook.Name, req.Runbook.Script)
+
+	env = make(map[string]string)
+	for k, v := range resolved {
+		env[strings.ToUpper(k)] = v
+	}
+
+	return scriptPath, env, nil
+}
+
+// collectResult assembles a ToolResult from the raw execution output,
+// determining exit code, truncating output, and extracting a summary.
+func collectResult(allLines []string, start time.Time, logPath string, err error) *ToolResult {
 	duration := time.Since(start)
 
-	// Determine exit code.
 	exitCode := 0
 	if err != nil {
 		exitCode = 1
@@ -122,7 +130,7 @@ func HandleToolCall(ctx context.Context, req ToolCallRequest) (*ToolResult, erro
 		OutputLines: len(allLines),
 		Output:      strings.Join(output, "\n"),
 		Summary:     summary,
-	}, nil
+	}
 }
 
 func validateRiskConfirmation(rb domain.Runbook, args map[string]any) error {
