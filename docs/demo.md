@@ -56,7 +56,6 @@ title: Demo
   </div>
   <iframe class="demo-frame" src="https://demo.rundops.dev" allow="clipboard-write" loading="lazy"></iframe>
   <div class="demo-hint">
-    <span>Install locally: <code>brew tap rundops/tap && brew install dops</code></span>
-    <span>Or run: <code>dops open</code></span>
+    <span>Install locally: <code>brew tap rundops/tap && brew install dops && dops open</code></span>
   </div>
 </div>
