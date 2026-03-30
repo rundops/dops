@@ -14,11 +14,11 @@
 - [x] **cmd/config.go:115** — `store.Load` error not wrapped
 - [x] **cmd/config.go:127** — `config.Unset` error not wrapped
 - [x] **cmd/config.go:141** — `store.Load` error not wrapped
-- [ ] **cmd/catalog.go:91** — `ValidateDisplayName` error not wrapped
-- [ ] **cmd/catalog.go:97** — `filepath.Abs` error not wrapped
-- [ ] **cmd/catalog.go:102** — `loadConfig` error not wrapped
-- [ ] **cmd/catalog.go:184** — `ValidateDisplayName` error not wrapped (2nd occurrence)
-- [ ] **cmd/catalog.go:287** — `ValidateDisplayName` error not wrapped (3rd occurrence)
+- [x] **cmd/catalog.go:91** — `ValidateDisplayName` error not wrapped
+- [x] **cmd/catalog.go:97** — `filepath.Abs` error not wrapped
+- [x] **cmd/catalog.go:102** — `loadConfig` error not wrapped
+- [x] **cmd/catalog.go:184** — `ValidateDisplayName` error not wrapped (2nd occurrence)
+- [x] **cmd/catalog.go:287** — `ValidateDisplayName` error not wrapped (3rd occurrence)
 - [ ] **cmd/run.go:165** — `config.Set` error not wrapped
 - [ ] **cmd/open.go:108** — `srv.Start` error not wrapped
 - [ ] **internal/mcp/server.go:216** — `srv.Connect` error not wrapped

@@ -89,19 +89,19 @@ func newCatalogAddCmd(dopsDir string) *cobra.Command {
 
 			if displayName != "" {
 				if err := domain.ValidateDisplayName(displayName); err != nil {
-					return err
+					return fmt.Errorf("validate display name: %w", err)
 				}
 			}
 
 			name := filepath.Base(catalogPath)
 			absPath, err := filepath.Abs(catalogPath)
 			if err != nil {
-				return err
+				return fmt.Errorf("resolve absolute path: %w", err)
 			}
 
 			cfg, err := loadConfig(dopsDir)
 			if err != nil {
-				return err
+				return fmt.Errorf("load config: %w", err)
 			}
 
 			// Check for duplicate.
@@ -182,7 +182,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 			}
 			if displayName != "" {
 				if err := domain.ValidateDisplayName(displayName); err != nil {
-					return err
+					return fmt.Errorf("validate display name: %w", err)
 				}
 			}
 
@@ -285,7 +285,7 @@ func newCatalogUpdateCmd(dopsDir string) *cobra.Command {
 			if cmd.Flags().Changed("display-name") {
 				if displayName != "" {
 					if err := domain.ValidateDisplayName(displayName); err != nil {
-						return err
+						return fmt.Errorf("validate display name: %w", err)
 					}
 				}
 				cat.DisplayName = displayName
