@@ -22,11 +22,11 @@
 
 ## Stuttering Type Names
 
-- [ ] **internal/tui/wizard/messages.go** — `WizardSubmitMsg` → `SubmitMsg` (package already says wizard)
-- [ ] **internal/tui/wizard/messages.go** — `WizardCancelMsg` → `CancelMsg`
-- [ ] **internal/tui/confirm/messages.go** — `ConfirmAcceptMsg` → `AcceptMsg`
-- [ ] **internal/tui/confirm/messages.go** — `ConfirmCancelMsg` → `CancelMsg`
-- [ ] **internal/tui/palette/model.go:10** — `PaletteCommand` → `Command`
+- [x] **internal/tui/wizard/messages.go** — `WizardSubmitMsg` → `SubmitMsg` (package already says wizard)
+- [x] **internal/tui/wizard/messages.go** — `WizardCancelMsg` → `CancelMsg`
+- [x] **internal/tui/confirm/messages.go** — `ConfirmAcceptMsg` → `AcceptMsg`
+- [x] **internal/tui/confirm/messages.go** — `ConfirmCancelMsg` → `CancelMsg`
+- [x] **internal/tui/palette/model.go:10** — `PaletteCommand` → `Command`
 
 ## Generic Names
 

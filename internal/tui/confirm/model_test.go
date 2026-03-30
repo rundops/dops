@@ -26,8 +26,8 @@ func TestConfirm_HighRisk_Y(t *testing.T) {
 		t.Fatal("y should produce a command")
 	}
 	msg := cmd()
-	if _, ok := msg.(ConfirmAcceptMsg); !ok {
-		t.Fatalf("expected ConfirmAcceptMsg, got %T", msg)
+	if _, ok := msg.(AcceptMsg); !ok {
+		t.Fatalf("expected AcceptMsg, got %T", msg)
 	}
 }
 
@@ -38,8 +38,8 @@ func TestConfirm_HighRisk_N(t *testing.T) {
 		t.Fatal("n should produce a command")
 	}
 	msg := cmd()
-	if _, ok := msg.(ConfirmCancelMsg); !ok {
-		t.Fatalf("expected ConfirmCancelMsg, got %T", msg)
+	if _, ok := msg.(CancelMsg); !ok {
+		t.Fatalf("expected CancelMsg, got %T", msg)
 	}
 }
 
@@ -58,8 +58,8 @@ func TestConfirm_CriticalRisk_TypeID(t *testing.T) {
 		t.Fatal("enter after typing ID should produce a command")
 	}
 	msg := cmd()
-	if _, ok := msg.(ConfirmAcceptMsg); !ok {
-		t.Fatalf("expected ConfirmAcceptMsg, got %T", msg)
+	if _, ok := msg.(AcceptMsg); !ok {
+		t.Fatalf("expected AcceptMsg, got %T", msg)
 	}
 }
 
@@ -83,7 +83,7 @@ func TestConfirm_Escape(t *testing.T) {
 		t.Fatal("escape should produce a command")
 	}
 	msg := cmd()
-	if _, ok := msg.(ConfirmCancelMsg); !ok {
-		t.Fatalf("expected ConfirmCancelMsg, got %T", msg)
+	if _, ok := msg.(CancelMsg); !ok {
+		t.Fatalf("expected CancelMsg, got %T", msg)
 	}
 }

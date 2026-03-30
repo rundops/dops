@@ -43,14 +43,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case msg.Code == tea.KeyEscape:
-			return m, func() tea.Msg { return ConfirmCancelMsg{} }
+			return m, func() tea.Msg { return CancelMsg{} }
 
 		case msg.Code == tea.KeyEnter:
 			if m.risk == domain.RiskHigh {
 				if m.cursor == 0 {
 					return m, m.accept()
 				}
-				return m, func() tea.Msg { return ConfirmCancelMsg{} }
+				return m, func() tea.Msg { return CancelMsg{} }
 			}
 			if m.isConfirmed() {
 				return m, m.accept()
@@ -72,7 +72,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				case msg.Text == "y" || msg.Text == "Y":
 					return m, m.accept()
 				case msg.Text == "n" || msg.Text == "N":
-					return m, func() tea.Msg { return ConfirmCancelMsg{} }
+					return m, func() tea.Msg { return CancelMsg{} }
 				}
 			} else if msg.Text != "" {
 				// Critical: accumulate typed input.
@@ -85,7 +85,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) accept() func() tea.Msg {
 	return func() tea.Msg {
-		return ConfirmAcceptMsg{
+		return AcceptMsg{
 			Runbook: m.runbook,
 			Catalog: m.catalog,
 			Params:  m.params,

@@ -7,14 +7,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-type PaletteCommand struct {
+type Command struct {
 	Name        string
 	Description string
 }
 
 type Model struct {
-	commands []PaletteCommand
-	filtered []PaletteCommand
+	commands []Command
+	filtered []Command
 	query    string
 	cursor   int
 	width    int
@@ -29,8 +29,8 @@ func New(width int) Model {
 	}
 }
 
-func defaultCommands() []PaletteCommand {
-	return []PaletteCommand{
+func defaultCommands() []Command {
+	return []Command{
 		{Name: "theme: set", Description: "Pick from available themes"},
 		{Name: "config: set", Description: "Set a config value by key path"},
 		{Name: "config: view", Description: "Display current config (secrets masked)"},
@@ -108,7 +108,7 @@ func (m *Model) applyFilter() {
 	}
 }
 
-func (m Model) Filtered() []PaletteCommand {
+func (m Model) Filtered() []Command {
 	return m.filtered
 }
 

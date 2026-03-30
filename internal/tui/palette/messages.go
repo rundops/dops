@@ -1,7 +1,7 @@
 package palette
 
 type PaletteSelectMsg struct {
-	Command PaletteCommand
+	Command Command
 }
 
 type PaletteCancelMsg struct{}
