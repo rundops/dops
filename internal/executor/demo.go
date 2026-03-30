@@ -36,8 +36,11 @@ func (d *DemoRunner) Run(ctx context.Context, scriptPath string, env map[string]
 			}
 
 			// Simulate realistic output timing.
-			jitter, _ := rand.Int(rand.Reader, big.NewInt(120))
-		delay := time.Duration(450+jitter.Int64()) * time.Millisecond
+			jitter, err := rand.Int(rand.Reader, big.NewInt(120))
+			if err != nil {
+				jitter = big.NewInt(60) // fallback to midpoint
+			}
+			delay := time.Duration(450+jitter.Int64()) * time.Millisecond
 			time.Sleep(delay)
 
 			lines <- OutputLine{Text: line}
