@@ -641,7 +641,11 @@ func (m App) openWizard() (tea.Model, tea.Cmd) {
 	}
 
 	// Always show wizard — pre-fills saved values, user can accept or override.
-	wiz := wizard.New(*m.selected, *m.selCat, resolved)
+	wiz := wizard.New(wizard.WizardConfig{
+		Runbook:  *m.selected,
+		Catalog:  *m.selCat,
+		Resolved: resolved,
+	})
 	wiz.SetStyles(m.deps.Styles)
 	if m.deps.Config != nil {
 		wiz.SetStore(m.deps.Config, m.deps.Vault)
@@ -710,31 +714,35 @@ func (m App) View() tea.View {
 	return v
 }
 
-func (m App) viewNormal() tea.View {
-	l := m.computeLayout()
-
-	// --- Theme colors ---
-	var borderColor, activeBorderColor color.Color
+func (m App) themeColors() (borderColor, activeBorderColor color.Color) {
 	borderColor = lipgloss.NoColor{}
 	activeBorderColor = lipgloss.NoColor{}
 	if m.deps.Styles != nil {
 		borderColor = m.deps.Styles.Border.GetForeground()
 		activeBorderColor = m.deps.Styles.BorderActive.GetForeground()
 	}
+	return borderColor, activeBorderColor
+}
 
-	// --- Sidebar ---
+func (m App) renderSidebar(l layoutDims) string {
+	borderColor, activeBorderColor := m.themeColors()
+
 	sidebarBorderColor := borderColor
 	if m.focus == focusSidebar {
 		sidebarBorderColor = activeBorderColor
 	}
 	m.sidebar.SetHeight(l.sidebarContentH)
-	sidebarView := lipgloss.NewStyle().
+	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(sidebarBorderColor).
 		PaddingLeft(1).
 		Width(l.sidebarW).
 		Height(l.sidebarContentH).
 		Render(m.sidebar.View())
+}
+
+func (m App) renderRightPanel(l layoutDims, sidebarView string) string {
+	borderColor, activeBorderColor := m.themeColors()
 
 	// --- Metadata ---
 	metaContent := metadata.Render(metadata.RenderParams{
@@ -784,8 +792,16 @@ func (m App) viewNormal() tea.View {
 		outputView = injectBorderBadge(outputView, "Copied to Clipboard!", m.deps.Styles)
 	}
 
+	return lipgloss.JoinVertical(lipgloss.Left, metaView, outputView)
+}
+
+func (m App) viewNormal() tea.View {
+	l := m.computeLayout()
+
+	sidebarView := m.renderSidebar(l)
+	rightPanel := m.renderRightPanel(l, sidebarView)
+
 	// --- Compose ---
-	rightPanel := lipgloss.JoinVertical(lipgloss.Left, metaView, outputView)
 	panels := lipgloss.JoinHorizontal(lipgloss.Top,
 		sidebarView,
 		strings.Repeat(" ", l.gap),

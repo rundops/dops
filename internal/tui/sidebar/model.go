@@ -410,6 +410,51 @@ func (m Model) View() string {
 	return sb.String()
 }
 
+type entryStyles struct {
+	header         lipgloss.Style
+	headerSelected lipgloss.Style
+	hover          lipgloss.Style
+	cursor         lipgloss.Style
+	selected       lipgloss.Style
+	unselected     lipgloss.Style
+}
+
+// renderEntry renders a single sidebar entry (catalog header or runbook line).
+func (m Model) renderEntry(e entry, s entryStyles, isCursor, isHovered, inSelectedCat, isLastRunbook bool) string {
+	if e.isHeader {
+		indicator := "▼"
+		if m.collapsed[e.catalog.Name] {
+			indicator = "▶"
+		}
+		label := indicator + " " + e.catalog.Label() + "/"
+
+		switch {
+		case isCursor:
+			return s.cursor.Render(label)
+		case isHovered:
+			return s.hover.Render(label)
+		case inSelectedCat:
+			return s.headerSelected.Render(label)
+		default:
+			return s.header.Render(label)
+		}
+	}
+
+	connector := "├── "
+	if isLastRunbook {
+		connector = "└── "
+	}
+
+	switch {
+	case isCursor:
+		return s.selected.Render(connector + e.runbook.Name)
+	case isHovered:
+		return s.hover.Render(connector + e.runbook.Name)
+	default:
+		return s.unselected.Render(connector + e.runbook.Name)
+	}
+}
+
 func (m Model) buildLines(vis []int) []string {
 	// Determine selected entry
 	selectedIdx := -1
@@ -452,47 +497,26 @@ func (m Model) buildLines(vis []int) []string {
 		}
 	}
 
+	styles := entryStyles{
+		header:         headerStyle,
+		headerSelected: headerSelectedStyle,
+		hover:          hoverStyle,
+		cursor:         cursorStyle,
+		selected:       selectedStyle,
+		unselected:     unselectedStyle,
+	}
+
 	var lines []string
-	for visPos, idx := range vis {
+	for _, idx := range vis {
 		e := m.entries[idx]
 		isHovered := idx == hoveredIdx && idx != selectedIdx
 
-		if e.isHeader {
-			indicator := "▼"
-			if m.collapsed[e.catalog.Name] {
-				indicator = "▶"
-			}
-			label := indicator + " " + e.catalog.Label() + "/"
-
-			switch {
-			case idx == selectedIdx:
-				lines = append(lines, cursorStyle.Render(label))
-			case isHovered:
-				lines = append(lines, hoverStyle.Render(label))
-			case e.catalog.Name == selectedCat:
-				lines = append(lines, headerSelectedStyle.Render(label))
-			default:
-				lines = append(lines, headerStyle.Render(label))
-			}
-		} else {
+		if !e.isHeader {
 			catRunbookSeen[e.catalog.Name]++
-			isLast := catRunbookSeen[e.catalog.Name] == catRunbookCount[e.catalog.Name]
-			connector := "├── "
-			if isLast {
-				connector = "└── "
-			}
-
-			switch {
-			case idx == selectedIdx:
-				lines = append(lines, selectedStyle.Render(connector+e.runbook.Name))
-			case isHovered:
-				lines = append(lines, hoverStyle.Render(connector+e.runbook.Name))
-			default:
-				lines = append(lines, unselectedStyle.Render(connector+e.runbook.Name))
-			}
 		}
+		isLast := catRunbookSeen[e.catalog.Name] == catRunbookCount[e.catalog.Name]
 
-		_ = visPos
+		lines = append(lines, m.renderEntry(e, styles, idx == selectedIdx, isHovered, e.catalog.Name == selectedCat, isLast))
 	}
 
 	return lines

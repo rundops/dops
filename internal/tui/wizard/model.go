@@ -53,26 +53,30 @@ type Model struct {
 	vault    *vault.Vault        // encrypted parameter storage
 }
 
-func New(rb domain.Runbook, cat domain.Catalog, resolved map[string]string) Model {
-	return NewWithOptions(rb, cat, resolved, false)
+// WizardConfig holds options for creating a wizard model.
+type WizardConfig struct {
+	Runbook   domain.Runbook
+	Catalog   domain.Catalog
+	Resolved  map[string]string
+	PromptAll bool // when true, show all fields including prefilled
 }
 
-func NewWithOptions(rb domain.Runbook, cat domain.Catalog, resolved map[string]string, promptAll bool) Model {
+func New(cfg WizardConfig) Model {
 	m := Model{
-		runbook:  rb,
-		catalog:  cat,
-		resolved: resolved,
+		runbook:  cfg.Runbook,
+		catalog:  cfg.Catalog,
+		resolved: cfg.Resolved,
 		values:   make(map[string]string),
 		checked:  make(map[int]bool),
 		prefill:  make(map[string]bool),
 		skipped:  make(map[int]bool),
-		showAll:  promptAll,
-		params:   rb.Parameters, // ALL params, not just missing
+		showAll:  cfg.PromptAll,
+		params:   cfg.Runbook.Parameters, // ALL params, not just missing
 	}
 
 	// Mark which params have pre-filled values.
 	for _, p := range m.params {
-		if _, ok := resolved[p.Name]; ok {
+		if _, ok := cfg.Resolved[p.Name]; ok {
 			m.prefill[p.Name] = true
 		}
 	}
@@ -332,6 +336,38 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// validateTextValue checks whether value satisfies the parameter's type constraints.
+func validateTextValue(p domain.Parameter, value string) error {
+	if p.Required && value == "" {
+		return fmt.Errorf("required field")
+	}
+	switch p.Type {
+	case domain.ParamInteger:
+		if value != "" {
+			if _, err := strconv.Atoi(value); err != nil {
+				return fmt.Errorf("must be an integer")
+			}
+		}
+	case domain.ParamNumber:
+		if value != "" {
+			n, err := strconv.Atoi(value)
+			if err != nil {
+				return fmt.Errorf("must be a number")
+			}
+			if n < 0 {
+				return fmt.Errorf("must be a non-negative number")
+			}
+		}
+	case domain.ParamFloat:
+		if value != "" {
+			if _, err := strconv.ParseFloat(value, 64); err != nil {
+				return fmt.Errorf("must be a decimal number")
+			}
+		}
+	}
+	return nil
+}
+
 func (m Model) updateTextInput(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	p := m.params[m.current]
 	switch {
@@ -343,37 +379,9 @@ func (m Model) updateTextInput(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			m.changed = false
 			return m.advance()
 		}
-		if p.Required && val == "" {
-			m.err = "required field"
+		if err := validateTextValue(p, val); err != nil {
+			m.err = err.Error()
 			return m, nil
-		}
-		switch p.Type {
-		case domain.ParamInteger:
-			if val != "" {
-				if _, err := strconv.Atoi(val); err != nil {
-					m.err = "must be an integer"
-					return m, nil
-				}
-			}
-		case domain.ParamNumber:
-			if val != "" {
-				n, err := strconv.Atoi(val)
-				if err != nil {
-					m.err = "must be a number"
-					return m, nil
-				}
-				if n < 0 {
-					m.err = "must be a non-negative number"
-					return m, nil
-				}
-			}
-		case domain.ParamFloat:
-			if val != "" {
-				if _, err := strconv.ParseFloat(val, 64); err != nil {
-					m.err = "must be a decimal number"
-					return m, nil
-				}
-			}
 		}
 		m.values[p.Name] = val
 		// Check if value was changed from pre-fill.

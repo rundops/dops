@@ -8,19 +8,32 @@ import (
 	"dops/internal/domain"
 )
 
+// ThemeMode indicates whether to resolve dark or light theme tokens.
+type ThemeMode int
+
+const (
+	ThemeDark  ThemeMode = iota
+	ThemeLight
+)
+
 type ResolvedTheme struct {
 	Name   string
 	Colors map[string]string // token name → hex color (e.g. "background" → "#1a1b26")
 }
 
 func Resolve(tf *domain.ThemeFile, isDark bool) (*ResolvedTheme, error) {
+	mode := ThemeDark
+	if !isDark {
+		mode = ThemeLight
+	}
+
 	resolved := &ResolvedTheme{
 		Name:   tf.Name,
 		Colors: make(map[string]string),
 	}
 
 	for name, raw := range tf.Theme {
-		if err := resolveToken(resolved, tf.Defs, isDark, name, raw); err != nil {
+		if err := resolveToken(resolved, tf.Defs, mode, name, raw); err != nil {
 			return nil, fmt.Errorf("resolve token %q: %w", name, err)
 		}
 	}
@@ -28,12 +41,12 @@ func Resolve(tf *domain.ThemeFile, isDark bool) (*ResolvedTheme, error) {
 	return resolved, nil
 }
 
-func resolveToken(resolved *ResolvedTheme, defs map[string]string, isDark bool, prefix string, raw json.RawMessage) error {
+func resolveToken(resolved *ResolvedTheme, defs map[string]string, mode ThemeMode, prefix string, raw json.RawMessage) error {
 	// Try as a simple ThemeToken first
 	var token domain.ThemeToken
 	if err := json.Unmarshal(raw, &token); err == nil && (token.Dark != "" || token.Light != "") {
 		ref := token.Dark
-		if !isDark {
+		if mode == ThemeLight {
 			ref = token.Light
 		}
 		hex, err := resolveRef(defs, ref)
@@ -49,7 +62,7 @@ func resolveToken(resolved *ResolvedTheme, defs map[string]string, isDark bool, 
 	if err := json.Unmarshal(raw, &nested); err == nil && len(nested) > 0 {
 		for subName, subToken := range nested {
 			ref := subToken.Dark
-			if !isDark {
+			if mode == ThemeLight {
 				ref = subToken.Light
 			}
 			hex, err := resolveRef(defs, ref)

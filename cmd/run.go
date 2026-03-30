@@ -56,17 +56,9 @@ func newRunCmd(dopsDir string) *cobra.Command {
 				return fmt.Errorf("load catalogs: %w", err)
 			}
 
-			// Try ID first, then fall back to alias.
-			var rb *domain.Runbook
-			var cat *domain.Catalog
-			if domain.ValidateRunbookID(id) == nil {
-				rb, cat, err = loader.FindByID(id)
-			}
-			if rb == nil {
-				rb, cat, err = loader.FindByAlias(id)
-			}
+			rb, cat, err := resolveRunbook(loader, id)
 			if err != nil {
-				return fmt.Errorf("runbook %q not found: %w", id, err)
+				return err
 			}
 
 			// Check risk policy
@@ -97,7 +89,13 @@ func newRunCmd(dopsDir string) *cobra.Command {
 
 			// Save inputs to config (unless --no-save)
 			if !noSave {
-				if err := saveInputs(cfg, vlt, rb, cat.Name, resolved); err != nil {
+				if err := saveInputs(saveInputsParams{
+					Cfg:      cfg,
+					Vault:    vlt,
+					Runbook:  rb,
+					CatName:  cat.Name,
+					Resolved: resolved,
+				}); err != nil {
 					return fmt.Errorf("save inputs: %w", err)
 				}
 			}
@@ -119,6 +117,23 @@ func newRunCmd(dopsDir string) *cobra.Command {
 	return cmd
 }
 
+// resolveRunbook looks up a runbook by ID first, then falls back to alias.
+func resolveRunbook(loader *catalog.DiskCatalogLoader, id string) (*domain.Runbook, *domain.Catalog, error) {
+	var rb *domain.Runbook
+	var cat *domain.Catalog
+	var err error
+	if domain.ValidateRunbookID(id) == nil {
+		rb, cat, err = loader.FindByID(id)
+	}
+	if rb == nil {
+		rb, cat, err = loader.FindByAlias(id)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("runbook %q not found: %w", id, err)
+	}
+	return rb, cat, nil
+}
+
 func printDryRun(cmd *cobra.Command, rb *domain.Runbook, resolved map[string]string) error {
 	out := cmd.OutOrStdout()
 	fmt.Fprintf(out, "dops run %s", rb.ID)
@@ -135,11 +150,20 @@ func printDryRun(cmd *cobra.Command, rb *domain.Runbook, resolved map[string]str
 	return nil
 }
 
+// saveInputsParams groups the arguments for saveInputs.
+type saveInputsParams struct {
+	Cfg      *domain.Config
+	Vault    *vault.Vault
+	Runbook  *domain.Runbook
+	CatName  string
+	Resolved map[string]string
+}
+
 // saveInputs persists resolved parameter values to the encrypted vault.
 // Values are stored as plaintext inside the vault's encrypted blob.
-func saveInputs(cfg *domain.Config, vlt *vault.Vault, rb *domain.Runbook, catName string, resolved map[string]string) error {
-	for _, param := range rb.Parameters {
-		val, ok := resolved[param.Name]
+func saveInputs(p saveInputsParams) error {
+	for _, param := range p.Runbook.Parameters {
+		val, ok := p.Resolved[param.Name]
 		if !ok {
 			continue
 		}
@@ -154,19 +178,19 @@ func saveInputs(cfg *domain.Config, vlt *vault.Vault, rb *domain.Runbook, catNam
 		case "global":
 			keyPath = fmt.Sprintf("vars.global.%s", param.Name)
 		case "catalog":
-			keyPath = fmt.Sprintf("vars.catalog.%s.%s", catName, param.Name)
+			keyPath = fmt.Sprintf("vars.catalog.%s.%s", p.CatName, param.Name)
 		case "runbook":
-			keyPath = fmt.Sprintf("vars.catalog.%s.runbooks.%s.%s", catName, rb.Name, param.Name)
+			keyPath = fmt.Sprintf("vars.catalog.%s.runbooks.%s.%s", p.CatName, p.Runbook.Name, param.Name)
 		default:
 			keyPath = fmt.Sprintf("vars.global.%s", param.Name)
 		}
 
-		if err := config.Set(cfg, keyPath, val); err != nil {
+		if err := config.Set(p.Cfg, keyPath, val); err != nil {
 			return fmt.Errorf("save input %q: %w", keyPath, err)
 		}
 	}
 
-	return vlt.Save(&cfg.Vars)
+	return p.Vault.Save(&p.Cfg.Vars)
 }
 
 func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string, catName, rbName string) error {

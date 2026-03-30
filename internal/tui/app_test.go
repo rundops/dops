@@ -140,7 +140,11 @@ func TestApp_WizardCancel(t *testing.T) {
 	cat := domain.Catalog{Name: "default"}
 	m.selCat = &cat
 	m.state = stateWizard
-	wiz := wizard.New(rb, cat, map[string]string{})
+	wiz := wizard.New(wizard.WizardConfig{
+		Runbook:  rb,
+		Catalog:  cat,
+		Resolved: map[string]string{},
+	})
 	m.wizard = &wiz
 
 	// Send cancel message

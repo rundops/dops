@@ -118,7 +118,7 @@ func TestNewModel_WithmissingParams(t *testing.T) {
 		"region": "us-east-1",
 	}
 
-	m := New(rb, cat, resolved)
+	m := New(WizardConfig{Runbook: rb, Catalog: cat, Resolved: resolved})
 
 	if m.runbook.ID != "default.hello-world" {
 		t.Errorf("runbook = %q", m.runbook.ID)
@@ -135,7 +135,7 @@ func TestNewModel_CommandHeader(t *testing.T) {
 	cat := domain.Catalog{Name: "default"}
 	resolved := map[string]string{"region": "us-east-1"}
 
-	m := New(rb, cat, resolved)
+	m := New(WizardConfig{Runbook: rb, Catalog: cat, Resolved: resolved})
 	view := m.View()
 
 	if !strings.Contains(view, "dops run") {
@@ -148,7 +148,7 @@ func TestNewModel_FooterHints(t *testing.T) {
 	cat := domain.Catalog{Name: "default"}
 	resolved := map[string]string{"region": "us-east-1"}
 
-	m := New(rb, cat, resolved)
+	m := New(WizardConfig{Runbook: rb, Catalog: cat, Resolved: resolved})
 	hints := m.FooterHints()
 
 	if hints == "" {
@@ -165,7 +165,7 @@ func TestSkipSavedFields_PartialPrefill(t *testing.T) {
 		"env":    "prod",
 	}
 
-	m := New(rb, cat, resolved)
+	m := New(WizardConfig{Runbook: rb, Catalog: cat, Resolved: resolved})
 
 	// region (index 0) should be skipped.
 	if !m.skipped[0] {
@@ -204,7 +204,7 @@ func TestSkipSavedFields_AllPrefilled(t *testing.T) {
 		"env":       "prod",
 	}
 
-	m := New(rb, cat, resolved)
+	m := New(WizardConfig{Runbook: rb, Catalog: cat, Resolved: resolved})
 
 	// All fields should be skipped.
 	if m.SkippedCount() != 4 {
@@ -233,7 +233,7 @@ func TestSkipSavedFields_PromptAll(t *testing.T) {
 		"env":       "prod",
 	}
 
-	m := NewWithOptions(rb, cat, resolved, true)
+	m := New(WizardConfig{Runbook: rb, Catalog: cat, Resolved: resolved, PromptAll: true})
 
 	// No fields should be skipped when promptAll is true.
 	if m.SkippedCount() != 0 {
@@ -254,7 +254,7 @@ func TestSkipSavedFields_CtrlEHint(t *testing.T) {
 		"env":    "prod",
 	}
 
-	m := New(rb, cat, resolved)
+	m := New(WizardConfig{Runbook: rb, Catalog: cat, Resolved: resolved})
 	hints := m.FooterHints()
 
 	if !strings.Contains(hints, "ctrl+e") {
