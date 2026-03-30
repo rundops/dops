@@ -83,7 +83,12 @@ func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 		return fmt.Errorf("load catalogs: %w", err)
 	}
 
-	runner := executor.NewScriptRunner()
+	var runner executor.Runner
+	if demo {
+		runner = executor.NewDemoRunner()
+	} else {
+		runner = executor.NewScriptRunner()
+	}
 
 	// Start web server.
 	srv := web.NewServer(web.ServerDeps{
