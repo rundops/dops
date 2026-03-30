@@ -63,7 +63,7 @@ func newConfigSetCmd(store *config.FileConfigStore, vlt *vault.Vault) *cobra.Com
 			cfg.Vars = *vars
 
 			if err := config.Set(cfg, key, value); err != nil {
-				return err
+				return fmt.Errorf("config set %q: %w", key, err)
 			}
 
 			// Vars go to vault, everything else to config.json.
@@ -85,7 +85,7 @@ func newConfigGetCmd(store *config.FileConfigStore, vlt *vault.Vault) *cobra.Com
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := store.Load()
 			if err != nil {
-				return err
+				return fmt.Errorf("load config: %w", err)
 			}
 
 			// Load vars from vault for vars.* lookups.
@@ -97,7 +97,7 @@ func newConfigGetCmd(store *config.FileConfigStore, vlt *vault.Vault) *cobra.Com
 
 			val, err := config.Get(cfg, args[0])
 			if err != nil {
-				return err
+				return fmt.Errorf("config get %q: %w", args[0], err)
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), val)
@@ -114,7 +114,7 @@ func newConfigUnsetCmd(store *config.FileConfigStore, vlt *vault.Vault) *cobra.C
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := store.Load()
 			if err != nil {
-				return err
+				return fmt.Errorf("load config: %w", err)
 			}
 
 			// Load vars from vault for unset routing.
@@ -125,7 +125,7 @@ func newConfigUnsetCmd(store *config.FileConfigStore, vlt *vault.Vault) *cobra.C
 			cfg.Vars = *vars
 
 			if err := config.Unset(cfg, args[0]); err != nil {
-				return err
+				return fmt.Errorf("config unset %q: %w", args[0], err)
 			}
 
 			return vlt.Save(&cfg.Vars)
@@ -140,7 +140,7 @@ func newConfigListCmd(store *config.FileConfigStore, vlt *vault.Vault) *cobra.Co
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := store.Load()
 			if err != nil {
-				return err
+				return fmt.Errorf("load config: %w", err)
 			}
 
 			// Vars are excluded from config.json serialization (json:"-"),
