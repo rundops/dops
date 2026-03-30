@@ -11,7 +11,7 @@
 - [x] **internal/vars/decrypting_resolver.go, internal/vault/vault.go** — `enc` → `encrypter`
 - [x] **internal/tui/*.go** — `b` → `sb` for `strings.Builder` (standardize across codebase)
 - [x] **internal/tui/output/model.go** — `cw` → `contentWidth`
-- [ ] **cmd/run.go** — `p` → `param` in range loops spanning 10+ lines
+- [x] **cmd/run.go** — `p` → `param` in range loops spanning 10+ lines
 - [x] **internal/mcp/server.go:274** — `mkerr` → `toolError`
 
 ## Inconsistent Naming

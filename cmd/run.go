@@ -122,12 +122,12 @@ func newRunCmd(dopsDir string) *cobra.Command {
 func printDryRun(cmd *cobra.Command, rb *domain.Runbook, resolved map[string]string) error {
 	out := cmd.OutOrStdout()
 	fmt.Fprintf(out, "dops run %s", rb.ID)
-	for _, p := range rb.Parameters {
-		if v, ok := resolved[p.Name]; ok {
-			if p.Secret {
-				fmt.Fprintf(out, " --param %s=****", p.Name)
+	for _, param := range rb.Parameters {
+		if v, ok := resolved[param.Name]; ok {
+			if param.Secret {
+				fmt.Fprintf(out, " --param %s=****", param.Name)
 			} else {
-				fmt.Fprintf(out, " --param %s=%s", p.Name, v)
+				fmt.Fprintf(out, " --param %s=%s", param.Name, v)
 			}
 		}
 	}
@@ -138,27 +138,27 @@ func printDryRun(cmd *cobra.Command, rb *domain.Runbook, resolved map[string]str
 // saveInputs persists resolved parameter values to the encrypted vault.
 // Values are stored as plaintext inside the vault's encrypted blob.
 func saveInputs(cfg *domain.Config, vlt *vault.Vault, rb *domain.Runbook, catName string, resolved map[string]string) error {
-	for _, p := range rb.Parameters {
-		val, ok := resolved[p.Name]
+	for _, param := range rb.Parameters {
+		val, ok := resolved[param.Name]
 		if !ok {
 			continue
 		}
 
 		// Skip local/unscoped params — they aren't persisted.
-		if p.Scope == "" || p.Scope == "local" {
+		if param.Scope == "" || param.Scope == "local" {
 			continue
 		}
 
 		var keyPath string
-		switch p.Scope {
+		switch param.Scope {
 		case "global":
-			keyPath = fmt.Sprintf("vars.global.%s", p.Name)
+			keyPath = fmt.Sprintf("vars.global.%s", param.Name)
 		case "catalog":
-			keyPath = fmt.Sprintf("vars.catalog.%s.%s", catName, p.Name)
+			keyPath = fmt.Sprintf("vars.catalog.%s.%s", catName, param.Name)
 		case "runbook":
-			keyPath = fmt.Sprintf("vars.catalog.%s.runbooks.%s.%s", catName, rb.Name, p.Name)
+			keyPath = fmt.Sprintf("vars.catalog.%s.runbooks.%s.%s", catName, rb.Name, param.Name)
 		default:
-			keyPath = fmt.Sprintf("vars.global.%s", p.Name)
+			keyPath = fmt.Sprintf("vars.global.%s", param.Name)
 		}
 
 		if err := config.Set(cfg, keyPath, val); err != nil {
