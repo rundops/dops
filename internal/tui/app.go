@@ -351,24 +351,24 @@ func (m App) handleAppMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		m.output, _ = m.output.Update(msg)
 		return m, nil, true
 
-	case wizard.WizardSubmitMsg:
+	case wizard.SubmitMsg:
 		m.state = stateNormal
 		m.wizard = nil
 		result, cmd := m.openConfirm(msg.Runbook, msg.Catalog, msg.Params)
 		return result, cmd, true
 
-	case confirm.ConfirmAcceptMsg:
+	case confirm.AcceptMsg:
 		m.state = stateNormal
 		m.conf = nil
 		result, cmd := m.startExecution(msg.Runbook, msg.Catalog, msg.Params)
 		return result, cmd, true
 
-	case confirm.ConfirmCancelMsg:
+	case confirm.CancelMsg:
 		m.state = stateNormal
 		m.conf = nil
 		return m, nil, true
 
-	case wizard.WizardCancelMsg:
+	case wizard.CancelMsg:
 		m.state = stateNormal
 		m.wizard = nil
 		return m, nil, true

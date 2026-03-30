@@ -144,7 +144,7 @@ func TestApp_WizardCancel(t *testing.T) {
 	m.wizard = &wiz
 
 	// Send cancel message
-	result, _ := m.Update(wizard.WizardCancelMsg{})
+	result, _ := m.Update(wizard.CancelMsg{})
 	app := result.(App)
 
 	if app.ViewState() != stateNormal {
@@ -165,7 +165,7 @@ func TestApp_WizardSubmit(t *testing.T) {
 	cat := domain.Catalog{Name: "default"}
 	params := map[string]string{"greeting": "world"}
 
-	result, _ := m.Update(wizard.WizardSubmitMsg{Runbook: rb, Catalog: cat, Params: params})
+	result, _ := m.Update(wizard.SubmitMsg{Runbook: rb, Catalog: cat, Params: params})
 	app := result.(App)
 
 	if app.ViewState() != stateNormal {
@@ -204,7 +204,7 @@ func TestApp_PaletteSelect(t *testing.T) {
 	m.pal = &p
 	m.state = statePalette
 
-	cmd := palette.PaletteCommand{Name: "theme: set"}
+	cmd := palette.Command{Name: "theme: set"}
 	result, _ := m.Update(palette.PaletteSelectMsg{Command: cmd})
 	app := result.(App)
 

@@ -40,7 +40,7 @@ func TestLayout_SidebarAlignsWithRightPanel(t *testing.T) {
 			sidebarView := lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
 				PaddingLeft(1).
-				Width(l.sw).
+				Width(l.sidebarW).
 				Height(l.sidebarContentH).
 				Render(app.sidebar.View())
 			sidebarH := lipgloss.Height(sidebarView)

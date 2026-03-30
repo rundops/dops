@@ -248,7 +248,7 @@ func (m Model) Init() tea.Cmd {
 	// All fields were auto-applied — submit immediately.
 	if m.current >= len(m.params) {
 		return func() tea.Msg {
-			return WizardSubmitMsg{
+			return SubmitMsg{
 				Runbook: m.runbook,
 				Catalog: m.catalog,
 				Params:  m.collectParams(),
@@ -270,7 +270,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if msg.Code == tea.KeyEscape {
-			return m, func() tea.Msg { return WizardCancelMsg{} }
+			return m, func() tea.Msg { return CancelMsg{} }
 		}
 
 		// Ctrl+E: reveal all skipped fields.
@@ -527,7 +527,7 @@ func (m Model) advance() (Model, tea.Cmd) {
 
 	if next >= len(m.params) {
 		return m, func() tea.Msg {
-			return WizardSubmitMsg{
+			return SubmitMsg{
 				Runbook: m.runbook,
 				Catalog: m.catalog,
 				Params:  m.collectParams(),
