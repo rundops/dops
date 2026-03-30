@@ -2,8 +2,9 @@ package executor
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"path/filepath"
 	"strings"
 	"time"
@@ -35,7 +36,8 @@ func (d *DemoRunner) Run(ctx context.Context, scriptPath string, env map[string]
 			}
 
 			// Simulate realistic output timing.
-			delay := time.Duration(450+rand.Intn(120)) * time.Millisecond
+			jitter, _ := rand.Int(rand.Reader, big.NewInt(120))
+		delay := time.Duration(450+jitter.Int64()) * time.Millisecond
 			time.Sleep(delay)
 
 			lines <- OutputLine{Text: line}
