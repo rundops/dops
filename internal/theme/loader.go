@@ -78,6 +78,30 @@ var bundledAyu []byte
 //go:embed zenburn.json
 var bundledZenburn []byte
 
+// bundledThemes maps theme names to their embedded JSON data.
+var bundledThemes = map[string][]byte{
+	"doop":             bundledDoop,
+	"tokyomidnight":    bundledTokyomidnight,
+	"catppuccin-mocha": bundledCatppuccinMocha,
+	"catppuccin-latte": bundledCatppuccinLatte,
+	"nord":             bundledNord,
+	"rosepine-dawn":    bundledRosepineDawn,
+	"espresso":         bundledEspresso,
+	"unicorn":          bundledUnicorn,
+	"dracula":          bundledDracula,
+	"solarized":        bundledSolarized,
+	"gruvbox":          bundledGruvbox,
+	"monokai":          bundledMonokai,
+	"kanagawa":         bundledKanagawa,
+	"everforest":       bundledEverforest,
+	"synthwave":        bundledSynthwave,
+	"one-dark":         bundledOneDark,
+	"nightowl":         bundledNightowl,
+	"github":           bundledGithub,
+	"ayu":              bundledAyu,
+	"zenburn":          bundledZenburn,
+}
+
 type ThemeLoader interface {
 	Load(name string) (*domain.ThemeFile, error)
 }
@@ -123,50 +147,11 @@ func (l *FileThemeLoader) Load(name string) (*domain.ThemeFile, error) {
 }
 
 func (l *FileThemeLoader) loadBundled(name string) (*domain.ThemeFile, error) {
-	switch name {
-	case "doop":
-		return parseTheme(bundledDoop)
-	case "tokyomidnight":
-		return parseTheme(bundledTokyomidnight)
-	case "catppuccin-mocha":
-		return parseTheme(bundledCatppuccinMocha)
-	case "catppuccin-latte":
-		return parseTheme(bundledCatppuccinLatte)
-	case "nord":
-		return parseTheme(bundledNord)
-	case "rosepine-dawn":
-		return parseTheme(bundledRosepineDawn)
-	case "espresso":
-		return parseTheme(bundledEspresso)
-	case "unicorn":
-		return parseTheme(bundledUnicorn)
-	case "dracula":
-		return parseTheme(bundledDracula)
-	case "solarized":
-		return parseTheme(bundledSolarized)
-	case "gruvbox":
-		return parseTheme(bundledGruvbox)
-	case "monokai":
-		return parseTheme(bundledMonokai)
-	case "kanagawa":
-		return parseTheme(bundledKanagawa)
-	case "everforest":
-		return parseTheme(bundledEverforest)
-	case "synthwave":
-		return parseTheme(bundledSynthwave)
-	case "one-dark":
-		return parseTheme(bundledOneDark)
-	case "nightowl":
-		return parseTheme(bundledNightowl)
-	case "github":
-		return parseTheme(bundledGithub)
-	case "ayu":
-		return parseTheme(bundledAyu)
-	case "zenburn":
-		return parseTheme(bundledZenburn)
-	default:
+	data, ok := bundledThemes[name]
+	if !ok {
 		return nil, fmt.Errorf("no bundled theme %q", name)
 	}
+	return parseTheme(data)
 }
 
 func parseTheme(data []byte) (*domain.ThemeFile, error) {

@@ -14,8 +14,8 @@
 - [ ] **internal/tui/output/model.go:556** — `renderLogSection` (~71 lines). Extract `renderSearchBar()`.
 - [ ] **internal/tui/sidebar/model.go:413** — `buildLines` (~86 lines). Extract `renderEntry()`.
 - [ ] **internal/tui/wizard/model.go:148** — `initField` (~81 lines). Extract per-type init helpers.
-- [ ] **internal/theme/loader.go:125** — `loadBundled` (~45 lines). Replace switch with `map[string][]byte`.
-- [ ] **internal/executor/demo.go** — `runbookOutputs` map (~370 lines). Move to `demo_data.go`.
+- [x] **internal/theme/loader.go:125** — `loadBundled` (~45 lines). Replace switch with `map[string][]byte`.
+- [x] **internal/executor/demo.go** — `runbookOutputs` map (~370 lines). Move to `demo_data.go`.
 - [ ] **internal/cli/help.go:55** — `renderHelp` (~83 lines). Extract `renderHelpHeader()`, `renderHelpUsage()`.
 
 ## Too Many Parameters (>3-4)
@@ -29,7 +29,7 @@
 
 ## Boolean Flag Parameters
 
-- [ ] **cmd/open.go:45** — `runWebUI(dopsDir, port, noBrowser, demo)`. Replace with `WebUIOptions` struct.
+- [x] **cmd/open.go:45** — `runWebUI(dopsDir, port, noBrowser, demo)`. Replace with `WebUIOptions` struct.
 - [ ] **internal/tui/wizard/model.go:60** — `NewWithOptions(..., promptAll bool)`. Use `WizardConfig` struct.
 - [ ] **internal/theme/resolver.go:31** — `resolveToken(..., isDark bool)`. Use `ThemeMode` enum.
 

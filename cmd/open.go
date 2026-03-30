@@ -31,7 +31,12 @@ func newOpenCmd(dopsDir string) *cobra.Command {
 		Use:   "open",
 		Short: "Launch the web UI in a browser",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runWebUI(dopsDir, port, noBrowser, demo)
+			return runWebUI(WebUIOptions{
+				DopsDir:   dopsDir,
+				Port:      port,
+				NoBrowser: noBrowser,
+				Demo:      demo,
+			})
 		},
 	}
 
@@ -42,9 +47,17 @@ func newOpenCmd(dopsDir string) *cobra.Command {
 	return cmd
 }
 
-func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
+// WebUIOptions holds the parameters for launching the web UI.
+type WebUIOptions struct {
+	DopsDir   string
+	Port      int
+	NoBrowser bool
+	Demo      bool
+}
+
+func runWebUI(opts WebUIOptions) error {
 	// Load config.
-	configPath := filepath.Join(dopsDir, "config.json")
+	configPath := filepath.Join(opts.DopsDir, "config.json")
 	fs := adapters.NewOSFileSystem()
 	store := config.NewFileStore(fs, configPath)
 
@@ -54,8 +67,8 @@ func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 	}
 
 	// Load vault.
-	vaultPath := filepath.Join(dopsDir, "vault.json")
-	keysDir := filepath.Join(dopsDir, "keys")
+	vaultPath := filepath.Join(opts.DopsDir, "vault.json")
+	keysDir := filepath.Join(opts.DopsDir, "keys")
 	vlt := vault.New(vaultPath, keysDir)
 	vars, err := vlt.Load()
 	if err != nil {
@@ -64,7 +77,7 @@ func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 	cfg.Vars = *vars
 
 	// Load theme.
-	themesDir := filepath.Join(dopsDir, "themes")
+	themesDir := filepath.Join(opts.DopsDir, "themes")
 	themeLoader := theme.NewFileLoader(fs, themesDir)
 	themeFile, err := themeLoader.Load(cfg.Theme)
 	if err != nil {
@@ -84,7 +97,7 @@ func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 	}
 
 	var runner executor.Runner
-	if demo {
+	if opts.Demo {
 		runner = executor.NewDemoRunner()
 	} else {
 		runner = executor.NewScriptRunner()
@@ -101,8 +114,8 @@ func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 		Theme:       resolved,
 		ThemeLoader: themeLoader,
 		IsDark:      isDark,
-		Port:        port,
-		Demo:        demo,
+		Port:        opts.Port,
+		Demo:        opts.Demo,
 	})
 
 	if err := srv.Start(); err != nil {
@@ -110,8 +123,8 @@ func runWebUI(dopsDir string, port int, noBrowser, demo bool) error {
 	}
 
 	// Open browser.
-	if !noBrowser {
-		url := fmt.Sprintf("http://localhost:%d", port)
+	if !opts.NoBrowser {
+		url := fmt.Sprintf("http://localhost:%d", opts.Port)
 		if err := openBrowser(url); err != nil {
 			fmt.Fprintf(os.Stderr, "Could not open browser: %v\nOpen %s manually.\n", err, url)
 		}
