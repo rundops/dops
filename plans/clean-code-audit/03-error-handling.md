@@ -2,7 +2,7 @@
 
 ## High Priority (bugs or data loss)
 
-- [ ] **internal/executor/demo.go:39** — `crypto/rand.Int` error discarded with `_`. If it fails, `jitter` is nil → panic on `jitter.Int64()`. Add fallback.
+- [x] **internal/executor/demo.go:39** — `crypto/rand.Int` error discarded with `_`. If it fails, `jitter` is nil → panic on `jitter.Int64()`. Add fallback.
 - [ ] **cmd/run.go:62-68** — Original error from `FindByID`/`FindByAlias` is discarded and replaced with generic message. Wrap the actual error.
 - [ ] **internal/vars/decrypting_resolver.go:23** — Decryption failure silently passes ciphertext as a parameter value. Log warning or return error.
 
