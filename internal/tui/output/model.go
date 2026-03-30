@@ -622,7 +622,13 @@ func (m Model) renderLogSection(contentWidth, headerH int, c viewColors) string 
 	}
 
 	contentStr := strings.Join(logLines, "\n")
-	scrollbar := m.renderScrollbar(logH+logTopPad+logBottomPad, yOffset, visibleH, logContentStyle, thumbStyle)
+	scrollbar := m.renderScrollbar(scrollbarParams{
+		contentH:   logH + logTopPad + logBottomPad,
+		yOffset:    yOffset,
+		visibleH:   visibleH,
+		trackStyle: logContentStyle,
+		thumbStyle: thumbStyle,
+	})
 	return lipgloss.JoinHorizontal(lipgloss.Top, contentStr, scrollbar)
 }
 
@@ -639,37 +645,44 @@ func (m Model) truncateLine(raw string, lineW int) string {
 	return ansi.Truncate(raw, lineW, "")
 }
 
-
+// scrollbarParams groups the arguments for renderScrollbar.
+type scrollbarParams struct {
+	contentH   int
+	yOffset    int
+	visibleH   int
+	trackStyle lipgloss.Style
+	thumbStyle lipgloss.Style
+}
 
 // renderScrollbar builds the scrollbar column with a pill-shaped thumb.
-func (m Model) renderScrollbar(contentH, yOffset, visibleH int, trackStyle, thumbStyle lipgloss.Style) string {
+func (m Model) renderScrollbar(p scrollbarParams) string {
 	total := len(m.lines)
-	if total <= visibleH {
-		lines := make([]string, contentH)
+	if total <= p.visibleH {
+		lines := make([]string, p.contentH)
 		for i := range lines {
-			lines[i] = trackStyle.Render(" ")
+			lines[i] = p.trackStyle.Render(" ")
 		}
 		return strings.Join(lines, "\n")
 	}
 
-	thumbHeight := max(1, (contentH*contentH)/total)
-	maxOffset := total - visibleH
+	thumbHeight := max(1, (p.contentH*p.contentH)/total)
+	maxOffset := total - p.visibleH
 	var thumbPos int
-	if yOffset >= maxOffset {
-		thumbPos = contentH - thumbHeight
+	if p.yOffset >= maxOffset {
+		thumbPos = p.contentH - thumbHeight
 	} else {
-		thumbPos = (yOffset * contentH) / total
+		thumbPos = (p.yOffset * p.contentH) / total
 	}
-	thumbPos = max(0, min(thumbPos, contentH-thumbHeight))
+	thumbPos = max(0, min(thumbPos, p.contentH-thumbHeight))
 
 	var sb strings.Builder
-	for i := range contentH {
+	for i := range p.contentH {
 		if i >= thumbPos && i < thumbPos+thumbHeight {
-			sb.WriteString(thumbStyle.Render("▐"))
+			sb.WriteString(p.thumbStyle.Render("▐"))
 		} else {
-			sb.WriteString(trackStyle.Render(" "))
+			sb.WriteString(p.trackStyle.Render(" "))
 		}
-		if i < contentH-1 {
+		if i < p.contentH-1 {
 			sb.WriteString("\n")
 		}
 	}

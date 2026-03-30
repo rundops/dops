@@ -802,7 +802,7 @@ func (m App) viewNormal() tea.View {
 	if sel.Active && !sel.IsEmpty() {
 		bTop, bBottom, bLeft, bRight := m.outputPaneBounds()
 		content = applySelectionHighlight(content, sel, m.deps.Styles,
-			bTop, bBottom, bLeft, bRight)
+			selectionBounds{top: bTop, bottom: bBottom, left: bLeft, right: bRight})
 	}
 
 	return tea.NewView(content)
@@ -1009,9 +1009,15 @@ func (m App) extractSelectionFromView() string {
 	return strings.TrimRight(strings.Join(result, "\n"), "\n ")
 }
 
+// selectionBounds defines the rectangular region of the output pane within
+// the full terminal view, used to clamp text selection highlighting.
+type selectionBounds struct {
+	top, bottom, left, right int
+}
+
 // applySelectionHighlight post-processes the full terminal view to highlight
 // the selected text, confined within the output pane bounds.
-func applySelectionHighlight(content string, sel output.TextSelection, styles *theme.Styles, boundsTop, boundsBottom, boundsLeft, boundsRight int) string {
+func applySelectionHighlight(content string, sel output.TextSelection, styles *theme.Styles, bounds selectionBounds) string {
 	hlStyle := lipgloss.NewStyle()
 	if styles != nil {
 		hlStyle = lipgloss.NewStyle().
@@ -1022,13 +1028,13 @@ func applySelectionHighlight(content string, sel output.TextSelection, styles *t
 	startX, startY, endX, endY := sel.Bounds()
 
 	// Clamp to output pane bounds.
-	if startY < boundsTop {
-		startY = boundsTop
-		startX = boundsLeft
+	if startY < bounds.top {
+		startY = bounds.top
+		startX = bounds.left
 	}
-	if endY > boundsBottom {
-		endY = boundsBottom
-		endX = boundsRight
+	if endY > bounds.bottom {
+		endY = bounds.bottom
+		endX = bounds.right
 	}
 	if startY > endY {
 		return content
@@ -1047,17 +1053,17 @@ func applySelectionHighlight(content string, sel output.TextSelection, styles *t
 
 		var lx, rx int
 		if i == startY && i == endY {
-			lx = max(startX, boundsLeft)
-			rx = min(boundsRight, min(lineWidth, endX+1))
+			lx = max(startX, bounds.left)
+			rx = min(bounds.right, min(lineWidth, endX+1))
 		} else if i == startY {
-			lx = max(startX, boundsLeft)
-			rx = min(lineWidth, boundsRight)
+			lx = max(startX, bounds.left)
+			rx = min(lineWidth, bounds.right)
 		} else if i == endY {
-			lx = boundsLeft
-			rx = min(boundsRight, min(lineWidth, endX+1))
+			lx = bounds.left
+			rx = min(bounds.right, min(lineWidth, endX+1))
 		} else {
-			lx = boundsLeft
-			rx = min(lineWidth, boundsRight)
+			lx = bounds.left
+			rx = min(lineWidth, bounds.right)
 		}
 
 		if lx >= rx || lx >= lineWidth {

@@ -22,53 +22,7 @@ func RunbookToInputSchema(rb domain.Runbook, resolved map[string]string) (json.R
 			continue
 		}
 
-		prop := map[string]any{}
-
-		switch p.Type {
-		case domain.ParamBoolean:
-			prop["type"] = "boolean"
-		case domain.ParamInteger:
-			prop["type"] = "integer"
-		case domain.ParamNumber:
-			prop["type"] = "integer"
-			prop["minimum"] = 0
-		case domain.ParamFloat:
-			prop["type"] = "number"
-		case domain.ParamSelect:
-			prop["type"] = "string"
-			if len(p.Options) > 0 {
-				prop["enum"] = p.Options
-			}
-		case domain.ParamMultiSelect:
-			prop["type"] = "array"
-			items := map[string]any{"type": "string"}
-			if len(p.Options) > 0 {
-				items["enum"] = p.Options
-			}
-			prop["items"] = items
-		case domain.ParamFilePath:
-			prop["type"] = "string"
-			prop["description"] = "file path"
-		case domain.ParamResourceID:
-			prop["type"] = "string"
-			prop["description"] = "resource identifier"
-		default: // string
-			prop["type"] = "string"
-		}
-
-		if p.Description != "" {
-			desc := p.Description
-			if _, saved := resolved[p.Name]; saved {
-				desc += " (pre-configured, optional override)"
-			}
-			prop["description"] = desc
-		}
-
-		if p.Default != nil {
-			prop["default"] = p.Default
-		}
-
-		properties[p.Name] = prop
+		properties[p.Name] = paramToSchemaProperty(p, resolved)
 
 		// Saved params are optional (can be overridden).
 		if p.Required {
@@ -107,6 +61,57 @@ func RunbookToInputSchema(rb domain.Runbook, resolved map[string]string) (json.R
 		return nil, fmt.Errorf("marshal input schema: %w", err)
 	}
 	return data, nil
+}
+
+// paramToSchemaProperty converts a single parameter into a JSON Schema property map.
+func paramToSchemaProperty(p domain.Parameter, resolved map[string]string) map[string]any {
+	prop := map[string]any{}
+
+	switch p.Type {
+	case domain.ParamBoolean:
+		prop["type"] = "boolean"
+	case domain.ParamInteger:
+		prop["type"] = "integer"
+	case domain.ParamNumber:
+		prop["type"] = "integer"
+		prop["minimum"] = 0
+	case domain.ParamFloat:
+		prop["type"] = "number"
+	case domain.ParamSelect:
+		prop["type"] = "string"
+		if len(p.Options) > 0 {
+			prop["enum"] = p.Options
+		}
+	case domain.ParamMultiSelect:
+		prop["type"] = "array"
+		items := map[string]any{"type": "string"}
+		if len(p.Options) > 0 {
+			items["enum"] = p.Options
+		}
+		prop["items"] = items
+	case domain.ParamFilePath:
+		prop["type"] = "string"
+		prop["description"] = "file path"
+	case domain.ParamResourceID:
+		prop["type"] = "string"
+		prop["description"] = "resource identifier"
+	default: // string
+		prop["type"] = "string"
+	}
+
+	if p.Description != "" {
+		desc := p.Description
+		if _, saved := resolved[p.Name]; saved {
+			desc += " (pre-configured, optional override)"
+		}
+		prop["description"] = desc
+	}
+
+	if p.Default != nil {
+		prop["default"] = p.Default
+	}
+
+	return prop
 }
 
 // RunbookToDescription generates a tool description for a runbook.
