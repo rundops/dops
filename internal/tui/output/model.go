@@ -611,15 +611,7 @@ func (m Model) renderLogSection(contentWidth, headerH int, c viewColors) string 
 	}
 	logLines = append(logLines, blankLine) // bottom padding
 
-	if m.searching {
-		logLines = append(logLines, logContentStyle.Width(logW).Render("  "+fmt.Sprintf("Search: %s▎", m.searchQuery)))
-		logLines = append(logLines, blankLine)
-	}
-	if m.navigating && m.matchCount > 0 {
-		matchInfo := fmt.Sprintf("[%d/%d]", m.matchIndex+1, m.matchCount)
-		logLines = append(logLines, logSuccessStyle.Width(logW).Render("  "+m.searchQuery+" "+matchInfo+"  n/N next/prev  esc clear"))
-		logLines = append(logLines, blankLine)
-	}
+	logLines = append(logLines, m.renderSearchBar(logW, logContentStyle, logSuccessStyle)...)
 
 	contentStr := strings.Join(logLines, "\n")
 	scrollbar := m.renderScrollbar(scrollbarParams{
@@ -630,6 +622,26 @@ func (m Model) renderLogSection(contentWidth, headerH int, c viewColors) string 
 		thumbStyle: thumbStyle,
 	})
 	return lipgloss.JoinHorizontal(lipgloss.Top, contentStr, scrollbar)
+}
+
+// renderSearchBar renders the search or navigation bar that appears at the
+// bottom of the log section. It returns 0, or 2 lines depending on state.
+func (m Model) renderSearchBar(logW int, contentStyle, successStyle lipgloss.Style) []string {
+	blankLine := contentStyle.Width(logW).Render("")
+	if m.searching {
+		return []string{
+			contentStyle.Width(logW).Render("  " + fmt.Sprintf("Search: %s▎", m.searchQuery)),
+			blankLine,
+		}
+	}
+	if m.navigating && m.matchCount > 0 {
+		matchInfo := fmt.Sprintf("[%d/%d]", m.matchIndex+1, m.matchCount)
+		return []string{
+			successStyle.Width(logW).Render("  " + m.searchQuery + " " + matchInfo + "  n/N next/prev  esc clear"),
+			blankLine,
+		}
+	}
+	return nil
 }
 
 // truncateLine applies horizontal scrolling and truncation to a single line.

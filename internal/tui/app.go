@@ -1070,43 +1070,50 @@ func applySelectionHighlight(content string, sel output.TextSelection, styles *t
 
 	lines := strings.Split(content, "\n")
 	for i := range lines {
-		if i < startY || i > endY {
-			continue
-		}
-
-		lineWidth := ansi.StringWidth(lines[i])
-		if lineWidth == 0 {
-			continue
-		}
-
-		var lx, rx int
-		if i == startY && i == endY {
-			lx = max(startX, bounds.left)
-			rx = min(bounds.right, min(lineWidth, endX+1))
-		} else if i == startY {
-			lx = max(startX, bounds.left)
-			rx = min(lineWidth, bounds.right)
-		} else if i == endY {
-			lx = bounds.left
-			rx = min(bounds.right, min(lineWidth, endX+1))
-		} else {
-			lx = bounds.left
-			rx = min(lineWidth, bounds.right)
-		}
-
-		if lx >= rx || lx >= lineWidth {
-			continue
-		}
-
-		before := ansi.Cut(lines[i], 0, lx)
-		selected := ansi.Cut(lines[i], lx, rx)
-		after := ansi.Cut(lines[i], rx, lineWidth)
-
-		plain := ansi.Strip(selected)
-		lines[i] = before + "\x1b[0m" + hlStyle.Render(plain) + after
+		lines[i] = highlightLine(lines[i], i, startX, startY, endX, endY, bounds, hlStyle)
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// highlightLine applies selection highlighting to a single line if it falls
+// within the selection range. It returns the line unchanged when outside the
+// range or when the line has zero visible width.
+func highlightLine(line string, i, startX, startY, endX, endY int, bounds selectionBounds, hlStyle lipgloss.Style) string {
+	if i < startY || i > endY {
+		return line
+	}
+
+	lineWidth := ansi.StringWidth(line)
+	if lineWidth == 0 {
+		return line
+	}
+
+	var lx, rx int
+	if i == startY && i == endY {
+		lx = max(startX, bounds.left)
+		rx = min(bounds.right, min(lineWidth, endX+1))
+	} else if i == startY {
+		lx = max(startX, bounds.left)
+		rx = min(lineWidth, bounds.right)
+	} else if i == endY {
+		lx = bounds.left
+		rx = min(bounds.right, min(lineWidth, endX+1))
+	} else {
+		lx = bounds.left
+		rx = min(lineWidth, bounds.right)
+	}
+
+	if lx >= rx || lx >= lineWidth {
+		return line
+	}
+
+	before := ansi.Cut(line, 0, lx)
+	selected := ansi.Cut(line, lx, rx)
+	after := ansi.Cut(line, rx, lineWidth)
+
+	plain := ansi.Strip(selected)
+	return before + "\x1b[0m" + hlStyle.Render(plain) + after
 }
 
 // injectBorderBadge replaces part of the top border row with a styled badge.
