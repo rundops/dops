@@ -8,12 +8,12 @@
 
 ## Missing Error Wrapping (bare `return err`)
 
-- [ ] **cmd/config.go:65** — `config.Set` error not wrapped
-- [ ] **cmd/config.go:88** — `store.Load` error not wrapped
-- [ ] **cmd/config.go:98** — `config.Get` error not wrapped
-- [ ] **cmd/config.go:115** — `store.Load` error not wrapped
-- [ ] **cmd/config.go:127** — `config.Unset` error not wrapped
-- [ ] **cmd/config.go:141** — `store.Load` error not wrapped
+- [x] **cmd/config.go:65** — `config.Set` error not wrapped
+- [x] **cmd/config.go:88** — `store.Load` error not wrapped
+- [x] **cmd/config.go:98** — `config.Get` error not wrapped
+- [x] **cmd/config.go:115** — `store.Load` error not wrapped
+- [x] **cmd/config.go:127** — `config.Unset` error not wrapped
+- [x] **cmd/config.go:141** — `store.Load` error not wrapped
 - [ ] **cmd/catalog.go:91** — `ValidateDisplayName` error not wrapped
 - [ ] **cmd/catalog.go:97** — `filepath.Abs` error not wrapped
 - [ ] **cmd/catalog.go:102** — `loadConfig` error not wrapped
