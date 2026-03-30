@@ -63,9 +63,9 @@ func HandleToolCall(
 	}
 
 	// Create log file.
-	lw := adapters.NewLogWriter(os.TempDir())
+	logWriter := adapters.NewLogWriter(os.TempDir())
 	logPath := ""
-	if lp, err := lw.Create(cat.Name, rb.Name, time.Now()); err == nil {
+	if lp, err := logWriter.Create(cat.Name, rb.Name, time.Now()); err == nil {
 		logPath = lp
 	}
 
@@ -78,10 +78,10 @@ func HandleToolCall(
 	for line := range lines {
 		allLines = append(allLines, line.Text)
 		_, _ = pw.Write([]byte(line.Text + "\n")) // error not actionable in streaming loop
-		lw.WriteLine(line.Text)
+		logWriter.WriteLine(line.Text)
 	}
 	pw.Flush()
-	lw.Close()
+	logWriter.Close()
 
 	err := <-errs
 	duration := time.Since(start)

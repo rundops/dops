@@ -94,12 +94,12 @@ func (s *Server) makeToolHandler(rb domain.Runbook, cat domain.Catalog) func(con
 		// Parse arguments.
 		var args map[string]any
 		if err := json.Unmarshal(req.Params.Arguments, &args); err != nil {
-			return mkerr("invalid arguments: " + err.Error()), nil
+			return toolError("invalid arguments: " + err.Error()), nil
 		}
 
 		result, err := HandleToolCall(ctx, rb, cat, s.cfg, s.runner, args, nil /* TODO: wire progress notifications */)
 		if err != nil {
-			return mkerr(err.Error()), nil
+			return toolError(err.Error()), nil
 		}
 
 		// Format as text.
@@ -274,7 +274,7 @@ func (w *gzipResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func mkerr(msg string) *mcpsdk.CallToolResult {
+func toolError(msg string) *mcpsdk.CallToolResult {
 	return &mcpsdk.CallToolResult{
 		Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: msg}},
 		IsError: true,

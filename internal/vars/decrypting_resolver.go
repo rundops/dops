@@ -9,11 +9,11 @@ import (
 
 type DecryptingVarResolver struct {
 	inner VarResolver
-	enc   crypto.Encrypter
+	encrypter crypto.Encrypter
 }
 
-func NewDecryptingResolver(inner VarResolver, enc crypto.Encrypter) *DecryptingVarResolver {
-	return &DecryptingVarResolver{inner: inner, enc: enc}
+func NewDecryptingResolver(inner VarResolver, encrypter crypto.Encrypter) *DecryptingVarResolver {
+	return &DecryptingVarResolver{inner: inner, encrypter: encrypter}
 }
 
 func (r *DecryptingVarResolver) Resolve(cfg *domain.Config, catalogName, runbookName string, params []domain.Parameter) map[string]string {
@@ -21,7 +21,7 @@ func (r *DecryptingVarResolver) Resolve(cfg *domain.Config, catalogName, runbook
 
 	for k, v := range resolved {
 		if crypto.IsEncrypted(v) {
-			decrypted, err := r.enc.Decrypt(v)
+			decrypted, err := r.encrypter.Decrypt(v)
 			if err != nil {
 				log.Printf("warning: failed to decrypt variable %q: %v", k, err)
 				resolved[k] = "DECRYPTION_FAILED"

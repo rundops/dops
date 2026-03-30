@@ -7,12 +7,12 @@
 - [ ] **Multiple files** — `rb` → `runbook` in functions >10 lines (keep `rb` in short methods)
 - [ ] **Multiple files** — `cat` → `catalog` in functions >10 lines
 - [x] **internal/tui/app.go:75** — `sw` → `sidebarW` (consistent with `rightW`, `contentW`)
-- [ ] **internal/tui/app.go, internal/mcp/tools.go** — `lw` → `logWriter`
-- [ ] **internal/vars/decrypting_resolver.go, internal/vault/vault.go** — `enc` → `encrypter`
+- [x] **internal/tui/app.go, internal/mcp/tools.go** — `lw` → `logWriter`
+- [x] **internal/vars/decrypting_resolver.go, internal/vault/vault.go** — `enc` → `encrypter`
 - [ ] **internal/tui/*.go** — `b` → `sb` for `strings.Builder` (standardize across codebase)
-- [ ] **internal/tui/output/model.go** — `cw` → `contentWidth`
+- [x] **internal/tui/output/model.go** — `cw` → `contentWidth`
 - [ ] **cmd/run.go** — `p` → `param` in range loops spanning 10+ lines
-- [ ] **internal/mcp/server.go:274** — `mkerr` → `toolError`
+- [x] **internal/mcp/server.go:274** — `mkerr` → `toolError`
 
 ## Inconsistent Naming
 

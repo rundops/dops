@@ -55,12 +55,12 @@ func (v *Vault) Load() (*domain.Vars, error) {
 		return nil, fmt.Errorf("unsupported vault version: %d", env.Version)
 	}
 
-	enc, err := crypto.NewAgeEncrypter(v.keysDir)
+	encrypter, err := crypto.NewAgeEncrypter(v.keysDir)
 	if err != nil {
 		return nil, fmt.Errorf("init decryption: %w", err)
 	}
 
-	plaintext, err := enc.Decrypt(env.Data)
+	plaintext, err := encrypter.Decrypt(env.Data)
 	if err != nil {
 		return nil, fmt.Errorf("vault.json is corrupted or was modified outside dops: %w", err)
 	}
@@ -81,12 +81,12 @@ func (v *Vault) Save(vars *domain.Vars) error {
 		return fmt.Errorf("marshal vault data: %w", err)
 	}
 
-	enc, err := crypto.NewAgeEncrypter(v.keysDir)
+	encrypter, err := crypto.NewAgeEncrypter(v.keysDir)
 	if err != nil {
 		return fmt.Errorf("init encryption: %w", err)
 	}
 
-	ciphertext, err := enc.Encrypt(string(plaintext))
+	ciphertext, err := encrypter.Encrypt(string(plaintext))
 	if err != nil {
 		return fmt.Errorf("encrypt vault: %w", err)
 	}

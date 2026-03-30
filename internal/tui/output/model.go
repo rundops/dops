@@ -444,11 +444,11 @@ func (m Model) View() string {
 
 	c := m.resolveColors()
 	padX := 1
-	cw := max(1, m.width-padX*2)
-	gap := lipgloss.NewStyle().Width(cw).Render("")
+	contentWidth := max(1, m.width-padX*2)
+	gap := lipgloss.NewStyle().Width(contentWidth).Render("")
 
-	headerBox := m.renderHeader(cw, c)
-	footerBox := m.renderFooterSection(cw, c)
+	headerBox := m.renderHeader(contentWidth, c)
+	footerBox := m.renderFooterSection(contentWidth, c)
 	headerH := lipgloss.Height(headerBox)
 	footerH := lipgloss.Height(footerBox)
 
@@ -469,7 +469,7 @@ func (m Model) View() string {
 		}
 	}
 
-	logBox := m.renderLogSection(cw, headerH, c)
+	logBox := m.renderLogSection(contentWidth, headerH, c)
 
 	var parts []string
 	parts = append(parts, headerBox)
@@ -489,7 +489,7 @@ func (m Model) View() string {
 }
 
 // renderHeader builds the command header, wrapping at --param boundaries.
-func (m Model) renderHeader(cw int, c viewColors) string {
+func (m Model) renderHeader(contentWidth int, c viewColors) string {
 	dollarFg := c.success
 	cmdFg := c.text
 	if m.copiedHeader {
@@ -498,7 +498,7 @@ func (m Model) renderHeader(cw int, c viewColors) string {
 
 	dollarStyle := lipgloss.NewStyle().Foreground(dollarFg)
 	cmdStyle := lipgloss.NewStyle().Foreground(cmdFg)
-	lineW := cw - 2 // "$ " prefix width
+	lineW := contentWidth - 2 // "$ " prefix width
 
 	if ansi.StringWidth(m.command) <= lineW {
 		return dollarStyle.Render("$") + cmdStyle.Render(" "+m.command)
@@ -534,7 +534,7 @@ func (m Model) renderHeader(cw int, c viewColors) string {
 }
 
 // renderFooterSection builds the footer row showing the log path.
-func (m Model) renderFooterSection(cw int, c viewColors) string {
+func (m Model) renderFooterSection(contentWidth int, c viewColors) string {
 	var footerLine string
 	if m.logPath != "" && !m.searching && !m.navigating {
 		prefix := "Saved to "
@@ -544,17 +544,17 @@ func (m Model) renderFooterSection(cw int, c viewColors) string {
 			pathFg = c.success
 		}
 		// Truncate path to prevent wrapping inside the Width constraint.
-		pathW := max(1, cw-ansi.StringWidth(prefix))
+		pathW := max(1, contentWidth-ansi.StringWidth(prefix))
 		truncated := ansi.Truncate(m.logPath, pathW, "…")
 		path := lipgloss.NewStyle().Foreground(pathFg).Render(truncated)
 		footerLine = label + path
 	}
-	return lipgloss.NewStyle().Width(cw).Render(footerLine)
+	return lipgloss.NewStyle().Width(contentWidth).Render(footerLine)
 }
 
 // renderLogSection builds the scrollable log area with search bar.
-func (m Model) renderLogSection(cw, headerH int, c viewColors) string {
-	tw := max(1, cw-3) // cw - 2 indent - 1 scrollbar
+func (m Model) renderLogSection(contentWidth, headerH int, c viewColors) string {
+	tw := max(1, contentWidth-3) // contentWidth - 2 indent - 1 scrollbar
 
 	logContentStyle := lipgloss.NewStyle().Background(c.bgElem).Foreground(c.text)
 	logStderrStyle := lipgloss.NewStyle().Background(c.bgElem).Foreground(c.stderr)
@@ -569,7 +569,7 @@ func (m Model) renderLogSection(cw, headerH int, c viewColors) string {
 		searchBarH = 2
 	}
 	visibleH := max(1, logH-searchBarH)
-	logW := max(1, cw-1)
+	logW := max(1, contentWidth-1)
 
 	blankLine := logContentStyle.Width(logW).Render("")
 
