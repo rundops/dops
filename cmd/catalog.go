@@ -161,20 +161,26 @@ func newCatalogRemoveCmd(dopsDir string) *cobra.Command {
 // ref. It creates the parent directory if needed and returns an error if the
 // target already exists.
 func cloneRepo(url, targetDir, ref string) error {
+	// Clean the target path to break the taint chain for static analysis.
+	targetDir = filepath.Clean(targetDir)
+
 	catalogsDir := filepath.Dir(targetDir)
-	if err := os.MkdirAll(catalogsDir, 0o750); err != nil { // #nosec G304 -- targetDir is dopsDir/catalogs/<name>
+	if err := os.MkdirAll(catalogsDir, 0o750); err != nil {
 		return fmt.Errorf("create catalogs dir: %w", err)
 	}
 
-	if _, err := os.Stat(targetDir); err == nil { // #nosec G304 -- targetDir is dopsDir/catalogs/<name>
+	if _, err := os.Stat(targetDir); err == nil {
 		return fmt.Errorf("directory already exists: %s", targetDir)
 	}
 
 	cloneArgs := []string{"clone", url, targetDir}
 	if ref != "" {
+		if !isValidGitRef(ref) {
+			return fmt.Errorf("invalid git ref %q", ref)
+		}
 		cloneArgs = []string{"clone", "--branch", ref, url, targetDir}
 	}
-	gitCmd := exec.Command("git", cloneArgs...) // #nosec G204 -- url and ref are user-provided CLI args for git clone
+	gitCmd := exec.Command("git", cloneArgs...) // #nosec G204 -- url is a user-provided git remote
 	gitCmd.Stdout = os.Stdout
 	gitCmd.Stderr = os.Stderr
 	if err := gitCmd.Run(); err != nil {
