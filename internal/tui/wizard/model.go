@@ -595,7 +595,7 @@ func (m Model) FooterHints() string {
 }
 
 func (m Model) View() string {
-	if len(m.params) == 0 {
+	if len(m.params) == 0 || m.current >= len(m.params) {
 		return ""
 	}
 

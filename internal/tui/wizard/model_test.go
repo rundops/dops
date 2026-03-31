@@ -221,6 +221,12 @@ func TestSkipSavedFields_AllPrefilled(t *testing.T) {
 	if cmd == nil {
 		t.Error("Init should return a submit command when all fields are skipped")
 	}
+
+	// View must not panic when current is past all params.
+	view := m.View()
+	if view != "" {
+		t.Errorf("View should return empty when all fields completed, got %q", view)
+	}
 }
 
 func TestSkipSavedFields_PromptAll(t *testing.T) {
