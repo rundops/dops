@@ -108,8 +108,7 @@ function statusLabel(): string {
     <!-- Header bar -->
     <div class="px-6 py-4 border-b border-border flex items-center justify-between bg-bg-panel">
       <div class="flex items-center gap-4">
-        <span class="text-[15px] font-bold text-fg">Execution</span>
-        <span class="font-mono text-[13px] text-fg-muted px-2 py-0.5 bg-bg-element rounded">{{ runbookName }}</span>
+        <span class="font-mono text-[15px] font-bold text-fg">{{ runbookName }}</span>
         <span
           :class="statusPillClass()"
           class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full"
@@ -128,6 +127,13 @@ function statusLabel(): string {
         class="px-3.5 py-1.5 text-[13px] font-medium border border-error rounded-md bg-transparent text-error cursor-pointer hover:bg-error-muted transition-all duration-150"
       >
         Cancel
+      </button>
+      <button
+        v-else
+        @click="router.back()"
+        class="px-3.5 py-1.5 text-[13px] font-medium border border-border rounded-md bg-transparent text-fg-muted cursor-pointer hover:border-fg-subtle hover:text-fg transition-all duration-150"
+      >
+        &larr; Back
       </button>
     </div>
 
@@ -149,18 +155,5 @@ function statusLabel(): string {
       </div>
     </div>
 
-    <!-- Footer bar (only when complete) -->
-    <div
-      v-if="isComplete"
-      class="px-6 py-3 border-t border-border flex items-center justify-between bg-bg-panel"
-    >
-      <div></div>
-      <button
-        @click="router.back()"
-        class="px-3.5 py-1.5 text-[13px] font-medium border border-border rounded-md bg-transparent text-fg-muted cursor-pointer hover:border-fg-subtle hover:text-fg transition-all duration-150"
-      >
-        &larr; Back to runbook
-      </button>
-    </div>
   </div>
 </template>
