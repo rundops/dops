@@ -154,7 +154,7 @@ function statusLabel(): string {
       v-if="isComplete"
       class="px-6 py-3 border-t border-border flex items-center justify-between bg-bg-panel"
     >
-      <span class="text-fg-muted text-[13px]">{{ lines.length }} lines &middot; {{ duration }}</span>
+      <div></div>
       <button
         @click="router.back()"
         class="px-3.5 py-1.5 text-[13px] font-medium border border-border rounded-md bg-transparent text-fg-muted cursor-pointer hover:border-fg-subtle hover:text-fg transition-all duration-150"
