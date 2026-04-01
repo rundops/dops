@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"image/color"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"dops/internal/tui/sidebar"
 	"dops/internal/tui/wizard"
 	"dops/internal/update"
+	"dops/internal/vars"
 
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
@@ -351,6 +353,20 @@ func (m App) handleAppMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	case output.ExecutionDoneMsg:
 		m.output, _ = m.output.Update(msg)
 		return m, nil, true
+
+	case wizard.SaveFieldMsg:
+		var saveErr error
+		if m.deps.Config == nil || m.deps.Vault == nil {
+			saveErr = fmt.Errorf("persistence not configured")
+		} else {
+			keyPath := vars.VarKeyPath(msg.Scope, msg.ParamName, msg.CatalogName, msg.RunbookName)
+			if err := config.Set(m.deps.Config, keyPath, msg.Value); err != nil {
+				saveErr = err
+			} else if err := m.deps.Vault.Save(&m.deps.Config.Vars); err != nil {
+				saveErr = err
+			}
+		}
+		return m, func() tea.Msg { return wizard.SaveFieldResultMsg{Err: saveErr} }, true
 
 	case wizard.SubmitMsg:
 		m.state = stateNormal

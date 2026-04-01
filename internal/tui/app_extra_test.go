@@ -1376,6 +1376,42 @@ func TestFocusTargetFromMouse_OutputRegion(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// handleAppMessage: SaveFieldMsg
+// ---------------------------------------------------------------------------
+
+func TestHandleAppMessage_SaveFieldMsg(t *testing.T) {
+	m := NewApp(testCatalogs(), testutil.TestStyles())
+	m.Init()
+	m.state = stateWizard
+
+	msg := wizard.SaveFieldMsg{
+		Scope:       "global",
+		ParamName:   "region",
+		CatalogName: "default",
+		RunbookName: "hello-world",
+		Value:       "us-east-1",
+	}
+
+	result, cmd, handled := m.handleAppMessage(msg)
+	if !handled {
+		t.Error("SaveFieldMsg should be handled")
+	}
+	_ = result
+	if cmd == nil {
+		t.Fatal("should return a command with SaveFieldResultMsg")
+	}
+	// Execute the command — should return SaveFieldResultMsg.
+	// Without real config/vault, it will error, but the message type is correct.
+	resultMsg := cmd()
+	if saveResult, ok := resultMsg.(wizard.SaveFieldResultMsg); !ok {
+		t.Errorf("expected SaveFieldResultMsg, got %T", resultMsg)
+	} else if m.deps.Config == nil && saveResult.Err == nil {
+		// With nil config, should error.
+		t.Error("expected error with nil config")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

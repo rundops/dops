@@ -2,6 +2,7 @@ package wizard
 
 import (
 	"dops/internal/domain"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -1498,5 +1499,185 @@ func TestSecretField_EmptyInputKeepsSaved(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("should submit after accepting saved secret")
+	}
+}
+
+// ---------- SaveFieldMsg / SaveFieldResultMsg flow ----------
+
+func TestSaveConfirm_Yes_EmitsSaveFieldMsg(t *testing.T) {
+	rb := domain.Runbook{
+		ID:         "test.save",
+		Name:       "save",
+		Parameters: []domain.Parameter{stringParam("region", true, "global")},
+	}
+	m := New(WizardConfig{Runbook: rb, Catalog: defaultCatalog()})
+	m.input.SetValue("us-east-1")
+
+	// Press enter → triggers advanceOrSave (value changed, global scope → save prompt).
+	m, _ = m.Update(enterMsg())
+	if m.phase != phaseSave {
+		t.Fatalf("expected phaseSave, got %d", m.phase)
+	}
+
+	// Press 'y' to confirm save.
+	m, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if m.phase != phaseWaitingSave {
+		t.Fatalf("expected phaseWaitingSave, got %d", m.phase)
+	}
+	if cmd == nil {
+		t.Fatal("should emit a command")
+	}
+
+	// Execute the command to get the message.
+	msg := cmd()
+	saveMsg, ok := msg.(SaveFieldMsg)
+	if !ok {
+		t.Fatalf("expected SaveFieldMsg, got %T", msg)
+	}
+	if saveMsg.Scope != "global" {
+		t.Errorf("scope = %q, want global", saveMsg.Scope)
+	}
+	if saveMsg.ParamName != "region" {
+		t.Errorf("param = %q, want region", saveMsg.ParamName)
+	}
+	if saveMsg.Value != "us-east-1" {
+		t.Errorf("value = %q, want us-east-1", saveMsg.Value)
+	}
+}
+
+func TestSaveConfirm_No_SkipsSave(t *testing.T) {
+	rb := domain.Runbook{
+		ID:         "test.save",
+		Name:       "save",
+		Parameters: []domain.Parameter{stringParam("region", true, "global")},
+	}
+	m := New(WizardConfig{Runbook: rb, Catalog: defaultCatalog()})
+	m.input.SetValue("us-east-1")
+
+	m, _ = m.Update(enterMsg())
+	// Press 'n' to decline save → should advance and emit SubmitMsg.
+	m, cmd := m.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
+	if m.phase == phaseWaitingSave {
+		t.Error("should not enter phaseWaitingSave on decline")
+	}
+	if cmd == nil {
+		t.Fatal("should emit SubmitMsg command")
+	}
+	msg := cmd()
+	if _, ok := msg.(SubmitMsg); !ok {
+		t.Errorf("expected SubmitMsg, got %T", msg)
+	}
+}
+
+func TestSaveFieldResultMsg_Success_Advances(t *testing.T) {
+	rb := domain.Runbook{
+		ID:         "test.save",
+		Name:       "save",
+		Parameters: []domain.Parameter{stringParam("region", true, "global")},
+	}
+	m := New(WizardConfig{Runbook: rb, Catalog: defaultCatalog()})
+	m.input.SetValue("us-east-1")
+
+	m, _ = m.Update(enterMsg())
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if m.phase != phaseWaitingSave {
+		t.Fatalf("expected phaseWaitingSave, got %d", m.phase)
+	}
+
+	// Simulate successful save result.
+	m, cmd := m.Update(SaveFieldResultMsg{Err: nil})
+	if m.phase != phaseInput {
+		t.Errorf("expected phaseInput after result, got %d", m.phase)
+	}
+	if m.err != "" {
+		t.Errorf("unexpected error: %s", m.err)
+	}
+	if cmd == nil {
+		t.Fatal("should emit SubmitMsg after advancing")
+	}
+}
+
+func TestSaveFieldResultMsg_Error_SetsErr(t *testing.T) {
+	rb := domain.Runbook{
+		ID:         "test.save",
+		Name:       "save",
+		Parameters: []domain.Parameter{stringParam("region", true, "global")},
+	}
+	m := New(WizardConfig{Runbook: rb, Catalog: defaultCatalog()})
+	m.input.SetValue("us-east-1")
+
+	m, _ = m.Update(enterMsg())
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+
+	// Simulate failed save.
+	m, _ = m.Update(SaveFieldResultMsg{Err: fmt.Errorf("disk full")})
+	if !strings.Contains(m.err, "disk full") {
+		t.Errorf("expected error containing 'disk full', got %q", m.err)
+	}
+}
+
+func TestSaveConfirm_LocalScope_NoSavePrompt(t *testing.T) {
+	rb := domain.Runbook{
+		ID:         "test.local",
+		Name:       "local",
+		Parameters: []domain.Parameter{localStringParam("tmp", true)},
+	}
+	m := New(WizardConfig{Runbook: rb, Catalog: defaultCatalog()})
+	m.input.SetValue("value")
+
+	// Enter should advance directly (no save prompt for local scope).
+	m, cmd := m.Update(enterMsg())
+	if m.phase == phaseSave {
+		t.Error("local scope should skip save prompt")
+	}
+	if cmd == nil {
+		t.Fatal("should emit SubmitMsg")
+	}
+}
+
+func TestSaveConfirm_EnterWithCursorYes_EmitsSave(t *testing.T) {
+	rb := domain.Runbook{
+		ID:         "test.save",
+		Name:       "save",
+		Parameters: []domain.Parameter{stringParam("region", true, "global")},
+	}
+	m := New(WizardConfig{Runbook: rb, Catalog: defaultCatalog()})
+	m.input.SetValue("us-east-1")
+
+	m, _ = m.Update(enterMsg())
+	// Move cursor to Yes (left).
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	// Press Enter with cursor on Yes.
+	m, cmd := m.Update(enterMsg())
+	if m.phase != phaseWaitingSave {
+		t.Fatalf("expected phaseWaitingSave, got %d", m.phase)
+	}
+	if cmd == nil {
+		t.Fatal("should emit save command")
+	}
+}
+
+func TestPhaseWaitingSave_IgnoresKeypresses(t *testing.T) {
+	rb := domain.Runbook{
+		ID:         "test.save",
+		Name:       "save",
+		Parameters: []domain.Parameter{stringParam("region", true, "global")},
+	}
+	m := New(WizardConfig{Runbook: rb, Catalog: defaultCatalog()})
+	m.input.SetValue("us-east-1")
+
+	m, _ = m.Update(enterMsg())
+	m, _ = m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if m.phase != phaseWaitingSave {
+		t.Fatalf("expected phaseWaitingSave, got %d", m.phase)
+	}
+
+	// Keys should be ignored during wait.
+	m, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	if cmd != nil {
+		t.Error("keypresses should be ignored during phaseWaitingSave")
+	}
+	if m.phase != phaseWaitingSave {
+		t.Error("phase should remain phaseWaitingSave")
 	}
 }

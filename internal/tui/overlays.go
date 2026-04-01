@@ -41,9 +41,6 @@ func (m App) openWizard() (tea.Model, tea.Cmd) {
 		Resolved: resolved,
 	})
 	wiz.SetStyles(m.deps.Styles)
-	if m.deps.Config != nil {
-		wiz.SetStore(m.deps.Config, m.deps.Vault)
-	}
 	m.wizard = &wiz
 	m.state = stateWizard
 	return m, wiz.Init()
