@@ -120,6 +120,7 @@ function statusLabel(): string {
           ></span>
           {{ statusLabel() }}
         </span>
+        <span v-if="isComplete" class="text-fg-muted font-mono text-xs">{{ duration }}</span>
       </div>
       <button
         v-if="status === 'running'"
@@ -128,18 +129,6 @@ function statusLabel(): string {
       >
         Cancel
       </button>
-      <span
-        v-else-if="status === 'success'"
-        class="px-3.5 py-1.5 text-[13px] font-medium border border-success/40 rounded-md bg-success-muted text-success"
-      >
-        Done
-      </span>
-      <span
-        v-else-if="status === 'error'"
-        class="px-3.5 py-1.5 text-[13px] font-medium border border-error/40 rounded-md bg-error-muted text-error"
-      >
-        Execution failed
-      </span>
     </div>
 
     <!-- Log output -->
@@ -165,16 +154,7 @@ function statusLabel(): string {
       v-if="isComplete"
       class="px-6 py-3 border-t border-border flex items-center justify-between bg-bg-panel"
     >
-      <div class="flex items-center gap-3 text-[13px]">
-        <span
-          :class="statusPillClass()"
-          class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full"
-        >
-          <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
-          {{ statusLabel() }}
-        </span>
-        <span class="text-fg-muted font-mono text-xs">{{ duration }}</span>
-      </div>
+      <span class="text-fg-muted text-[13px]">{{ lines.length }} lines &middot; {{ duration }}</span>
       <button
         @click="router.back()"
         class="px-3.5 py-1.5 text-[13px] font-medium border border-border rounded-md bg-transparent text-fg-muted cursor-pointer hover:border-fg-subtle hover:text-fg transition-all duration-150"

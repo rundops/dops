@@ -1,0 +1,98 @@
+import{d as F,o as A,z as H,h as N,c as _,a as c,t as b,n as k,e as D,b as m,F as G,j as V,A as M,r as p,q as y,B as z,u as W,g,C as X}from"./index-CDTHNc9f.js";var S=function(r,e){return Object.defineProperty?Object.defineProperty(r,"raw",{value:e}):r.raw=e,r},l;(function(r){r[r.EOS=0]="EOS",r[r.Text=1]="Text",r[r.Incomplete=2]="Incomplete",r[r.ESC=3]="ESC",r[r.Unknown=4]="Unknown",r[r.SGR=5]="SGR",r[r.OSCURL=6]="OSCURL"})(l||(l={}));class J{constructor(){this.VERSION="6.0.6",this.setup_palettes(),this._use_classes=!1,this.bold=!1,this.faint=!1,this.italic=!1,this.underline=!1,this.fg=this.bg=null,this._buffer="",this._url_allowlist={http:1,https:1},this._escape_html=!0,this.boldStyle="font-weight:bold",this.faintStyle="opacity:0.7",this.italicStyle="font-style:italic",this.underlineStyle="text-decoration:underline"}set use_classes(e){this._use_classes=e}get use_classes(){return this._use_classes}set url_allowlist(e){this._url_allowlist=e}get url_allowlist(){return this._url_allowlist}set escape_html(e){this._escape_html=e}get escape_html(){return this._escape_html}set boldStyle(e){this._boldStyle=e}get boldStyle(){return this._boldStyle}set faintStyle(e){this._faintStyle=e}get faintStyle(){return this._faintStyle}set italicStyle(e){this._italicStyle=e}get italicStyle(){return this._italicStyle}set underlineStyle(e){this._underlineStyle=e}get underlineStyle(){return this._underlineStyle}setup_palettes(){this.ansi_colors=[[{rgb:[0,0,0],class_name:"ansi-black"},{rgb:[187,0,0],class_name:"ansi-red"},{rgb:[0,187,0],class_name:"ansi-green"},{rgb:[187,187,0],class_name:"ansi-yellow"},{rgb:[0,0,187],class_name:"ansi-blue"},{rgb:[187,0,187],class_name:"ansi-magenta"},{rgb:[0,187,187],class_name:"ansi-cyan"},{rgb:[255,255,255],class_name:"ansi-white"}],[{rgb:[85,85,85],class_name:"ansi-bright-black"},{rgb:[255,85,85],class_name:"ansi-bright-red"},{rgb:[0,255,0],class_name:"ansi-bright-green"},{rgb:[255,255,85],class_name:"ansi-bright-yellow"},{rgb:[85,85,255],class_name:"ansi-bright-blue"},{rgb:[255,85,255],class_name:"ansi-bright-magenta"},{rgb:[85,255,255],class_name:"ansi-bright-cyan"},{rgb:[255,255,255],class_name:"ansi-bright-white"}]],this.palette_256=[],this.ansi_colors.forEach(s=>{s.forEach(t=>{this.palette_256.push(t)})});let e=[0,95,135,175,215,255];for(let s=0;s<6;++s)for(let t=0;t<6;++t)for(let a=0;a<6;++a){let i={rgb:[e[s],e[t],e[a]],class_name:"truecolor"};this.palette_256.push(i)}let n=8;for(let s=0;s<24;++s,n+=10){let t={rgb:[n,n,n],class_name:"truecolor"};this.palette_256.push(t)}}escape_txt_for_html(e){return this._escape_html?e.replace(/[&<>"']/gm,n=>{if(n==="&")return"&amp;";if(n==="<")return"&lt;";if(n===">")return"&gt;";if(n==='"')return"&quot;";if(n==="'")return"&#x27;"}):e}append_buffer(e){var n=this._buffer+e;this._buffer=n}get_next_packet(){var e={kind:l.EOS,text:"",url:""},n=this._buffer.length;if(n==0)return e;var s=this._buffer.indexOf("\x1B");if(s==-1)return e.kind=l.Text,e.text=this._buffer,this._buffer="",e;if(s>0)return e.kind=l.Text,e.text=this._buffer.slice(0,s),this._buffer=this._buffer.slice(s),e;if(s==0){if(n<3)return e.kind=l.Incomplete,e;var t=this._buffer.charAt(1);if(t!="["&&t!="]"&&t!="(")return e.kind=l.ESC,e.text=this._buffer.slice(0,1),this._buffer=this._buffer.slice(1),e;if(t=="["){this._csi_regex||(this._csi_regex=T(O||(O=S([`
+                        ^                           # beginning of line
+                                                    #
+                                                    # First attempt
+                        (?:                         # legal sequence
+                          \x1B[                      # CSI
+                          ([<-?]?)              # private-mode char
+                          ([d;]*)                    # any digits or semicolons
+                          ([ -/]?               # an intermediate modifier
+                          [@-~])                # the command
+                        )
+                        |                           # alternate (second attempt)
+                        (?:                         # illegal sequence
+                          \x1B[                      # CSI
+                          [ -~]*                # anything legal
+                          ([\0-:])              # anything illegal
+                        )
+                    `],[`
+                        ^                           # beginning of line
+                                                    #
+                                                    # First attempt
+                        (?:                         # legal sequence
+                          \\x1b\\[                      # CSI
+                          ([\\x3c-\\x3f]?)              # private-mode char
+                          ([\\d;]*)                    # any digits or semicolons
+                          ([\\x20-\\x2f]?               # an intermediate modifier
+                          [\\x40-\\x7e])                # the command
+                        )
+                        |                           # alternate (second attempt)
+                        (?:                         # illegal sequence
+                          \\x1b\\[                      # CSI
+                          [\\x20-\\x7e]*                # anything legal
+                          ([\\x00-\\x1f:])              # anything illegal
+                        )
+                    `]))));let i=this._buffer.match(this._csi_regex);if(i===null)return e.kind=l.Incomplete,e;if(i[4])return e.kind=l.ESC,e.text=this._buffer.slice(0,1),this._buffer=this._buffer.slice(1),e;i[1]!=""||i[3]!="m"?e.kind=l.Unknown:e.kind=l.SGR,e.text=i[2];var a=i[0].length;return this._buffer=this._buffer.slice(a),e}else if(t=="]"){if(n<4)return e.kind=l.Incomplete,e;if(this._buffer.charAt(2)!="8"||this._buffer.charAt(3)!=";")return e.kind=l.ESC,e.text=this._buffer.slice(0,1),this._buffer=this._buffer.slice(1),e;this._osc_st||(this._osc_st=Q(B||(B=S([`
+                        (?:                         # legal sequence
+                          (\x1B\\)                    # ESC                           |                           # alternate
+                          (\x07)                      # BEL (what xterm did)
+                        )
+                        |                           # alternate (second attempt)
+                        (                           # illegal sequence
+                          [\0-]                 # anything illegal
+                          |                           # alternate
+                          [\b-]                 # anything illegal
+                          |                           # alternate
+                          [-]                 # anything illegal
+                        )
+                    `],[`
+                        (?:                         # legal sequence
+                          (\\x1b\\\\)                    # ESC \\
+                          |                           # alternate
+                          (\\x07)                      # BEL (what xterm did)
+                        )
+                        |                           # alternate (second attempt)
+                        (                           # illegal sequence
+                          [\\x00-\\x06]                 # anything illegal
+                          |                           # alternate
+                          [\\x08-\\x1a]                 # anything illegal
+                          |                           # alternate
+                          [\\x1c-\\x1f]                 # anything illegal
+                        )
+                    `])))),this._osc_st.lastIndex=0;{let u=this._osc_st.exec(this._buffer);if(u===null)return e.kind=l.Incomplete,e;if(u[3])return e.kind=l.ESC,e.text=this._buffer.slice(0,1),this._buffer=this._buffer.slice(1),e}{let u=this._osc_st.exec(this._buffer);if(u===null)return e.kind=l.Incomplete,e;if(u[3])return e.kind=l.ESC,e.text=this._buffer.slice(0,1),this._buffer=this._buffer.slice(1),e}this._osc_regex||(this._osc_regex=T(I||(I=S([`
+                        ^                           # beginning of line
+                                                    #
+                        \x1B]8;                    # OSC Hyperlink
+                        [ -:<-~]*       # params (excluding ;)
+                        ;                           # end of params
+                        ([!-~]{0,512})        # URL capture
+                        (?:                         # ST
+                          (?:\x1B\\)                  # ESC                           |                           # alternate
+                          (?:\x07)                    # BEL (what xterm did)
+                        )
+                        ([ -~]+)              # TEXT capture
+                        \x1B]8;;                   # OSC Hyperlink End
+                        (?:                         # ST
+                          (?:\x1B\\)                  # ESC                           |                           # alternate
+                          (?:\x07)                    # BEL (what xterm did)
+                        )
+                    `],[`
+                        ^                           # beginning of line
+                                                    #
+                        \\x1b\\]8;                    # OSC Hyperlink
+                        [\\x20-\\x3a\\x3c-\\x7e]*       # params (excluding ;)
+                        ;                           # end of params
+                        ([\\x21-\\x7e]{0,512})        # URL capture
+                        (?:                         # ST
+                          (?:\\x1b\\\\)                  # ESC \\
+                          |                           # alternate
+                          (?:\\x07)                    # BEL (what xterm did)
+                        )
+                        ([\\x20-\\x7e]+)              # TEXT capture
+                        \\x1b\\]8;;                   # OSC Hyperlink End
+                        (?:                         # ST
+                          (?:\\x1b\\\\)                  # ESC \\
+                          |                           # alternate
+                          (?:\\x07)                    # BEL (what xterm did)
+                        )
+                    `]))));let i=this._buffer.match(this._osc_regex);if(i===null)return e.kind=l.ESC,e.text=this._buffer.slice(0,1),this._buffer=this._buffer.slice(1),e;e.kind=l.OSCURL,e.url=i[1],e.text=i[2];var a=i[0].length;return this._buffer=this._buffer.slice(a),e}else if(t=="(")return e.kind=l.Unknown,this._buffer=this._buffer.slice(3),e}}ansi_to_html(e){this.append_buffer(e);for(var n=[];;){var s=this.get_next_packet();if(s.kind==l.EOS||s.kind==l.Incomplete)break;s.kind==l.ESC||s.kind==l.Unknown||(s.kind==l.Text?n.push(this.transform_to_html(this.with_state(s))):s.kind==l.SGR?this.process_ansi(s):s.kind==l.OSCURL&&n.push(this.process_hyperlink(s)))}return n.join("")}with_state(e){return{bold:this.bold,faint:this.faint,italic:this.italic,underline:this.underline,fg:this.fg,bg:this.bg,text:e.text}}process_ansi(e){let n=e.text.split(";");for(;n.length>0;){let s=n.shift(),t=parseInt(s,10);if(isNaN(t)||t===0)this.fg=null,this.bg=null,this.bold=!1,this.faint=!1,this.italic=!1,this.underline=!1;else if(t===1)this.bold=!0;else if(t===2)this.faint=!0;else if(t===3)this.italic=!0;else if(t===4)this.underline=!0;else if(t===21)this.bold=!1;else if(t===22)this.faint=!1,this.bold=!1;else if(t===23)this.italic=!1;else if(t===24)this.underline=!1;else if(t===39)this.fg=null;else if(t===49)this.bg=null;else if(t>=30&&t<38)this.fg=this.ansi_colors[0][t-30];else if(t>=40&&t<48)this.bg=this.ansi_colors[0][t-40];else if(t>=90&&t<98)this.fg=this.ansi_colors[1][t-90];else if(t>=100&&t<108)this.bg=this.ansi_colors[1][t-100];else if((t===38||t===48)&&n.length>0){let a=t===38,i=n.shift();if(i==="5"&&n.length>0){let o=parseInt(n.shift(),10);o>=0&&o<=255&&(a?this.fg=this.palette_256[o]:this.bg=this.palette_256[o])}if(i==="2"&&n.length>2){let o=parseInt(n.shift(),10),u=parseInt(n.shift(),10),d=parseInt(n.shift(),10);if(o>=0&&o<=255&&u>=0&&u<=255&&d>=0&&d<=255){let h={rgb:[o,u,d],class_name:"truecolor"};a?this.fg=h:this.bg=h}}}}}transform_to_html(e){let n=e.text;if(n.length===0||(n=this.escape_txt_for_html(n),!e.bold&&!e.italic&&!e.faint&&!e.underline&&e.fg===null&&e.bg===null))return n;let s=[],t=[],a=e.fg,i=e.bg;e.bold&&s.push(this._boldStyle),e.faint&&s.push(this._faintStyle),e.italic&&s.push(this._italicStyle),e.underline&&s.push(this._underlineStyle),this._use_classes?(a&&(a.class_name!=="truecolor"?t.push(`${a.class_name}-fg`):s.push(`color:rgb(${a.rgb.join(",")})`)),i&&(i.class_name!=="truecolor"?t.push(`${i.class_name}-bg`):s.push(`background-color:rgb(${i.rgb.join(",")})`))):(a&&s.push(`color:rgb(${a.rgb.join(",")})`),i&&s.push(`background-color:rgb(${i.rgb})`));let o="",u="";return t.length&&(o=` class="${t.join(" ")}"`),s.length&&(u=` style="${s.join(";")}"`),`<span${u}${o}>${n}</span>`}process_hyperlink(e){let n=e.url.split(":");return n.length<1||!this._url_allowlist[n[0]]?"":`<a href="${this.escape_txt_for_html(e.url)}">${this.escape_txt_for_html(e.text)}</a>`}}function T(r,...e){let n=r.raw[0],s=/^\s+|\s+\n|\s*#[\s\S]*?\n|\n/gm,t=n.replace(s,"");return new RegExp(t)}function Q(r,...e){let n=r.raw[0],s=/^\s+|\s+\n|\s*#[\s\S]*?\n|\n/gm,t=n.replace(s,"");return new RegExp(t,"g")}var O,B,I;const Y={class:"flex flex-col h-full"},Z={class:"px-6 py-4 border-b border-border flex items-center justify-between bg-bg-panel"},P={class:"flex items-center gap-4"},K={class:"font-mono text-[13px] text-fg-muted px-2 py-0.5 bg-bg-element rounded"},ee={key:0,class:"text-fg-muted font-mono text-xs"},te={class:"text-fg-subtle select-none text-right min-w-[28px] shrink-0"},se=["innerHTML"],ne={key:0,class:"text-fg-muted"},ie={key:0,class:"px-6 py-3 border-t border-border flex items-center justify-between bg-bg-panel"},le={class:"text-fg-muted text-[13px]"},ae=F({__name:"ExecutionView",props:{id:{}},setup(r){const e=r,n=W(),s=p([]),t=p("running"),a=p(""),i=p(null),o=p(Date.now()),u=p(null),d=new J;d.use_classes=!1;let h=null;const v=y(()=>`${(((u.value??Date.now())-o.value)/1e3).toFixed(1)}s`),w=y(()=>t.value!=="running"),j=y(()=>{const f=e.id.split("-");return f.length>1?f.slice(0,-1).join("-"):e.id});function L(){X(()=>{i.value&&(i.value.scrollTop=i.value.scrollHeight)})}A(()=>{o.value=Date.now(),h=H(e.id,f=>{s.value.push(f),L()},f=>{u.value=Date.now(),f.startsWith("error")?(t.value="error",a.value=f):(t.value="success",a.value="Completed successfully")},()=>{u.value=Date.now(),t.value="error",a.value="Connection lost"})}),N(()=>{h==null||h.close()});async function R(){await z(e.id)}function $(f){return d.ansi_to_html(f)}function U(){switch(t.value){case"running":return"bg-primary-muted text-primary";case"success":return"bg-success-muted text-success";case"error":return"bg-error-muted text-error"}}function q(){switch(t.value){case"running":return"Running";case"success":return"Completed";case"error":return"Failed"}}return(f,x)=>(g(),_("div",Y,[c("div",Z,[c("div",P,[x[1]||(x[1]=c("span",{class:"text-[15px] font-bold text-fg"},"Execution",-1)),c("span",K,b(j.value),1),c("span",{class:k([U(),"inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full"])},[c("span",{class:k(["w-1.5 h-1.5 rounded-full bg-current",{"animate-pulse-dot":t.value==="running"}])},null,2),D(" "+b(q()),1)],2),w.value?(g(),_("span",ee,b(v.value),1)):m("",!0)]),t.value==="running"?(g(),_("button",{key:0,onClick:R,class:"px-3.5 py-1.5 text-[13px] font-medium border border-error rounded-md bg-transparent text-error cursor-pointer hover:bg-error-muted transition-all duration-150"}," Cancel ")):m("",!0)]),c("div",{ref_key:"outputEl",ref:i,class:"flex-1 overflow-y-auto px-6 py-4 bg-bg font-mono text-[13px] leading-[1.7]"},[(g(!0),_(G,null,V(s.value,(E,C)=>(g(),_("div",{key:C,class:"flex gap-3 whitespace-pre-wrap break-all"},[c("span",te,b(C+1),1),c("span",{class:"text-fg-muted",innerHTML:$(E)},null,8,se)]))),128)),s.value.length===0&&t.value==="running"?(g(),_("div",ne," Waiting for output... ")):m("",!0)],512),w.value?(g(),_("div",ie,[c("span",le,b(s.value.length)+" lines · "+b(v.value),1),c("button",{onClick:x[0]||(x[0]=E=>M(n).back()),class:"px-3.5 py-1.5 text-[13px] font-medium border border-border rounded-md bg-transparent text-fg-muted cursor-pointer hover:border-fg-subtle hover:text-fg transition-all duration-150"}," ← Back to runbook ")])):m("",!0)]))}});export{ae as default};
