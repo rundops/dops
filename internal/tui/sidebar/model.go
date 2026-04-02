@@ -19,17 +19,19 @@ type entry struct {
 }
 
 type Model struct {
-	entries     []entry
-	collapsed   map[string]bool // catalog name → collapsed
-	cursor      int             // index into visible()
-	hoverIdx    int             // index into visible() for mouse hover, -1 = none
-	lastClickY  int             // Y of last click (for double-click detection)
-	lastClickAt time.Time       // time of last click
-	height      int
-	offset      int
-	searching   bool
-	searchQuery string
-	styles      *theme.Styles
+	entries       []entry
+	catalogs      []catalog.CatalogWithRunbooks
+	activeCatalog int // 0 = All, 1..N = specific catalog index+1
+	collapsed     map[string]bool               // catalog name → collapsed
+	cursor        int                           // index into visible()
+	hoverIdx      int                           // index into visible() for mouse hover, -1 = none
+	lastClickY    int                           // Y of last click (for double-click detection)
+	lastClickAt   time.Time                     // time of last click
+	height        int
+	offset        int
+	searching     bool
+	searchQuery   string
+	styles        *theme.Styles
 }
 
 func New(catalogs []catalog.CatalogWithRunbooks, height int, styles *theme.Styles) Model {
@@ -59,6 +61,7 @@ func New(catalogs []catalog.CatalogWithRunbooks, height int, styles *theme.Style
 
 	return Model{
 		entries:   entries,
+		catalogs:  catalogs,
 		collapsed: make(map[string]bool),
 		cursor:    firstRB,
 		hoverIdx:  -1,
@@ -176,9 +179,19 @@ func (m Model) updateNormal(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	case msg.Code == tea.KeyEnter || msg.Text == " " || msg.String() == "space":
 		return m.toggleOrSelect()
 	case msg.Code == tea.KeyLeft:
+		if m.activeCatalog > 0 {
+			return m.switchCatalog(-1)
+		}
 		return m.collapseOrJumpToParent()
 	case msg.Code == tea.KeyRight:
+		if m.activeCatalog > 0 {
+			return m.switchCatalog(1)
+		}
 		return m.expandHeader()
+	case msg.String() == "ctrl+h":
+		return m.switchCatalog(-1)
+	case msg.String() == "ctrl+l":
+		return m.switchCatalog(1)
 	case msg.Code == tea.KeyEscape:
 		if m.searchQuery != "" {
 			m.searchQuery = ""
@@ -253,6 +266,10 @@ func (m Model) toggleOrSelect() (Model, tea.Cmd) {
 
 func (m Model) updateSearch(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch {
+	case msg.String() == "ctrl+h":
+		return m.switchCatalog(-1)
+	case msg.String() == "ctrl+l":
+		return m.switchCatalog(1)
 	case msg.Code == tea.KeyEnter:
 		// Stop typing but keep filtered results visible.
 		m.searching = false
@@ -302,14 +319,27 @@ func (m Model) visible() []int {
 		return m.filteredVisible()
 	}
 
+	activeName := m.activeCatalogName()
+
+	// All tab: show collapsible tree (original behavior)
+	if activeName == "" {
+		var vis []int
+		for i, e := range m.entries {
+			if e.isHeader {
+				vis = append(vis, i)
+				continue
+			}
+			if !m.collapsed[e.catalog.Name] {
+				vis = append(vis, i)
+			}
+		}
+		return vis
+	}
+
+	// Single catalog tab: show only that catalog's runbooks (no headers)
 	var vis []int
 	for i, e := range m.entries {
-		if e.isHeader {
-			vis = append(vis, i)
-			continue
-		}
-		// Show runbook only if parent catalog is not collapsed
-		if !m.collapsed[e.catalog.Name] {
+		if e.catalog.Name == activeName && !e.isHeader {
 			vis = append(vis, i)
 		}
 	}
@@ -319,12 +349,16 @@ func (m Model) visible() []int {
 // filteredVisible returns visible items matching the search query.
 func (m Model) filteredVisible() []int {
 	q := strings.ToLower(m.searchQuery)
+	activeName := m.activeCatalogName()
 	matchedCatalogs := make(map[string]bool)
 
-	// Find matching runbooks
+	// Find matching runbooks (scoped to active catalog if set)
 	var vis []int
 	for i, e := range m.entries {
 		if e.isHeader {
+			continue
+		}
+		if activeName != "" && e.catalog.Name != activeName {
 			continue
 		}
 		if strings.Contains(strings.ToLower(e.runbook.Name), q) {
@@ -333,12 +367,16 @@ func (m Model) filteredVisible() []int {
 		}
 	}
 
-	// Prepend catalog headers for matched catalogs
+	// Single catalog tab: return flat list (no headers)
+	if activeName != "" {
+		return vis
+	}
+
+	// All tab: prepend catalog headers for matched catalogs
 	var result []int
 	for i, e := range m.entries {
 		if e.isHeader && matchedCatalogs[e.catalog.Name] {
 			result = append(result, i)
-			// Add matched runbooks under this catalog
 			for _, ri := range vis {
 				if m.entries[ri].catalog.Name == e.catalog.Name {
 					result = append(result, ri)
@@ -349,6 +387,31 @@ func (m Model) filteredVisible() []int {
 	return result
 }
 
+func (m Model) renderTabBar(width int) string {
+	labels := m.tabLabels()
+	if labels == nil {
+		return ""
+	}
+
+	activeStyle := lipgloss.NewStyle().Bold(true)
+	inactiveStyle := lipgloss.NewStyle()
+	if m.styles != nil {
+		activeStyle = m.styles.Primary.Bold(true)
+		inactiveStyle = m.styles.TextMuted
+	}
+
+	var tabs []string
+	for i, label := range labels {
+		if i == m.activeCatalog {
+			tabs = append(tabs, activeStyle.Render(label))
+		} else {
+			tabs = append(tabs, inactiveStyle.Render(label))
+		}
+	}
+
+	return " " + strings.Join(tabs, " │ ") + "\n"
+}
+
 func (m Model) View() string {
 	if len(m.entries) == 0 {
 		return "  No runbooks loaded"
@@ -357,14 +420,19 @@ func (m Model) View() string {
 	vis := m.visible()
 	lines := m.buildLines(vis)
 
-	// Reserve bottom rows for filter bar when a query is active
+	// Reserve rows for tab bar and filter bar
+	tabBarHeight := 0
+	if m.tabLabels() != nil {
+		tabBarHeight = 2 // tab line + separator
+	}
+
 	filterHeight := 0
 	if m.searching || m.searchQuery != "" {
 		filterHeight = 2 // blank separator + filter line
 	}
 
 	// Scrolling
-	visibleLines := m.height - filterHeight
+	visibleLines := m.height - filterHeight - tabBarHeight
 	if visibleLines <= 0 {
 		visibleLines = 1
 	}
@@ -380,6 +448,14 @@ func (m Model) View() string {
 	visible := lines[start:end]
 
 	var sb strings.Builder
+
+	// Tab bar (when multiple catalogs)
+	tabBar := m.renderTabBar(0)
+	if tabBar != "" {
+		sb.WriteString(tabBar)
+		sb.WriteString("\n") // separator line
+	}
+
 	for _, line := range visible {
 		sb.WriteString(line + "\n")
 	}
@@ -534,6 +610,49 @@ func (m *Model) ensureVisible() {
 	}
 }
 
+// tabLabels returns the labels for the catalog tab bar.
+// Returns nil when there is only one catalog (tab bar hidden).
+func (m Model) tabLabels() []string {
+	if len(m.catalogs) <= 1 {
+		return nil
+	}
+	labels := make([]string, 0, len(m.catalogs)+1)
+	labels = append(labels, "All")
+	for _, cwr := range m.catalogs {
+		labels = append(labels, cwr.Catalog.Label())
+	}
+	return labels
+}
+
+// activeCatalogName returns the name of the active catalog, or "" for All.
+func (m Model) activeCatalogName() string {
+	if m.activeCatalog == 0 || m.activeCatalog > len(m.catalogs) {
+		return ""
+	}
+	return m.catalogs[m.activeCatalog-1].Catalog.Name
+}
+
+// switchCatalog cycles the active catalog by delta (+1 or -1) with wraparound.
+func (m Model) switchCatalog(delta int) (Model, tea.Cmd) {
+	if len(m.catalogs) <= 1 {
+		return m, nil
+	}
+	count := len(m.catalogs) + 1 // All + each catalog
+	m.activeCatalog = (m.activeCatalog + delta + count) % count
+	m.cursor = 0
+	m.offset = 0
+	m.searchQuery = ""
+	m.searching = false
+
+	name := m.activeCatalogName()
+	selCmd := m.selectionCmd()
+
+	return m, tea.Batch(
+		func() tea.Msg { return CatalogSwitchedMsg{CatalogName: name} },
+		selCmd,
+	)
+}
+
 func (m Model) Selected() *domain.Runbook {
 	vis := m.visible()
 	if m.cursor < 0 || m.cursor >= len(vis) {
@@ -582,6 +701,9 @@ func (m Model) IsSearching() bool                 { return m.searching }
 func (m Model) Visible() []int                    { return m.visible() }
 func (m Model) EntryIsHeader(idx int) bool        { return m.entries[idx].isHeader }
 func (m Model) VisibleRunbooks() []domain.Runbook { return m.visibleRunbooks() }
+func (m Model) ActiveCatalog() int                { return m.activeCatalog }
+func (m Model) TabLabels() []string               { return m.tabLabels() }
+func (m Model) ActiveCatalogName() string         { return m.activeCatalogName() }
 
 func (m Model) visibleRunbooks() []domain.Runbook {
 	vis := m.visible()

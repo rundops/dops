@@ -42,6 +42,7 @@ func Render(focus FocusTarget, width int, styles *theme.Styles) string {
 	sidebarBindings := []binding{
 		{"↑ / ↓", "navigate runbooks"},
 		{"← / →", "collapse / expand catalog"},
+		{"ctrl+h / ctrl+l", "switch catalog tab"},
 		{"enter", "run selected runbook"},
 		{"/", "search runbooks"},
 		{"esc", "clear search"},

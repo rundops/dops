@@ -98,6 +98,52 @@ descriptive placeholder that references the parameter variables.
 
 ---
 
+### 4. Catalog Switcher (Tab Bar)
+
+**Status:** IN PROGRESS
+
+Add a tab bar above the sidebar that lets users switch between catalogs,
+showing only the active catalog's runbooks. Inspired by television CLI's
+channel switching UX.
+
+**Current behavior:** All catalogs shown simultaneously as a flat
+collapsible tree. No concept of "active catalog."
+
+**Target behavior:**
+- Horizontal tab bar above the runbook list: `All | infra | demo | default`
+- `All` tab shows the existing collapsible tree (backward compatible)
+- Single catalog tabs show only that catalog's runbooks (names only, no headers)
+- Active tab highlighted with primary color
+- `Ctrl+H` / `Ctrl+L` cycle catalogs from anywhere in sidebar
+- `←` / `→` also cycle when on a specific catalog tab
+- Search filters within the active catalog only
+- Tab bar hidden when only one catalog exists
+- Web UI mirrors the TUI tab bar behavior
+
+**Files:**
+- `internal/tui/sidebar/model.go` — tab state, filtering, view, keyboard handling
+- `internal/tui/sidebar/messages.go` — `CatalogSwitchedMsg`
+- `internal/tui/app.go` — route `CatalogSwitchedMsg`, clear selection on switch
+- `internal/tui/help/view.go` — add `Ctrl+H/L` shortcut documentation
+- `web/src/components/Sidebar.vue` — tab bar UI
+
+#### Acceptance Criteria
+
+- [ ] Tab bar renders above sidebar when 2+ catalogs exist
+- [ ] Tab bar hidden when only 1 catalog
+- [ ] `All` tab shows existing collapsible tree view (no behavior change)
+- [ ] Single catalog tab shows flat runbook list (names only, no headers)
+- [ ] `Ctrl+H` / `Ctrl+L` cycles catalogs
+- [ ] `←` / `→` cycles catalogs when on a specific catalog tab
+- [ ] Search filters within active catalog only
+- [ ] Switching catalog resets cursor and clears search
+- [ ] Selection clears if selected runbook not in new catalog
+- [ ] Web UI tab bar mirrors TUI behavior
+- [ ] `dops run <id>` CLI unaffected
+- [ ] Help overlay shows new shortcuts
+
+---
+
 ## Fixes
 
 ### Fix 1. Execution View — Remove Duplicate Status, Modernize Header

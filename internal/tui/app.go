@@ -340,6 +340,16 @@ func (m App) handleAppMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		result, cmd := m.openWizard()
 		return result, cmd, true
 
+	case sidebar.CatalogSwitchedMsg:
+		// Clear selection if current runbook is not in the new catalog
+		if m.selected != nil && msg.CatalogName != "" {
+			if m.selCat == nil || m.selCat.Name != msg.CatalogName {
+				m.selected = nil
+				m.selCat = nil
+			}
+		}
+		return m, nil, true
+
 	case executionDoneMsg:
 		m.execRunning = false
 		m.cancelExec = nil

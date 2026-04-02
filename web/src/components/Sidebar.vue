@@ -20,6 +20,27 @@ const collapsed = ref<Record<string, boolean>>({});
 const filter = ref("");
 const searchEl = ref<HTMLInputElement | null>(null);
 const focusedIndex = ref(-1);
+const activeCatalog = ref(0); // 0 = All, 1..N = specific catalog
+
+const showTabs = computed(() => props.catalogs.length > 1);
+const tabLabels = computed(() => {
+  if (!showTabs.value) return [];
+  return ["All", ...props.catalogs.map((c) => c.display_name || c.name)];
+});
+
+const displayedCatalogs = computed(() => {
+  if (activeCatalog.value === 0 || !showTabs.value) return props.catalogs;
+  const idx = activeCatalog.value - 1;
+  return idx < props.catalogs.length ? [props.catalogs[idx]] : props.catalogs;
+});
+
+const isSingleCatalogView = computed(() => activeCatalog.value > 0 && showTabs.value);
+
+function switchTab(index: number) {
+  activeCatalog.value = index;
+  filter.value = "";
+  focusedIndex.value = -1;
+}
 
 const themeNames = ref<string[]>([]);
 const activeTheme = ref("");
@@ -29,8 +50,8 @@ const themeMenuEl = ref<HTMLElement | null>(null);
 // Flat list of visible runbooks for keyboard navigation.
 const visibleRunbooks = computed<RunbookSummary[]>(() => {
   const result: RunbookSummary[] = [];
-  for (const cat of props.catalogs) {
-    if (collapsed.value[cat.name]) continue;
+  for (const cat of displayedCatalogs.value) {
+    if (!isSingleCatalogView.value && collapsed.value[cat.name]) continue;
     for (const rb of filteredRunbooks(cat)) {
       result.push(rb);
     }
@@ -234,13 +255,29 @@ function navigateTo(path: string) {
       />
     </div>
 
+    <!-- Catalog tabs -->
+    <div v-if="showTabs" class="px-4 pb-2 flex gap-1 overflow-x-auto">
+      <button
+        v-for="(label, i) in tabLabels"
+        :key="label"
+        @click="switchTab(i)"
+        :class="i === activeCatalog
+          ? 'bg-primary-muted text-primary border-primary/40'
+          : 'bg-transparent text-fg-muted border-transparent hover:text-fg hover:bg-bg-hover'"
+        class="px-2.5 py-1 text-[11px] font-semibold rounded-md border cursor-pointer transition-all duration-100 whitespace-nowrap shrink-0"
+      >
+        {{ label }}
+      </button>
+    </div>
+
     <!-- Nav -->
     <nav class="flex-1 overflow-y-auto px-2 pt-1 pb-4">
       <div v-if="loading" class="text-fg-muted text-sm p-2">Loading...</div>
 
-      <div v-for="cat in catalogs" :key="cat.name" v-show="!filter || filteredRunbooks(cat).length" class="mb-1">
-        <!-- Catalog label -->
+      <div v-for="cat in displayedCatalogs" :key="cat.name" v-show="!filter || filteredRunbooks(cat).length" class="mb-1">
+        <!-- Catalog label (hidden in single catalog view) -->
         <button
+          v-if="!isSingleCatalogView"
           @click="toggle(cat.name)"
           class="flex items-center gap-1.5 w-full text-left px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg-muted hover:text-fg cursor-pointer select-none"
         >
@@ -249,7 +286,7 @@ function navigateTo(path: string) {
         </button>
 
         <!-- Runbook items -->
-        <div v-if="!collapsed[cat.name]">
+        <div v-if="isSingleCatalogView || !collapsed[cat.name]">
           <button
             v-for="rb in filteredRunbooks(cat)"
             :key="rb.id"
@@ -261,7 +298,8 @@ function navigateTo(path: string) {
                   ? 'bg-bg-hover text-fg'
                   : 'text-fg-muted hover:bg-bg-hover hover:text-fg'
             ]"
-            class="flex items-center gap-2 w-full text-left pl-6 pr-3 py-1.5 text-[13px] rounded-md cursor-pointer transition-all duration-100"
+            class="flex items-center gap-2 w-full text-left pr-3 py-1.5 text-[13px] rounded-md cursor-pointer transition-all duration-100"
+            :class="isSingleCatalogView ? 'pl-3' : 'pl-6'"
           >
             <span class="flex-1 truncate">{{ rb.name }}</span>
             <span
