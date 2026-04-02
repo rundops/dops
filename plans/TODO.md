@@ -1,6 +1,14 @@
 # dops-cli — Feature TODO
 
-All v0.10.0 features have been implemented.
+## v0.11.0 — MCP Completeness + Web UI Polish
+
+**Spec:** [specs/VERSION_0_11_0.md](../specs/VERSION_0_11_0.md)
+**Branch:** `feature/v0.11.0`
+
+- [ ] MCP tool schema defaults (pass resolved vars to `RunbookToInputSchema`)
+- [ ] MCP execution progress notifications (wire `OnProgress` callback)
+- [ ] MCP create-runbook prompt scaffolding (dynamic parameter templates)
+- [ ] Web UI: execution view — remove duplicate status, modernize header
 
 ## Completed
 
