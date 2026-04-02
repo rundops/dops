@@ -9,6 +9,7 @@
 - [ ] MCP execution progress notifications (wire `OnProgress` callback)
 - [ ] MCP create-runbook prompt scaffolding (dynamic parameter templates)
 - [x] Catalog switcher tab bar (TUI + Web UI)
+- [ ] MCP skills — injectable context for AI agents (skill.md + MCP prompts)
 - [ ] Web UI: execution view — remove duplicate status, modernize header
 
 ## Completed
