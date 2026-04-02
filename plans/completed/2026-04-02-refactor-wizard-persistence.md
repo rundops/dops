@@ -1,9 +1,9 @@
 # Refactor: Wizard Persistence via Messages
 
-**Status:** TODO
+**Status:** Complete
 **Effort:** Half day
 **Risk:** Medium — changes save-on-advance flow
-**Branch:** `refactor/wizard-persistence`
+**Branch:** `refactor/wizard-persistence-v2`
 
 ## Problem
 
