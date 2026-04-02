@@ -144,6 +144,103 @@ collapsible tree. No concept of "active catalog."
 
 ---
 
+### 5. MCP Skills — Injectable Context for AI Agents
+
+**Status:** TODO
+
+Add skills as a new content type alongside runbooks. A skill is a markdown
+file that provides domain knowledge to AI agents via MCP prompts. Where a
+runbook pairs `runbook.yaml` with `script.sh`, a skill pairs `runbook.yaml`
+with `skill.md`.
+
+Inspired by [Claude Code's skill system](https://docs.anthropic.com/en/docs/claude-code/skills),
+adapted for dops catalogs and MCP.
+
+**Directory structure:**
+
+Skills live alongside runbooks in the same catalog directory:
+
+```
+catalogs/infra/
+├── scale-deployment/
+│   ├── runbook.yaml        # type: runbook (default, implicit)
+│   └── script.sh
+├── restart-pods/
+│   ├── runbook.yaml
+│   └── script.sh
+└── k8s-scaling-guide/
+    ├── runbook.yaml        # type: skill
+    └── skill.md            # markdown context for AI agents
+```
+
+**runbook.yaml for a skill:**
+
+```yaml
+name: Kubernetes Scaling Guide
+type: skill
+description: >
+  Context for AI agents about Kubernetes scaling operations.
+  Use when the user asks about scaling deployments, adjusting
+  replica counts, or resizing workloads.
+trigger: scale, resize, replicas, horizontal pod autoscaler
+```
+
+Fields:
+- `type: skill` — distinguishes from executable runbooks (default: `runbook`)
+- `description` — used by AI agents to discover when this skill is relevant.
+  Should explain what the skill covers and when to load it.
+- `trigger` — comma-separated keywords that help agents match user intent
+  to available skills. Lightweight discovery hint.
+- `name`, `id`, `aliases` — work the same as runbooks.
+
+**skill.md:**
+
+Free-form markdown. The full content is returned when the agent requests
+the skill via MCP. Can include instructions, examples, decision trees,
+reference tables, links to related runbooks, or any domain knowledge.
+
+**MCP exposure:**
+
+Skills are exposed as MCP prompts:
+- Prompt name: skill ID (e.g., `infra.k8s-scaling-guide`)
+- Prompt description: from `description` field
+- `GetPrompt` returns the full `skill.md` content as a text message
+- `ListPrompts` includes all skills with their trigger keywords in metadata
+
+**Not exposed as:**
+- MCP tools (skills are not executable)
+- TUI sidebar entries (skills are MCP-only, hidden from TUI)
+
+**Catalog loader changes:**
+
+- `DiskCatalogLoader` scans for `skill.md` in addition to `script.sh`
+- Entries with `type: skill` are stored separately from runbooks
+- Skills are not filtered by risk level (they have no risk)
+- Skills are not passed to TUI sidebar
+
+**Files:**
+- `internal/domain/runbook.go` — add `Type` field, `Skill` type constant
+- `internal/domain/skill.go` — `Skill` struct (Name, ID, Description, Trigger, Content)
+- `internal/catalog/loader.go` — load skills alongside runbooks
+- `internal/mcp/server.go` — register skills as MCP prompts
+- `internal/mcp/prompts.go` — serve skill content via `GetPrompt`
+
+#### Acceptance Criteria
+
+- [ ] `type: skill` in runbook.yaml identifies a skill
+- [ ] Skill directory contains `skill.md` (not `script.sh`)
+- [ ] `DiskCatalogLoader` loads skills and exposes them separately from runbooks
+- [ ] Skills appear in `ListPrompts` with description and trigger metadata
+- [ ] `GetPrompt` for a skill returns the full `skill.md` content
+- [ ] Skills are NOT shown in the TUI sidebar
+- [ ] Skills are NOT exposed as MCP tools
+- [ ] Skills without a `skill.md` file log a warning and are skipped
+- [ ] Runbooks without `type` field default to `type: runbook` (backward compatible)
+- [ ] `dops mcp tools` does not list skills
+- [ ] `go test ./...` passes
+
+---
+
 ## Fixes
 
 ### Fix 1. Execution View — Remove Duplicate Status, Modernize Header
