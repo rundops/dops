@@ -14,8 +14,12 @@ const search = ref("");
 // --- Time range picker ---
 const timeOpen = ref(false);
 const timeInput = ref("");
-const timeLabel = ref("All time");
-const timeRange = ref<{ from: Date | null; to: Date | null }>({ from: null, to: null });
+const timeLabel = ref("Live · Past 15 Minutes");
+const timeLive = ref(true);
+const timeRange = ref<{ from: Date | null; to: Date | null }>({
+  from: new Date(Date.now() - 15 * 60 * 1000),
+  to: null,
+});
 const timeEl = ref<HTMLElement | null>(null);
 
 const presets = [
@@ -31,7 +35,8 @@ const presets = [
 
 function selectPreset(preset: { label: string; ms: number }) {
   timeRange.value = { from: new Date(Date.now() - preset.ms), to: null };
-  timeLabel.value = preset.label;
+  timeLive.value = true;
+  timeLabel.value = "Live · " + preset.label;
   timeOpen.value = false;
   timeInput.value = "";
 }
@@ -41,15 +46,18 @@ function applyCustom(override?: string) {
   const parsed = parseTimeInput(input);
   if (parsed) {
     timeRange.value = { from: parsed.from, to: parsed.to };
-    timeLabel.value = parsed.label;
+    // Live if open-ended (to=null, from is relative)
+    timeLive.value = parsed.to === null;
+    timeLabel.value = timeLive.value ? "Live · " + parsed.label : parsed.label;
     timeOpen.value = false;
     timeInput.value = "";
   }
 }
 
 function clearTime() {
-  timeRange.value = { from: null, to: null };
-  timeLabel.value = "All time";
+  timeRange.value = { from: new Date(Date.now() - 15 * 60 * 1000), to: null };
+  timeLive.value = true;
+  timeLabel.value = "Live · Past 15 Minutes";
   timeOpen.value = false;
   timeInput.value = "";
 }
@@ -144,9 +152,15 @@ function formatTime(iso: string): string {
         <div ref="timeEl" class="relative">
           <button
             @click.stop="timeOpen = !timeOpen"
-            class="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium border border-border rounded-md bg-bg text-fg-muted hover:border-border-active hover:text-fg cursor-pointer transition-colors duration-150"
+            :class="timeLive
+              ? 'border-success/40 bg-success-muted text-success hover:border-success'
+              : 'border-border bg-bg text-fg-muted hover:border-border-active hover:text-fg'"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium border rounded-md cursor-pointer transition-colors duration-150"
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle shrink-0">
+            <svg v-if="timeLive" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="shrink-0">
+              <path d="M8 4a4 4 0 100 8 4 4 0 000-8z"/>
+            </svg>
+            <svg v-else width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle shrink-0">
               <path d="M1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0zM8 0a8 8 0 100 16A8 8 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 00.37.65l2.5 1.5a.75.75 0 00.76-1.3L8.5 7.87V4.75z"/>
             </svg>
             <span class="truncate max-w-[160px]">{{ timeLabel }}</span>
