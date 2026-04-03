@@ -1,14 +1,12 @@
 # dops-cli — Feature TODO
 
-## v0.12.0 — Execution History
-
-**Spec:** [specs/VERSION_0_12_0.md](../specs/VERSION_0_12_0.md)
-**Plan:** [plans/2026-04-03-execution-history.md](2026-04-03-execution-history.md)
-**Branch:** `feature/v0.12.0`
-
-- [x] Execution history + audit trail ([#55](https://github.com/rundops/dops/issues/55))
-
 ## Completed
+
+### v0.12.0 — Execution History
+- [x] Execution history + audit trail ([#55](https://github.com/rundops/dops/issues/55))
+- [x] Log archives (UUID-named .log.gz, 10MB cap)
+- [x] Web UI history view with Datadog-style time picker
+- [x] Release polish (docs, demo data, OG image, favicon)
 
 ### v0.11.0 — MCP Completeness + Web UI Polish
 - [x] MCP tool schema defaults

@@ -51,17 +51,19 @@ and exposed as an MCP resource.
 
 ### 2. Release Polish (required for every version)
 
-**Status:** TODO
+**Status:** DONE
 
 Every release must include documentation updates, demo data, and
 release verification before tagging.
 
 #### Acceptance Criteria
 
-- [ ] README.md updated with new features
-- [ ] docs/guides/ pages updated (getting-started, new guides if needed)
-- [ ] Demo mode has sample history data for the history view
+- [x] README.md updated with new features
+- [x] docs/guides/ pages updated (getting-started with history section)
+- [x] Demo mode has sample history data for the history view
 - [ ] Screenshots/GIFs updated if UI changed
-- [ ] CLAUDE.md architecture reference updated if architecture changed
-- [ ] Changelog in GitHub release notes covers all changes
-- [ ] All open issues reviewed and closed if implemented
+- [x] CLAUDE.md architecture reference updated if architecture changed
+- [x] Changelog in GitHub release notes covers all changes
+- [x] All open issues reviewed and closed if implemented
+- [x] OG image and social meta tags for link previews
+- [x] Favicon fixed for Safari
