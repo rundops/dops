@@ -3,6 +3,7 @@ package history
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -44,10 +45,15 @@ func NewFileStore(dir string, maxRecords int) *FileExecutionStore {
 }
 
 // Record writes an execution record to disk and enforces retention.
+// If the record has a log file in a temporary directory, it is copied
+// to the persistent logs/ subdirectory so it survives temp cleanup.
 func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return fmt.Errorf("create history dir: %w", err)
 	}
+
+	// Copy log file to persistent storage if it's in a temp dir.
+	s.persistLog(record)
 
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
@@ -62,6 +68,49 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 
 	s.enforceRetention()
 	return nil
+}
+
+// persistLog copies a log file from a temporary directory to ~/.dops/history/logs/
+// and updates the record's LogPath. No-op if LogPath is empty or already persistent.
+func (s *FileExecutionStore) persistLog(record *domain.ExecutionRecord) {
+	if record.LogPath == "" {
+		return
+	}
+	// Skip if already under our directory.
+	if strings.HasPrefix(record.LogPath, s.dir) {
+		return
+	}
+
+	logsDir := filepath.Join(s.dir, "logs")
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		return
+	}
+
+	destName := fmt.Sprintf("%s.log", record.ID)
+	destPath := filepath.Join(logsDir, destName)
+
+	if err := copyFile(record.LogPath, destPath); err != nil {
+		return // best-effort — keep original path
+	}
+
+	record.LogPath = destPath
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src) // #nosec G304 -- src is internal log path from execution
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
 }
 
 // Get retrieves a single execution record by ID.
@@ -196,9 +245,13 @@ func (s *FileExecutionStore) enforceRetention() {
 		return
 	}
 
-	// Delete oldest files (sorted oldest-first).
+	// Delete oldest files (sorted oldest-first) and their log files.
 	excess := len(files) - s.maxRecords
 	for i := 0; i < excess; i++ {
+		rec, err := s.loadRecord(files[i])
+		if err == nil && rec.LogPath != "" && strings.HasPrefix(rec.LogPath, s.dir) {
+			_ = os.Remove(rec.LogPath)
+		}
 		_ = os.Remove(filepath.Join(s.dir, files[i]))
 	}
 }

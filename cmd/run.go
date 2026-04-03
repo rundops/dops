@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -205,6 +206,11 @@ func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string,
 	}
 	rec.MaskSecrets(secretNames)
 
+	// Create log file for history persistence.
+	lw := adapters.NewLogWriter(os.TempDir())
+	logPath, _ := lw.Create(cat.Name, rb.Name, rec.StartTime)
+	rec.LogPath = logPath
+
 	runner := executor.NewScriptRunner()
 	lines, errs := runner.Run(ctx, scriptPath, env)
 
@@ -214,6 +220,7 @@ func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string,
 	lastLine := ""
 	for line := range lines {
 		lineCount++
+		lw.WriteLine(line.Text)
 		if text := strings.TrimSpace(line.Text); text != "" {
 			lastLine = text
 		}
@@ -223,6 +230,7 @@ func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string,
 			fmt.Fprintln(stdout, line.Text)
 		}
 	}
+	lw.Close()
 
 	exitCode := 0
 	if err := <-errs; err != nil {
