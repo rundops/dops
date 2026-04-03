@@ -13,6 +13,7 @@ const search = ref("");
 
 // --- Time range picker ---
 const timeOpen = ref(false);
+const showMore = ref(false);
 const timeInput = ref("");
 const timeLabel = ref("Live · Past 15 Minutes");
 const timeLive = ref(true);
@@ -32,6 +33,20 @@ const presets = [
   { shorthand: "1w", label: "Past 1 Week", ms: 7 * 24 * 60 * 60 * 1000 },
   { shorthand: "2w", label: "Past 2 Weeks", ms: 14 * 24 * 60 * 60 * 1000 },
 ];
+
+const resolvedTimeRange = computed(() => {
+  const fmt = (d: Date) =>
+    d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  const from = timeRange.value.from;
+  const to = timeRange.value.to ?? new Date();
+  if (!from) return "All time";
+  return `${fmt(from)} – ${fmt(to)}`;
+});
 
 function selectPreset(preset: { label: string; ms: number }) {
   timeRange.value = { from: new Date(Date.now() - preset.ms), to: null };
@@ -68,7 +83,10 @@ function onTimeKeydown(e: KeyboardEvent) {
 }
 
 function onClickOutside(e: MouseEvent) {
-  if (timeEl.value && !timeEl.value.contains(e.target as Node)) timeOpen.value = false;
+  if (timeEl.value && !timeEl.value.contains(e.target as Node)) {
+    timeOpen.value = false;
+    showMore.value = false;
+  }
 }
 
 onMounted(async () => {
@@ -175,13 +193,14 @@ function formatTime(iso: string): string {
             </svg>
           </button>
 
-          <!-- Two-panel dropdown -->
+          <!-- Dropdown -->
           <div
             v-if="timeOpen"
-            class="absolute right-0 top-9 w-[520px] bg-bg-panel border border-border rounded-lg shadow-xl z-50 flex overflow-hidden"
+            class="absolute right-0 top-9 bg-bg-panel border border-border rounded-lg shadow-xl z-50 overflow-hidden"
+            :class="showMore ? 'w-[520px] flex' : 'w-[260px]'"
           >
-            <!-- Left panel: custom input + examples -->
-            <div class="flex-1 p-4 border-r border-border">
+            <!-- Custom panel (only when "More" is clicked) -->
+            <div v-if="showMore" class="flex-1 p-4 border-r border-border">
               <div class="text-[12px] text-fg-muted mb-2.5 font-medium">Type custom times like:</div>
               <input
                 v-model="timeInput"
@@ -223,32 +242,45 @@ function formatTime(iso: string): string {
               </div>
             </div>
 
-            <!-- Right panel: presets -->
-            <div class="w-[200px] py-1 overflow-y-auto">
-              <button
-                v-for="preset in presets"
-                :key="preset.shorthand"
-                @click="selectPreset(preset)"
-                :class="timeLabel === preset.label
-                  ? 'bg-primary-muted text-primary'
-                  : 'text-fg-muted hover:bg-bg-hover hover:text-fg'"
-                class="flex items-center gap-2.5 w-full text-left px-3 py-2 text-[12px] cursor-pointer transition-colors duration-100 border-none bg-transparent"
-              >
-                <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">
-                  {{ preset.shorthand }}
-                </span>
-                <span>{{ preset.label }}</span>
-              </button>
-              <div class="border-t border-border mt-1 pt-1">
+            <!-- Main panel: timestamp bar + presets -->
+            <div :class="showMore ? 'w-[220px]' : 'w-full'">
+              <!-- Resolved timestamp bar -->
+              <div class="px-3 py-2 border-b border-border">
+                <div
+                  class="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[11px] font-mono"
+                  :class="timeLive ? 'bg-success-muted text-success' : 'bg-bg-element text-fg-muted'"
+                >
+                  <span v-if="timeLive" class="font-bold text-[10px]">LIVE</span>
+                  <span class="truncate">{{ resolvedTimeRange }}</span>
+                </div>
+              </div>
+
+              <!-- Presets -->
+              <div class="py-1 overflow-y-auto max-h-[320px]">
                 <button
-                  @click="clearTime"
-                  :class="timeLabel === 'All time'
+                  v-for="preset in presets"
+                  :key="preset.shorthand"
+                  @click="selectPreset(preset)"
+                  :class="timeLabel.includes(preset.label)
                     ? 'bg-primary-muted text-primary'
                     : 'text-fg-muted hover:bg-bg-hover hover:text-fg'"
                   class="flex items-center gap-2.5 w-full text-left px-3 py-2 text-[12px] cursor-pointer transition-colors duration-100 border-none bg-transparent"
                 >
-                  <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">∞</span>
-                  <span>All Time</span>
+                  <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">
+                    {{ preset.shorthand }}
+                  </span>
+                  <span>{{ preset.label }}</span>
+                </button>
+              </div>
+
+              <!-- More button -->
+              <div class="border-t border-border">
+                <button
+                  @click.stop="showMore = !showMore"
+                  class="flex items-center gap-2.5 w-full text-left px-3 py-2 text-[12px] text-fg-muted hover:bg-bg-hover hover:text-fg cursor-pointer transition-colors duration-100 border-none bg-transparent"
+                >
+                  <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">···</span>
+                  <span>{{ showMore ? 'Less' : 'More' }}</span>
                 </button>
               </div>
             </div>
