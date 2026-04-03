@@ -19,13 +19,12 @@ parameters, exit code, duration, output summary, and which interface
 initiated it. Queryable via CLI (`dops history`), visible in web UI,
 and exposed as an MCP resource.
 
-**Storage:**
-- JSON records at `~/.dops/history/{timestamp}-{id}.json`
-- Logs at `~/.dops/history/logs/{uuid}/datetime.log`
-- Temp log files deleted after persistent copy
-- UUID v4 execution IDs
-- Size-based eviction: oldest records + logs deleted when total
-  directory exceeds 50MB (no configuration needed)
+**Storage lifecycle:**
+- **Fresh** (< 7 days): `~/.dops/history/logs/{uuid}/datetime.log` — plain text
+- **Compressed** (7–90 days): `.log.gz` — gzipped, still queryable via history
+- **Expired** (> 90 days): record + log deleted entirely
+- **Size cap** (50MB): oldest deleted regardless of age if directory exceeds limit
+- UUID v4 execution IDs, temp log files deleted after persistent copy
 
 #### Acceptance Criteria
 
