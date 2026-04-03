@@ -163,8 +163,9 @@ func (s *Server) makeToolHandler(rb domain.Runbook, cat domain.Catalog) func(con
 		// Record to execution history.
 		if s.history != nil {
 			rec := domain.NewExecutionRecord(rb.ID, rb.Name, cat.Name, domain.ExecMCP)
-			rec.LogPath = result.LogPath
 			rec.Complete(result.ExitCode, result.OutputLines, result.Summary)
+			outputLines := strings.Split(result.Output, "\n")
+			_ = s.history.ArchiveLog(rec, outputLines)
 			_ = s.history.Record(rec)
 		}
 

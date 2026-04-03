@@ -198,7 +198,7 @@ type App struct {
 	cancelExec       context.CancelFunc
 	execRunning      bool
 	execRecord       *domain.ExecutionRecord // current execution being recorded
-	execLineCount    int                      // output line count for current execution
+	execLines        []string                 // buffered output lines for archive
 	execLastLine     string                   // last non-empty output line
 	updateAvailable  string                   // non-empty if a newer version exists (e.g. "0.2.0")
 }
@@ -355,15 +355,17 @@ func (m App) handleAppMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 			if msg.Err != nil {
 				exitCode = 1
 			}
-			m.execRecord.Complete(exitCode, m.execLineCount, m.execLastLine)
+			m.execRecord.Complete(exitCode, len(m.execLines), m.execLastLine)
+			_ = m.deps.History.ArchiveLog(m.execRecord, m.execLines)
 			_ = m.deps.History.Record(m.execRecord)
 			m.execRecord = nil
+			m.execLines = nil
 		}
 		return m, nil, true
 
 	case output.OutputLineMsg:
 		m.output, _ = m.output.Update(msg)
-		m.execLineCount++
+		m.execLines = append(m.execLines, msg.Text)
 		if text := strings.TrimSpace(msg.Text); text != "" {
 			m.execLastLine = text
 		}
