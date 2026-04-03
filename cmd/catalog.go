@@ -245,7 +245,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 			if subPath != "" {
 				validated, err := validateSubPath(targetDir, subPath) // #nosec G703 -- targetDir is tool-constructed, subPath validated below
 				if err != nil {
-					_ = os.RemoveAll(targetDir)
+					_ = os.RemoveAll(targetDir) // #nosec G703 -- targetDir is sandboxed under ~/.dops/catalogs/
 					return err
 				}
 				subPath = validated
