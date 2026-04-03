@@ -105,7 +105,7 @@ to the next.
   - Record on execution completion in `HandleToolCall`
   - Add MCP resource `dops://history` (JSON list of recent executions)
 
-- [ ] **3.3** Add Web UI history view — `web/src/views/HistoryView.vue`
+- [x] **3.3** Add Web UI history view — `web/src/views/HistoryView.vue`
   - Route: `/history`
   - Table: time, runbook, status badge, duration, exit code
   - Click row → detail view with params and output summary
@@ -116,10 +116,10 @@ to the next.
 
 - [x] **4.1** Run full test suite: `go test ./...` — 24 packages pass
 - [x] **4.2** Run `go vet ./...` — clean
-- [ ] **4.3** TypeScript check: `cd web && npx vue-tsc --noEmit` (deferred — web UI view not yet added)
+- [x] **4.3** TypeScript check: `cd web && npx vue-tsc --noEmit` — clean
 - [x] **4.4** Manual test: CLI execution records to `~/.dops/history/` ✓
 - [x] **4.5** Manual test: `dops history` shows executions with filters ✓
-- [ ] **4.6** Manual test: web UI history view loads and filters (deferred — web UI view not yet added)
+- [ ] **4.6** Manual test: web UI history view loads and filters
 
 ## Key Constraints
 

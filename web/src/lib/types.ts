@@ -26,6 +26,23 @@ export interface RunbookDetail {
   saved_values?: Record<string, string>;
 }
 
+export interface ExecutionRecord {
+  id: string;
+  runbook_id: string;
+  runbook_name: string;
+  catalog_name: string;
+  parameters?: Record<string, string>;
+  status: "running" | "success" | "failed" | "cancelled";
+  exit_code: number;
+  start_time: string;
+  end_time?: string;
+  duration?: string;
+  output_lines: number;
+  output_summary?: string;
+  log_path?: string;
+  interface: "tui" | "cli" | "web" | "mcp";
+}
+
 export interface Parameter {
   name: string;
   type: string;

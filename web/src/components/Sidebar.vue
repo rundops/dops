@@ -172,6 +172,14 @@ function navigateTo(path: string) {
         runbooks
       </button>
       <div class="flex items-center gap-2.5">
+        <!-- History -->
+        <button
+          @click="navigateTo('/history')"
+          class="text-fg-subtle hover:text-fg-muted transition-colors duration-150 p-0 bg-transparent border-none cursor-pointer"
+          title="Execution history"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0zM8 0a8 8 0 100 16A8 8 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 00.37.65l2.5 1.5a.75.75 0 00.76-1.3L8.5 7.87V4.75z"/></svg>
+        </button>
         <!-- Theme selector -->
         <div ref="themeMenuEl" class="relative">
           <button

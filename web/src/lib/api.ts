@@ -1,4 +1,4 @@
-import type { Catalog, RunbookDetail } from "./types";
+import type { Catalog, RunbookDetail, ExecutionRecord } from "./types";
 
 const BASE = "/api";
 
@@ -55,6 +55,19 @@ export function streamExecution(
 
 export async function cancelExecution(executionId: string): Promise<void> {
   await fetch(`${BASE}/executions/${executionId}/cancel`, { method: "POST" });
+}
+
+export async function fetchHistory(opts?: {
+  runbook?: string;
+  status?: string;
+}): Promise<ExecutionRecord[]> {
+  const params = new URLSearchParams();
+  if (opts?.runbook) params.set("runbook", opts.runbook);
+  if (opts?.status) params.set("status", opts.status);
+  const qs = params.toString();
+  const res = await fetch(`${BASE}/history${qs ? `?${qs}` : ""}`);
+  if (!res.ok) return [];
+  return res.json();
 }
 
 export async function fetchTheme(): Promise<{
