@@ -56,9 +56,8 @@ func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[st
 		}
 	}
 	rec.MaskSecrets(secretNames)
-	rec.LogPath = logPath
 	m.execRecord = rec
-	m.execLineCount = 0
+	m.execLines = nil
 	m.execLastLine = ""
 
 	ctx, cancel := context.WithCancel(context.Background())

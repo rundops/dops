@@ -194,12 +194,13 @@ func (a *api) handleExecuteRunbook(w http.ResponseWriter, r *http.Request) {
 		rec.MaskSecrets(secretNames)
 
 		histStore := a.deps.History
-		exec.onComplete = func(lineCount int, lastLine string, err error) {
+		exec.onComplete = func(lines []string, lastLine string, err error) {
 			exitCode := 0
 			if err != nil {
 				exitCode = 1
 			}
-			rec.Complete(exitCode, lineCount, lastLine)
+			rec.Complete(exitCode, len(lines), lastLine)
+			_ = histStore.ArchiveLog(rec, lines)
 			_ = histStore.Record(rec)
 		}
 	}
@@ -446,7 +447,7 @@ type execution struct {
 	exitErr     error
 	cancel      func()
 	notify      chan struct{}
-	onComplete  func(lineCount int, lastLine string, err error) // called when execution finishes
+	onComplete  func(lines []string, lastLine string, err error) // called when execution finishes
 	mu          sync.Mutex
 }
 
@@ -509,7 +510,9 @@ func (s *executionStore) start(scriptPath string, env map[string]string, runner 
 		exec.mu.Unlock()
 
 		if exec.onComplete != nil {
-			exec.onComplete(lineCount, lastLine, err)
+			linesCopy := make([]string, len(exec.lines))
+			copy(linesCopy, exec.lines)
+			exec.onComplete(linesCopy, lastLine, err)
 		}
 
 		// Final signal.

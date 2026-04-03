@@ -1,10 +1,8 @@
 package history
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,9 +13,8 @@ import (
 )
 
 const (
-	defaultMaxBytes      int64 = 50 * 1024 * 1024 // 50MB size cap
-	defaultCompressAfter       = 7                  // days before gzip
-	defaultExpireAfter         = 90                 // days before deletion
+	defaultMaxBytes  int64 = 50 * 1024 * 1024 // 50MB size cap
+	defaultExpireDays      = 90                // days before archive deletion
 )
 
 // ListOpts controls filtering and pagination for List.
@@ -31,23 +28,23 @@ type ListOpts struct {
 // ExecutionStore persists and queries execution records.
 type ExecutionStore interface {
 	Record(record *domain.ExecutionRecord) error
+	ArchiveLog(record *domain.ExecutionRecord, lines []string) error
 	Get(id string) (*domain.ExecutionRecord, error)
 	List(opts ListOpts) ([]*domain.ExecutionRecord, error)
 	Delete(id string) error
 }
 
-// FileExecutionStore stores execution records as JSON files.
+// FileExecutionStore stores execution records as JSON files and logs
+// in daily tar.gz archives.
 //
 // Lifecycle:
-//   - Fresh (< 7 days): plain .log files
-//   - Compressed (7–90 days): .log.gz — still queryable
-//   - Expired (> 90 days): deleted entirely
-//   - Size cap (50MB): oldest deleted regardless of age
+//   - On completion: log lines written to today's {date}.tar.gz as {uuid}.log entry
+//   - After 90 days: archive deleted (unmodified for 90 days)
+//   - Size cap: oldest archives deleted if total exceeds 50MB
 type FileExecutionStore struct {
-	dir           string
-	maxBytes      int64
-	compressAfter int // days
-	expireAfter   int // days
+	dir        string
+	maxBytes   int64
+	expireDays int
 }
 
 // NewFileStore creates a store backed by the given directory.
@@ -56,10 +53,9 @@ func NewFileStore(dir string, maxBytes int64) *FileExecutionStore {
 		maxBytes = defaultMaxBytes
 	}
 	return &FileExecutionStore{
-		dir:           dir,
-		maxBytes:      maxBytes,
-		compressAfter: defaultCompressAfter,
-		expireAfter:   defaultExpireAfter,
+		dir:        dir,
+		maxBytes:   maxBytes,
+		expireDays: defaultExpireDays,
 	}
 }
 
@@ -68,8 +64,6 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return fmt.Errorf("create history dir: %w", err)
 	}
-
-	s.persistLog(record)
 
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
@@ -86,158 +80,152 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 	return nil
 }
 
-// maintain runs all retention passes: expire, compress, size cap.
-func (s *FileExecutionStore) maintain() {
-	s.expireOld()
-	s.compressOld()
-	s.enforceSize()
+// ArchiveLog writes execution log lines into today's daily tar.gz archive
+// and updates the record's LogPath.
+func (s *FileExecutionStore) ArchiveLog(record *domain.ExecutionRecord, lines []string) error {
+	if len(lines) == 0 {
+		return nil
+	}
+
+	logsDir := filepath.Join(s.dir, "logs")
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		return fmt.Errorf("create logs dir: %w", err)
+	}
+
+	archiveName := record.StartTime.Format("2006-01-02") + ".tar.gz"
+	archivePath := filepath.Join(logsDir, archiveName)
+	entryName := record.ID + ".log"
+
+	content := []byte(strings.Join(lines, "\n") + "\n")
+	if err := AppendToArchive(archivePath, entryName, content); err != nil {
+		return fmt.Errorf("archive log: %w", err)
+	}
+
+	record.LogPath = archivePath + "#" + entryName
+	return nil
 }
 
-// expireOld deletes only compressed logs that haven't been modified in
-// expireAfter days. Uncompressed logs are left alone — they'll get
-// compressed first by compressOld, then expired on a future pass.
-func (s *FileExecutionStore) expireOld() {
-	cutoff := time.Now().AddDate(0, 0, -s.expireAfter)
-
-	files, err := s.listFiles()
-	if err != nil {
-		return
-	}
-
-	for _, f := range files {
-		rec, err := s.loadRecord(f)
-		if err != nil {
-			continue
-		}
-		// Only expire compressed logs past the cutoff.
-		if rec.LogPath == "" || !strings.HasSuffix(rec.LogPath, ".gz") {
-			continue
-		}
-		info, err := os.Stat(rec.LogPath)
-		if err != nil {
-			continue
-		}
-		if info.ModTime().Before(cutoff) {
-			s.removeLog(rec)
-			_ = os.Remove(filepath.Join(s.dir, f))
-		}
-	}
-}
-
-// compressOld gzips log files older than compressAfter days.
-func (s *FileExecutionStore) compressOld() {
-	cutoff := time.Now().AddDate(0, 0, -s.compressAfter)
-
-	files, err := s.listFiles()
-	if err != nil {
-		return
-	}
-
-	for _, f := range files {
-		rec, err := s.loadRecord(f)
-		if err != nil || rec.LogPath == "" {
-			continue
-		}
-		// Skip already compressed or not yet old enough.
-		if strings.HasSuffix(rec.LogPath, ".gz") || rec.StartTime.After(cutoff) {
-			continue
-		}
-
-		gzPath := rec.LogPath + ".gz"
-		if err := compressFile(rec.LogPath, gzPath); err != nil {
-			continue
-		}
-		_ = os.Remove(rec.LogPath)
-
-		// Update record with new path.
-		rec.LogPath = gzPath
-		data, _ := json.MarshalIndent(rec, "", "  ")
-		_ = os.WriteFile(filepath.Join(s.dir, f), data, 0o644)
-	}
-}
-
-// enforceSize deletes oldest records until under maxBytes.
-func (s *FileExecutionStore) enforceSize() {
-	if dirSize(s.dir) <= s.maxBytes {
-		return
-	}
-
-	files, err := s.listFiles()
-	if err != nil {
-		return
-	}
-
-	for _, f := range files {
-		if dirSize(s.dir) <= s.maxBytes {
-			break
-		}
-		rec, _ := s.loadRecord(f)
-		if rec != nil {
-			s.removeLog(rec)
-		}
-		_ = os.Remove(filepath.Join(s.dir, f))
-	}
-}
-
-// --- Log persistence ---
-
-func (s *FileExecutionStore) persistLog(record *domain.ExecutionRecord) {
-	if record.LogPath == "" || strings.HasPrefix(record.LogPath, s.dir) {
-		return
-	}
-
-	execDir := filepath.Join(s.dir, "logs", record.ID)
-	if err := os.MkdirAll(execDir, 0o755); err != nil {
-		return
-	}
-	destPath := filepath.Join(execDir, record.StartTime.Format("2006-01-02T15-04-05")+".log")
-
-	if err := copyFile(record.LogPath, destPath); err != nil {
-		return
-	}
-
-	_ = os.Remove(record.LogPath)
-	record.LogPath = destPath
-}
-
-func (s *FileExecutionStore) removeLog(rec *domain.ExecutionRecord) {
-	if rec.LogPath != "" && strings.HasPrefix(rec.LogPath, s.dir) {
-		_ = os.RemoveAll(filepath.Dir(rec.LogPath))
-	}
-}
-
-// ReadLog reads a log file, transparently decompressing .gz files.
+// ReadLog reads a log, transparently handling:
+//   - Archive paths: "path/to/archive.tar.gz#entry.log"
+//   - Plain files: "path/to/file.log" (backward compat)
 func ReadLog(path string) ([]string, bool) {
 	if path == "" {
 		return nil, false
 	}
 
-	f, err := os.Open(path) // #nosec G304 -- path from internal history record
-	if err != nil {
-		return nil, false
-	}
-	defer f.Close()
-
-	var reader io.Reader = f
-	if strings.HasSuffix(path, ".gz") {
-		gz, err := gzip.NewReader(f)
+	// Archive path: split on #
+	if idx := strings.Index(path, "#"); idx > 0 {
+		archivePath := path[:idx]
+		entryName := path[idx+1:]
+		data, err := ReadFromArchive(archivePath, entryName)
 		if err != nil {
 			return nil, false
 		}
-		defer gz.Close()
-		reader = gz
+		content := strings.TrimRight(string(data), "\n")
+		if content == "" {
+			return []string{}, true
+		}
+		return strings.Split(content, "\n"), true
 	}
 
-	data, err := io.ReadAll(reader)
+	// Plain file fallback (backward compat with old per-file logs).
+	data, err := os.ReadFile(path) // #nosec G304 -- path from internal history record
 	if err != nil {
 		return nil, false
 	}
-
 	content := strings.TrimRight(string(data), "\n")
 	if content == "" {
 		return []string{}, true
 	}
 	return strings.Split(content, "\n"), true
+}
+
+// --- Maintenance ---
+
+func (s *FileExecutionStore) maintain() {
+	s.expireOld()
+	s.enforceSize()
+}
+
+// expireOld deletes .tar.gz archives unmodified for > expireDays.
+func (s *FileExecutionStore) expireOld() {
+	logsDir := filepath.Join(s.dir, "logs")
+	entries, err := os.ReadDir(logsDir)
+	if err != nil {
+		return
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -s.expireDays)
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".tar.gz") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			_ = os.Remove(filepath.Join(logsDir, e.Name()))
+		}
+	}
+
+	// Also clean up old per-file log directories (backward compat migration).
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			_ = os.RemoveAll(filepath.Join(logsDir, e.Name()))
+		}
+	}
+
+	// Expire old JSON records whose logs are gone.
+	files, err := s.listFiles()
+	if err != nil {
+		return
+	}
+	for _, f := range files {
+		rec, err := s.loadRecord(f)
+		if err != nil {
+			continue
+		}
+		if rec.StartTime.Before(cutoff) {
+			_ = os.Remove(filepath.Join(s.dir, f))
+		}
+	}
+}
+
+// enforceSize deletes oldest archives and records until under maxBytes.
+func (s *FileExecutionStore) enforceSize() {
+	if dirSize(s.dir) <= s.maxBytes {
+		return
+	}
+
+	// Delete oldest archives first.
+	logsDir := filepath.Join(s.dir, "logs")
+	archives := listArchives(logsDir)
+	for _, name := range archives {
+		if dirSize(s.dir) <= s.maxBytes {
+			break
+		}
+		_ = os.Remove(filepath.Join(logsDir, name))
+	}
+
+	// Then oldest records if still over.
+	files, err := s.listFiles()
+	if err != nil {
+		return
+	}
+	for _, f := range files {
+		if dirSize(s.dir) <= s.maxBytes {
+			break
+		}
+		_ = os.Remove(filepath.Join(s.dir, f))
+	}
 }
 
 // --- Query methods ---
@@ -247,7 +235,6 @@ func (s *FileExecutionStore) Get(id string) (*domain.ExecutionRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	for _, f := range files {
 		rec, err := s.loadRecord(f)
 		if err != nil {
@@ -281,21 +268,17 @@ func (s *FileExecutionStore) List(opts ListOpts) ([]*domain.ExecutionRecord, err
 		if err != nil {
 			continue
 		}
-
 		if opts.RunbookID != "" && rec.RunbookID != opts.RunbookID {
 			continue
 		}
 		if opts.Status != "" && rec.Status != opts.Status {
 			continue
 		}
-
 		if skipped < opts.Offset {
 			skipped++
 			continue
 		}
-
 		records = append(records, rec)
-
 		limit := opts.Limit
 		if limit <= 0 {
 			limit = 50
@@ -304,7 +287,6 @@ func (s *FileExecutionStore) List(opts ListOpts) ([]*domain.ExecutionRecord, err
 			break
 		}
 	}
-
 	return records, nil
 }
 
@@ -313,14 +295,12 @@ func (s *FileExecutionStore) Delete(id string) error {
 	if err != nil {
 		return err
 	}
-
 	for _, f := range files {
 		rec, err := s.loadRecord(f)
 		if err != nil {
 			continue
 		}
 		if rec.ID == id {
-			s.removeLog(rec)
 			return os.Remove(filepath.Join(s.dir, f))
 		}
 	}
@@ -340,7 +320,6 @@ func (s *FileExecutionStore) listFiles() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	var files []string
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
@@ -364,6 +343,21 @@ func (s *FileExecutionStore) loadRecord(filename string) (*domain.ExecutionRecor
 	return &rec, nil
 }
 
+func listArchives(dir string) []string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var archives []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".tar.gz") {
+			archives = append(archives, e.Name())
+		}
+	}
+	sort.Strings(archives) // oldest first (date prefix)
+	return archives
+}
+
 func dirSize(dir string) int64 {
 	var total int64
 	_ = filepath.Walk(dir, func(_ string, info os.FileInfo, err error) error {
@@ -374,44 +368,6 @@ func dirSize(dir string) int64 {
 		return nil
 	})
 	return total
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src) // #nosec G304 -- src is internal log path
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, in)
-	return err
-}
-
-func compressFile(src, dst string) error {
-	in, err := os.Open(src) // #nosec G304 -- src is internal log path
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	gz := gzip.NewWriter(out)
-	if _, err := io.Copy(gz, in); err != nil {
-		gz.Close()
-		return err
-	}
-	return gz.Close()
 }
 
 var _ ExecutionStore = (*FileExecutionStore)(nil)

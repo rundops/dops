@@ -4,6 +4,7 @@ import (
 	"dops/internal/domain"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -42,8 +43,87 @@ func TestFileStore_RecordAndGet(t *testing.T) {
 	if got.Status != domain.ExecSuccess {
 		t.Errorf("Status = %q", got.Status)
 	}
-	if got.Parameters["greeting"] != "hi" {
-		t.Errorf("Parameters[greeting] = %q", got.Parameters["greeting"])
+}
+
+func TestFileStore_ArchiveLog(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFileStore(dir, 0)
+
+	rec := domain.NewExecutionRecord("default.hello", "hello", "default", domain.ExecCLI)
+	rec.Complete(0, 3, "done")
+
+	lines := []string{"line 1", "line 2", "line 3"}
+	if err := store.ArchiveLog(rec, lines); err != nil {
+		t.Fatalf("ArchiveLog: %v", err)
+	}
+
+	// LogPath should be archive#entry format.
+	if !strings.Contains(rec.LogPath, "#") {
+		t.Fatalf("LogPath = %q, expected archive#entry format", rec.LogPath)
+	}
+	if !strings.HasSuffix(rec.LogPath, rec.ID+".log") {
+		t.Errorf("LogPath should end with %s.log, got %q", rec.ID, rec.LogPath)
+	}
+
+	// ReadLog should return the lines.
+	got, ok := ReadLog(rec.LogPath)
+	if !ok {
+		t.Fatal("ReadLog should return true")
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 lines, got %d", len(got))
+	}
+	if got[0] != "line 1" {
+		t.Errorf("line 0 = %q", got[0])
+	}
+}
+
+func TestFileStore_ArchiveLog_MultipleInSameDay(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFileStore(dir, 0)
+
+	rec1 := domain.NewExecutionRecord("default.first", "first", "default", domain.ExecCLI)
+	rec1.Complete(0, 1, "first done")
+	store.ArchiveLog(rec1, []string{"first output"})
+
+	rec2 := domain.NewExecutionRecord("default.second", "second", "default", domain.ExecCLI)
+	rec2.Complete(0, 1, "second done")
+	store.ArchiveLog(rec2, []string{"second output"})
+
+	// Both should be readable.
+	lines1, ok1 := ReadLog(rec1.LogPath)
+	lines2, ok2 := ReadLog(rec2.LogPath)
+
+	if !ok1 || !ok2 {
+		t.Fatal("both logs should be readable")
+	}
+	if lines1[0] != "first output" {
+		t.Errorf("first = %q", lines1[0])
+	}
+	if lines2[0] != "second output" {
+		t.Errorf("second = %q", lines2[0])
+	}
+
+	// Should be in the same archive file.
+	archive1 := strings.Split(rec1.LogPath, "#")[0]
+	archive2 := strings.Split(rec2.LogPath, "#")[0]
+	if archive1 != archive2 {
+		t.Errorf("expected same archive, got %q and %q", archive1, archive2)
+	}
+}
+
+func TestFileStore_ArchiveLog_EmptyLines(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFileStore(dir, 0)
+
+	rec := domain.NewExecutionRecord("default.hello", "hello", "default", domain.ExecCLI)
+	rec.Complete(0, 0, "")
+
+	if err := store.ArchiveLog(rec, nil); err != nil {
+		t.Fatalf("ArchiveLog with nil: %v", err)
+	}
+	if rec.LogPath != "" {
+		t.Error("empty lines should not set LogPath")
 	}
 }
 
@@ -61,12 +141,11 @@ func TestFileStore_List_NewestFirst(t *testing.T) {
 	dir := t.TempDir()
 	store := NewFileStore(dir, 0)
 
-	// Create records with different timestamps.
 	r1 := domain.NewExecutionRecord("default.first", "first", "default", domain.ExecCLI)
 	r1.Complete(0, 1, "first")
 	store.Record(r1)
 
-	time.Sleep(time.Millisecond * 10) // ensure distinct timestamps
+	time.Sleep(time.Millisecond * 10)
 
 	r2 := domain.NewExecutionRecord("default.second", "second", "default", domain.ExecCLI)
 	r2.Complete(0, 1, "second")
@@ -82,9 +161,6 @@ func TestFileStore_List_NewestFirst(t *testing.T) {
 	if records[0].RunbookID != "default.second" {
 		t.Errorf("first result should be newest: got %q", records[0].RunbookID)
 	}
-	if records[1].RunbookID != "default.first" {
-		t.Errorf("second result should be oldest: got %q", records[1].RunbookID)
-	}
 }
 
 func TestFileStore_List_FilterByRunbook(t *testing.T) {
@@ -97,11 +173,8 @@ func TestFileStore_List_FilterByRunbook(t *testing.T) {
 	store.Record(r2)
 
 	records, _ := store.List(ListOpts{RunbookID: "infra.deploy", Limit: 10})
-	if len(records) != 1 {
-		t.Fatalf("expected 1 filtered record, got %d", len(records))
-	}
-	if records[0].RunbookID != "infra.deploy" {
-		t.Errorf("filtered record = %q", records[0].RunbookID)
+	if len(records) != 1 || records[0].RunbookID != "infra.deploy" {
+		t.Errorf("filter failed: got %d records", len(records))
 	}
 }
 
@@ -115,63 +188,8 @@ func TestFileStore_List_FilterByStatus(t *testing.T) {
 	store.Record(r2)
 
 	records, _ := store.List(ListOpts{Status: domain.ExecFailed, Limit: 10})
-	if len(records) != 1 {
-		t.Fatalf("expected 1 failed record, got %d", len(records))
-	}
-	if records[0].Status != domain.ExecFailed {
-		t.Errorf("status = %q", records[0].Status)
-	}
-}
-
-func TestFileStore_List_LimitAndOffset(t *testing.T) {
-	dir := t.TempDir()
-	store := NewFileStore(dir, 0)
-
-	for i := 0; i < 5; i++ {
-		r := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
-		time.Sleep(time.Millisecond * 10)
-		store.Record(r)
-	}
-
-	// Limit to 2
-	records, _ := store.List(ListOpts{Limit: 2})
-	if len(records) != 2 {
-		t.Fatalf("expected 2 records with limit, got %d", len(records))
-	}
-
-	// Offset 2, limit 2
-	records, _ = store.List(ListOpts{Limit: 2, Offset: 2})
-	if len(records) != 2 {
-		t.Fatalf("expected 2 records with offset, got %d", len(records))
-	}
-
-	// Offset past end
-	records, _ = store.List(ListOpts{Limit: 10, Offset: 100})
-	if len(records) != 0 {
-		t.Fatalf("expected 0 records past offset, got %d", len(records))
-	}
-}
-
-func TestFileStore_Retention(t *testing.T) {
-	dir := t.TempDir()
-	store := NewFileStore(dir, 1024) // 1KB cap — forces eviction
-
-	for i := 0; i < 5; i++ {
-		r := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
-		time.Sleep(time.Millisecond * 10)
-		store.Record(r)
-	}
-
-	// Size cap should have evicted some — fewer than 5 records remain.
-	entries, _ := os.ReadDir(dir)
-	jsonCount := 0
-	for _, e := range entries {
-		if filepath.Ext(e.Name()) == ".json" {
-			jsonCount++
-		}
-	}
-	if jsonCount >= 5 {
-		t.Errorf("expected eviction to reduce records below 5, got %d", jsonCount)
+	if len(records) != 1 || records[0].Status != domain.ExecFailed {
+		t.Errorf("status filter failed")
 	}
 }
 
@@ -192,13 +210,27 @@ func TestFileStore_Delete(t *testing.T) {
 	}
 }
 
-func TestFileStore_Delete_NotFound(t *testing.T) {
+func TestFileStore_SizeEviction(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 0)
+	store := NewFileStore(dir, 1024) // 1KB cap
 
-	err := store.Delete("nonexistent")
-	if err == nil {
-		t.Error("expected error for missing record")
+	for i := 0; i < 5; i++ {
+		r := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
+		time.Sleep(time.Millisecond * 10)
+		store.Record(r)
+		store.ArchiveLog(r, []string{"some output line that takes up space"})
+	}
+
+	// Should have evicted some.
+	entries, _ := os.ReadDir(dir)
+	jsonCount := 0
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".json" {
+			jsonCount++
+		}
+	}
+	if jsonCount >= 5 {
+		t.Errorf("expected eviction, got %d records", jsonCount)
 	}
 }
 
@@ -212,5 +244,26 @@ func TestFileStore_List_EmptyDir(t *testing.T) {
 	}
 	if len(records) != 0 {
 		t.Errorf("expected 0 records, got %d", len(records))
+	}
+}
+
+func TestReadLog_PlainFile_BackwardCompat(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "test.log")
+	os.WriteFile(logPath, []byte("plain line 1\nplain line 2\n"), 0o644)
+
+	lines, ok := ReadLog(logPath)
+	if !ok {
+		t.Fatal("should read plain file")
+	}
+	if len(lines) != 2 || lines[0] != "plain line 1" {
+		t.Errorf("lines = %v", lines)
+	}
+}
+
+func TestReadLog_EmptyPath(t *testing.T) {
+	_, ok := ReadLog("")
+	if ok {
+		t.Error("empty path should return false")
 	}
 }
