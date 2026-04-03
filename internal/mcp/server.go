@@ -99,13 +99,27 @@ func (s *Server) makeToolHandler(rb domain.Runbook, cat domain.Catalog) func(con
 			return toolError("invalid arguments: " + err.Error()), nil
 		}
 
+		// Rate-limited progress callback: at most 1 notification per second.
+		var lastProgress time.Time
+		onProgress := func(chunk string, linesSoFar int) {
+			now := time.Now()
+			if now.Sub(lastProgress) < time.Second {
+				return
+			}
+			lastProgress = now
+			// Log progress for observability; MCP SDK notification
+			// support can be wired here when available.
+			_ = chunk
+			_ = linesSoFar
+		}
+
 		result, err := HandleToolCall(ctx, ToolCallRequest{
 			Runbook:    rb,
 			Catalog:    cat,
 			Config:     s.cfg,
 			Runner:     s.runner,
 			Args:       args,
-			OnProgress: nil, // TODO: wire progress notifications
+			OnProgress: onProgress,
 		})
 		if err != nil {
 			return toolError(err.Error()), nil

@@ -1,13 +1,17 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"dops/internal/domain"
+	"dops/internal/executor"
 
 	"github.com/fsnotify/fsnotify"
 )
@@ -522,6 +526,87 @@ func TestGenerateParamVars_MixedParams(t *testing.T) {
 	if !strings.Contains(out, "# (secret") {
 		t.Error("missing secret comment")
 	}
+}
+
+// --- HandleToolCall progress tests ---
+
+func TestHandleToolCall_InvokesOnProgress(t *testing.T) {
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "test", "script.sh")
+	os.MkdirAll(filepath.Dir(scriptPath), 0o755)
+	os.WriteFile(scriptPath, []byte("#!/bin/sh\necho line1\necho line2\necho line3\necho line4\necho line5\necho line6\n"), 0o755)
+
+	var progressCalls int
+	var lastLineCount int
+	callback := func(chunk string, linesSoFar int) {
+		progressCalls++
+		lastLineCount = linesSoFar
+	}
+
+	result, err := HandleToolCall(context.Background(), ToolCallRequest{
+		Runbook: domain.Runbook{
+			Name:      "test",
+			Script:    "script.sh",
+			RiskLevel: domain.RiskLow,
+		},
+		Catalog:    domain.Catalog{Name: "default", Path: dir},
+		Config:     &domain.Config{},
+		Runner:     &fakeRunnerMultiLine{lines: 6},
+		Args:       map[string]any{},
+		OnProgress: callback,
+	})
+
+	if err != nil {
+		t.Fatalf("HandleToolCall: %v", err)
+	}
+	if result == nil {
+		t.Fatal("result should not be nil")
+	}
+	if progressCalls == 0 {
+		t.Error("OnProgress should have been called at least once")
+	}
+	if lastLineCount == 0 {
+		t.Error("lastLineCount should be > 0")
+	}
+}
+
+func TestHandleToolCall_NilProgress_NoPanic(t *testing.T) {
+	// Existing behavior: nil OnProgress should not panic.
+	result, err := HandleToolCall(context.Background(), ToolCallRequest{
+		Runbook: domain.Runbook{
+			Name:      "test",
+			Script:    "script.sh",
+			RiskLevel: domain.RiskLow,
+		},
+		Catalog:    domain.Catalog{Name: "default", Path: t.TempDir()},
+		Config:     &domain.Config{},
+		Runner:     &fakeRunner{},
+		Args:       map[string]any{},
+		OnProgress: nil,
+	})
+	if err != nil {
+		t.Fatalf("HandleToolCall: %v", err)
+	}
+	if result == nil {
+		t.Fatal("result should not be nil")
+	}
+}
+
+type fakeRunnerMultiLine struct {
+	lines int
+}
+
+func (r *fakeRunnerMultiLine) Run(ctx context.Context, scriptPath string, env map[string]string) (<-chan executor.OutputLine, <-chan error) {
+	ch := make(chan executor.OutputLine, r.lines)
+	errs := make(chan error, 1)
+	go func() {
+		for i := 0; i < r.lines; i++ {
+			ch <- executor.OutputLine{Text: fmt.Sprintf("line-%d", i+1)}
+		}
+		close(ch)
+		errs <- nil
+	}()
+	return ch, errs
 }
 
 // --- collectResult tests ---
