@@ -11,6 +11,7 @@ import (
 	"dops/internal/config"
 	"dops/internal/domain"
 	"dops/internal/executor"
+	histpkg "dops/internal/history"
 	"dops/internal/theme"
 
 	catpkg "dops/internal/catalog"
@@ -30,6 +31,7 @@ type ServerDeps struct {
 	Loader      CatalogLoader
 	Runner      executor.Runner
 	Vault       domain.VaultStore
+	History     histpkg.ExecutionStore
 	Theme       *theme.ResolvedTheme
 	ThemeLoader theme.ThemeLoader
 	IsDark      bool

@@ -14,6 +14,7 @@ import (
 	"dops/internal/adapters"
 	"dops/internal/domain"
 	"dops/internal/executor"
+	"dops/internal/history"
 	"dops/internal/theme"
 	"dops/internal/vars"
 )
@@ -39,6 +40,8 @@ func (a *api) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/theme", a.handleGetTheme)
 	mux.HandleFunc("GET /api/themes", a.handleListThemes)
 	mux.HandleFunc("PUT /api/theme", a.handleSetTheme)
+	mux.HandleFunc("GET /api/history", a.handleListHistory)
+	mux.HandleFunc("GET /api/history/{id}", a.handleGetHistory)
 }
 
 // --- Catalog & Runbook Endpoints ---
@@ -172,8 +175,33 @@ func (a *api) handleExecuteRunbook(w http.ResponseWriter, r *http.Request) {
 	catPath := adapters.ExpandHome(cat.RunbookRoot())
 	scriptPath := filepath.Join(catPath, rb.Name, rb.Script)
 
-	// Start execution.
+	// Start execution with history recording.
 	exec := a.executions.start(scriptPath, env, a.deps.Runner)
+
+	if a.deps.History != nil {
+		rec := domain.NewExecutionRecord(rb.ID, rb.Name, cat.Name, domain.ExecWeb)
+		rec.Parameters = make(map[string]string, len(resolved))
+		for k, v := range resolved {
+			rec.Parameters[k] = v
+		}
+		var secretNames []string
+		for _, p := range rb.Parameters {
+			if p.Secret {
+				secretNames = append(secretNames, p.Name)
+			}
+		}
+		rec.MaskSecrets(secretNames)
+
+		histStore := a.deps.History
+		exec.onComplete = func(lineCount int, lastLine string, err error) {
+			exitCode := 0
+			if err != nil {
+				exitCode = 1
+			}
+			rec.Complete(exitCode, lineCount, lastLine)
+			_ = histStore.Record(rec)
+		}
+	}
 
 	writeJSON(w, http.StatusAccepted, executeResponse{ExecutionID: exec.id})
 }
@@ -332,6 +360,48 @@ func (a *api) findRunbook(id string) (*domain.Runbook, *domain.Catalog, error) {
 	return rb, cat, nil
 }
 
+// --- History Endpoints ---
+
+func (a *api) handleListHistory(w http.ResponseWriter, r *http.Request) {
+	if a.deps.History == nil {
+		writeJSON(w, http.StatusOK, []any{})
+		return
+	}
+
+	opts := history.ListOpts{Limit: 50}
+	if rb := r.URL.Query().Get("runbook"); rb != "" {
+		opts.RunbookID = rb
+	}
+	if st := r.URL.Query().Get("status"); st != "" {
+		opts.Status = domain.ExecStatus(st)
+	}
+
+	records, err := a.deps.History.List(opts)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	if records == nil {
+		records = []*domain.ExecutionRecord{}
+	}
+	writeJSON(w, http.StatusOK, records)
+}
+
+func (a *api) handleGetHistory(w http.ResponseWriter, r *http.Request) {
+	if a.deps.History == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "history not available"})
+		return
+	}
+
+	id := r.PathValue("id")
+	rec, err := a.deps.History.Get(id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, rec)
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -354,6 +424,7 @@ type execution struct {
 	exitErr     error
 	cancel      func()
 	notify      chan struct{}
+	onComplete  func(lineCount int, lastLine string, err error) // called when execution finishes
 	mu          sync.Mutex
 }
 
@@ -405,7 +476,19 @@ func (s *executionStore) start(scriptPath string, env map[string]string, runner 
 		exec.done = true
 		exec.completedAt = time.Now()
 		exec.exitErr = err
+		lineCount := len(exec.lines)
+		lastLine := ""
+		for i := lineCount - 1; i >= 0; i-- {
+			if strings.TrimSpace(exec.lines[i]) != "" {
+				lastLine = strings.TrimSpace(exec.lines[i])
+				break
+			}
+		}
 		exec.mu.Unlock()
+
+		if exec.onComplete != nil {
+			exec.onComplete(lineCount, lastLine, err)
+		}
 
 		// Final signal.
 		select {

@@ -13,6 +13,7 @@ import (
 	catpkg "dops/internal/catalog"
 	"dops/internal/domain"
 	"dops/internal/executor"
+	histpkg "dops/internal/history"
 	"dops/internal/vars"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -26,6 +27,7 @@ type ServerConfig struct {
 	Runner   executor.Runner
 	Config   *domain.Config
 	MaxRisk  domain.RiskLevel
+	History  histpkg.ExecutionStore
 }
 
 // Server wraps the MCP SDK server with dops catalog integration.
@@ -35,6 +37,7 @@ type Server struct {
 	runner   executor.Runner
 	cfg      *domain.Config
 	dopsHome string
+	history  histpkg.ExecutionStore
 }
 
 // NewServer creates a new MCP server with tools and resources from the catalog.
@@ -50,6 +53,7 @@ func NewServer(sc ServerConfig) *Server {
 		runner:   sc.Runner,
 		cfg:      sc.Config,
 		dopsHome: sc.DopsHome,
+		history:  sc.History,
 	}
 
 	s.registerTools(sc.MaxRisk)
@@ -154,6 +158,14 @@ func (s *Server) makeToolHandler(rb domain.Runbook, cat domain.Catalog) func(con
 		})
 		if err != nil {
 			return toolError(err.Error()), nil
+		}
+
+		// Record to execution history.
+		if s.history != nil {
+			rec := domain.NewExecutionRecord(rb.ID, rb.Name, cat.Name, domain.ExecMCP)
+			rec.LogPath = result.LogPath
+			rec.Complete(result.ExitCode, result.OutputLines, result.Summary)
+			_ = s.history.Record(rec)
 		}
 
 		// Format as text.

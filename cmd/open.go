@@ -69,6 +69,7 @@ func runWebUI(opts WebUIOptions) error {
 		Loader:      deps.Loader,
 		Runner:      runner,
 		Vault:       deps.Vault,
+		History:     deps.History,
 		Theme:       deps.Resolved,
 		ThemeLoader: deps.ThemeLoader,
 		IsDark:      deps.IsDark,

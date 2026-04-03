@@ -94,13 +94,13 @@ to the next.
 
 ### Phase 3: Integration — Web + MCP (3 files)
 
-- [ ] **3.1** Wire Web API execution recording — `internal/web/api.go`
+- [x] **3.1** Wire Web API execution recording — `internal/web/api.go`
   - Pass `ExecutionStore` to web server deps
   - Record on execution completion
   - Add `GET /api/history` endpoint (JSON list)
   - Add `GET /api/history/{id}` endpoint (JSON detail)
 
-- [ ] **3.2** Wire MCP execution recording — `internal/mcp/tools.go`
+- [x] **3.2** Wire MCP execution recording — `internal/mcp/tools.go`
   - Pass `ExecutionStore` in `ToolCallRequest` or `ServerConfig`
   - Record on execution completion in `HandleToolCall`
   - Add MCP resource `dops://history` (JSON list of recent executions)

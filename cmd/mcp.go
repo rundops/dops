@@ -12,6 +12,7 @@ import (
 	"dops/internal/config"
 	"dops/internal/domain"
 	"dops/internal/executor"
+	"dops/internal/history"
 	"dops/internal/mcp"
 	"dops/internal/vault"
 
@@ -45,6 +46,9 @@ func newMCPServeCmd(dopsDir string) *cobra.Command {
 				return err
 			}
 
+			historyDir := filepath.Join(dopsDir, "history")
+			historyStore := history.NewFileStore(historyDir, 500)
+
 			runner := executor.NewScriptRunner()
 			srv := mcp.NewServer(mcp.ServerConfig{
 				Version:  version,
@@ -53,6 +57,7 @@ func newMCPServeCmd(dopsDir string) *cobra.Command {
 				Runner:   runner,
 				Config:   cfg,
 				MaxRisk:  domain.RiskLevel(allowRisk),
+				History:  historyStore,
 			})
 
 			ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
