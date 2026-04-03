@@ -6,6 +6,18 @@ title: Getting Started
 
 ## Installation
 
+### Quick Install (recommended)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rundops/dops/main/install.sh | sh
+```
+
+Downloads the latest binary for your platform and installs to `/usr/local/bin`. Set `DOPS_INSTALL_DIR` to change the location:
+
+```sh
+DOPS_INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/rundops/dops/main/install.sh | sh
+```
+
 ### Homebrew (macOS/Linux)
 
 ```sh
