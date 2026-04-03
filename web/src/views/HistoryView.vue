@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { fetchHistory } from "../lib/api";
+import { parseTimeInput } from "../lib/timeparse";
 import type { ExecutionRecord } from "../lib/types";
 
 const router = useRouter();
@@ -27,96 +28,6 @@ const presets = [
   { shorthand: "1w", label: "Past 1 Week", ms: 7 * 24 * 60 * 60 * 1000 },
   { shorthand: "2w", label: "Past 2 Weeks", ms: 14 * 24 * 60 * 60 * 1000 },
 ];
-
-// Parse free-form time input:
-//   Relative: "45m", "12 hours", "10d", "2 weeks", "last month", "yesterday", "today"
-//   Fixed: "Apr 1", "Apr 1 - Apr 2", "4/1", "4/1 - 4/2"
-//   Growing: "since 4/1"
-function parseTimeInput(raw: string): { from: Date | null; to: Date | null; label: string } | null {
-  const s = raw.trim().toLowerCase();
-  if (!s || s === "all" || s === "all time") {
-    return { from: null, to: null, label: "All time" };
-  }
-
-  // "today"
-  if (s === "today") {
-    const d = new Date(); d.setHours(0, 0, 0, 0);
-    return { from: d, to: null, label: "Today" };
-  }
-  // "yesterday"
-  if (s === "yesterday") {
-    const from = new Date(); from.setDate(from.getDate() - 1); from.setHours(0, 0, 0, 0);
-    const to = new Date(); to.setHours(0, 0, 0, 0);
-    return { from, to, label: "Yesterday" };
-  }
-  // "last month"
-  if (s === "last month") {
-    return { from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), to: null, label: "Last month" };
-  }
-
-  // "since <date>"
-  const sinceMatch = s.match(/^since\s+(.+)$/);
-  if (sinceMatch) {
-    const d = parseDate(sinceMatch[1]);
-    if (d) return { from: d, to: null, label: raw.trim() };
-  }
-
-  // Relative: "45m", "12 hours", "10d", "2 weeks", "last 5 min"
-  const relMatch = s.match(/^(?:last\s+)?(\d+)\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|days?|w|weeks?|mo|months?)$/);
-  if (relMatch) {
-    const n = parseInt(relMatch[1], 10);
-    const unit = relMatch[2];
-    let ms = 0;
-    if (unit.startsWith("s")) ms = n * 1000;
-    else if (unit.startsWith("mi") || unit === "m") ms = n * 60 * 1000;
-    else if (unit.startsWith("h")) ms = n * 60 * 60 * 1000;
-    else if (unit.startsWith("d")) ms = n * 24 * 60 * 60 * 1000;
-    else if (unit.startsWith("w")) ms = n * 7 * 24 * 60 * 60 * 1000;
-    else if (unit.startsWith("mo")) ms = n * 30 * 24 * 60 * 60 * 1000;
-    if (ms > 0) return { from: new Date(Date.now() - ms), to: null, label: raw.trim() };
-  }
-
-  // Fixed range: "Apr 1 - Apr 2", "4/1 - 4/2", "2026-04-01 - 2026-04-03"
-  const rangeSep = s.match(/^(.+?)\s*[-–]\s*(.+)$/);
-  if (rangeSep) {
-    const from = parseDate(rangeSep[1]);
-    const to = parseDate(rangeSep[2]);
-    if (from && to) {
-      to.setHours(23, 59, 59, 999);
-      return { from, to, label: raw.trim() };
-    }
-  }
-
-  // Single date: "Apr 1", "4/1", "2026-04-01"
-  const d = parseDate(s);
-  if (d) {
-    const to = new Date(d); to.setHours(23, 59, 59, 999);
-    return { from: d, to, label: raw.trim() };
-  }
-
-  return null;
-}
-
-// parseDate handles short dates like "Apr 1", "4/1", "4/1/2026" by
-// adding the current year when needed.
-function parseDate(input: string): Date | null {
-  const s = input.trim();
-  let d = new Date(s);
-
-  // If parsing fails or gives a wildly wrong year, try with current year.
-  if (isNaN(d.getTime()) || d.getFullYear() < 2000) {
-    d = new Date(`${s} ${new Date().getFullYear()}`);
-  }
-  // Try M/D format: "4/1" → "4/1/2026"
-  if (isNaN(d.getTime())) {
-    const slash = s.match(/^(\d{1,2})\/(\d{1,2})$/);
-    if (slash) {
-      d = new Date(`${slash[1]}/${slash[2]}/${new Date().getFullYear()}`);
-    }
-  }
-
-  return isNaN(d.getTime()) ? null : d;
-}
 
 function selectPreset(preset: { label: string; ms: number }) {
   timeRange.value = { from: new Date(Date.now() - preset.ms), to: null };
