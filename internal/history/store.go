@@ -1,6 +1,7 @@
 package history
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,11 +9,13 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"dops/internal/domain"
 )
 
 const defaultMaxRecords = 500
+const defaultArchiveAfterDays = 7
 
 // ListOpts controls filtering and pagination for List.
 type ListOpts struct {
@@ -32,8 +35,9 @@ type ExecutionStore interface {
 
 // FileExecutionStore stores execution records as JSON files.
 type FileExecutionStore struct {
-	dir        string
-	maxRecords int
+	dir             string
+	maxRecords      int
+	archiveAfterDays int
 }
 
 // NewFileStore creates a store backed by the given directory.
@@ -41,7 +45,18 @@ func NewFileStore(dir string, maxRecords int) *FileExecutionStore {
 	if maxRecords <= 0 {
 		maxRecords = defaultMaxRecords
 	}
-	return &FileExecutionStore{dir: dir, maxRecords: maxRecords}
+	return &FileExecutionStore{
+		dir:              dir,
+		maxRecords:       maxRecords,
+		archiveAfterDays: defaultArchiveAfterDays,
+	}
+}
+
+// SetArchiveDays configures how many days before logs are compressed.
+func (s *FileExecutionStore) SetArchiveDays(days int) {
+	if days > 0 {
+		s.archiveAfterDays = days
+	}
 }
 
 // Record writes an execution record to disk and enforces retention.
@@ -67,7 +82,47 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 	}
 
 	s.enforceRetention()
+	s.archiveOldLogs()
 	return nil
+}
+
+// archiveOldLogs compresses log files older than archiveAfterDays.
+func (s *FileExecutionStore) archiveOldLogs() {
+	cutoff := time.Now().AddDate(0, 0, -s.archiveAfterDays)
+
+	files, err := s.listFiles()
+	if err != nil {
+		return
+	}
+
+	for _, f := range files {
+		rec, err := s.loadRecord(f)
+		if err != nil || rec.LogPath == "" {
+			continue
+		}
+		// Skip already compressed.
+		if strings.HasSuffix(rec.LogPath, ".gz") {
+			continue
+		}
+		// Skip recent.
+		if rec.StartTime.After(cutoff) {
+			continue
+		}
+		// Compress the log file.
+		gzPath := rec.LogPath + ".gz"
+		if err := compressFile(rec.LogPath, gzPath); err != nil {
+			continue
+		}
+		_ = os.Remove(rec.LogPath)
+
+		// Update the record's log path.
+		rec.LogPath = gzPath
+		data, err := json.MarshalIndent(rec, "", "  ")
+		if err != nil {
+			continue
+		}
+		_ = os.WriteFile(filepath.Join(s.dir, f), data, 0o644)
+	}
 }
 
 // persistLog moves a log file from a temporary directory to ~/.dops/history/logs/
@@ -103,7 +158,7 @@ func (s *FileExecutionStore) persistLog(record *domain.ExecutionRecord) {
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src) // #nosec G304 -- src is internal log path from execution
+	in, err := os.Open(src) // #nosec G304 -- src is internal log path
 	if err != nil {
 		return err
 	}
@@ -117,6 +172,62 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func compressFile(src, dst string) error {
+	in, err := os.Open(src) // #nosec G304 -- src is internal log path from execution
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	gz := gzip.NewWriter(out)
+	if _, err := io.Copy(gz, in); err != nil {
+		gz.Close()
+		return err
+	}
+	return gz.Close()
+}
+
+// ReadLog reads a log file, transparently decompressing .gz files.
+// Returns the lines and true if the file was available.
+func ReadLog(path string) ([]string, bool) {
+	if path == "" {
+		return nil, false
+	}
+
+	f, err := os.Open(path) // #nosec G304 -- path from internal history record
+	if err != nil {
+		return nil, false
+	}
+	defer f.Close()
+
+	var reader io.Reader = f
+	if strings.HasSuffix(path, ".gz") {
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return nil, false
+		}
+		defer gz.Close()
+		reader = gz
+	}
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, false
+	}
+
+	content := strings.TrimRight(string(data), "\n")
+	if content == "" {
+		return []string{}, true
+	}
+	return strings.Split(content, "\n"), true
 }
 
 // Get retrieves a single execution record by ID.
