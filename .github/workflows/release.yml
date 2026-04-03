@@ -44,17 +44,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           COSIGN_YES: "true"
 
-  winget:
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - uses: vedantmgoyal9/winget-releaser@v2
-        with:
-          identifier: RunDops.dops
-          installers-regex: '\.zip$'
-          max-versions-to-keep: 5
-          fork-user: rundops
-          token: ${{ secrets.WINGET_TOKEN }}
+  # winget:
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   steps:
+  #     - uses: vedantmgoyal9/winget-releaser@v2
+  #       with:
+  #         identifier: RunDops.dops
+  #         installers-regex: '\.zip$'
+  #         max-versions-to-keep: 5
+  #         fork-user: rundops
+  #         token: ${{ secrets.WINGET_TOKEN }}
 
   docker:
     runs-on: ubuntu-latest
