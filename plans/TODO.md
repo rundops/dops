@@ -8,7 +8,7 @@
 - [x] MCP tool schema defaults (pass resolved vars to `RunbookToInputSchema`)
 - [x] MCP execution progress notifications (wire `OnProgress` callback)
 - [x] MCP create-runbook prompt scaffolding (dynamic parameter templates)
-- [x] Catalog switcher tab bar (TUI + Web UI)
+- [ ] ~~Catalog switcher tab bar~~ (reverted — UX needs rethinking)
 - [x] MCP skills — injectable context for AI agents (skill.md + MCP prompts)
 - [x] Web UI: execution view — remove duplicate status, modernize header
 

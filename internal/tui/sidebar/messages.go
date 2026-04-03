@@ -13,8 +13,3 @@ type RunbookExecuteMsg struct {
 	Runbook domain.Runbook
 	Catalog domain.Catalog
 }
-
-// CatalogSwitchedMsg is emitted when the active catalog tab changes.
-type CatalogSwitchedMsg struct {
-	CatalogName string // empty string means "All"
-}
