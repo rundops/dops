@@ -94,7 +94,9 @@ dops is built for DevOps and platform engineering teams who need a consistent, s
 - **Encrypted vault** — saved parameters encrypted with [age](https://github.com/FiloSottile/age) (X25519 + ChaCha20-Poly1305)
 - **Smart parameter input** — saved values auto-applied, only prompts for what's needed
 - **Live execution** — real-time stdout/stderr streaming with scroll, search, and text selection
-- **MCP server** — expose runbooks to AI agents via the [Model Context Protocol](https://modelcontextprotocol.io)
+- **Execution history** — persistent audit trail across TUI, CLI, Web, and MCP with `dops history` and web UI timeline
+- **MCP server** — expose runbooks as tools and skills to AI agents via the [Model Context Protocol](https://modelcontextprotocol.io)
+- **MCP skills** — injectable domain knowledge for AI agents via `type: skill` runbooks
 - **20 themes** — github, dracula, gruvbox, nord, synthwave, unicorn, and more
 - **CLI mode** — run any runbook non-interactively with `dops run <id> --param key=value`
 

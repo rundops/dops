@@ -25,9 +25,44 @@ type api struct {
 }
 
 func newAPI(deps ServerDeps) *api {
-	return &api{
+	a := &api{
 		deps:       deps,
 		executions: newExecutionStore(),
+	}
+	if deps.Demo && deps.History != nil {
+		seedDemoHistory(deps.History)
+	}
+	return a
+}
+
+func seedDemoHistory(store history.ExecutionStore) {
+	demos := []struct {
+		rbID, rbName, cat string
+		iface             domain.ExecInterface
+		exit              int
+		lines             []string
+		minsAgo           int
+	}{
+		{"demo.deploy-app", "deploy-app", "demo", domain.ExecWeb, 0,
+			[]string{"==> Stage 1/4: Build", "Building application...", "Build complete.", "==> Stage 2/4: Test", "All tests passed.", "==> Stage 3/4: Push", "Push complete.", "==> Stage 4/4: Deploy", "Deployment successful."}, 5},
+		{"infra.health-check", "health-check", "infra", domain.ExecCLI, 0,
+			[]string{"Checking endpoint https://api.example.com...", "HTTP 200 OK (42ms)", "All checks passed."}, 15},
+		{"default.echo", "echo", "default", domain.ExecTUI, 0,
+			[]string{"Hello from dops demo!"}, 30},
+		{"infra.scale-deployment", "scale-deployment", "infra", domain.ExecMCP, 0,
+			[]string{"Scaling deployment web-api to 5 replicas...", "deployment.apps/web-api scaled", "Waiting for rollout...", "5/5 replicas ready."}, 45},
+		{"demo.canary-deploy", "canary-deploy", "demo", domain.ExecWeb, 1,
+			[]string{"==> Canary deployment starting...", "Routing 10% traffic to canary...", "Error: health check failed after 30s", "Rolling back canary..."}, 120},
+		{"default.hello-world", "hello-world", "default", domain.ExecCLI, 0,
+			[]string{"Hello, World!"}, 180},
+	}
+
+	for _, d := range demos {
+		rec := domain.NewExecutionRecord(d.rbID, d.rbName, d.cat, d.iface)
+		rec.StartTime = time.Now().Add(-time.Duration(d.minsAgo) * time.Minute)
+		rec.Complete(d.exit, len(d.lines), d.lines[len(d.lines)-1])
+		_ = store.ArchiveLog(rec, d.lines)
+		_ = store.Record(rec)
 	}
 }
 

@@ -46,3 +46,22 @@ and exposed as an MCP resource.
 - [x] Temp log files cleaned up after copy
 - [x] `go test ./...` passes
 - [x] Cross-platform: Windows + Linux build clean
+
+---
+
+### 2. Release Polish (required for every version)
+
+**Status:** TODO
+
+Every release must include documentation updates, demo data, and
+release verification before tagging.
+
+#### Acceptance Criteria
+
+- [ ] README.md updated with new features
+- [ ] docs/guides/ pages updated (getting-started, new guides if needed)
+- [ ] Demo mode has sample history data for the history view
+- [ ] Screenshots/GIFs updated if UI changed
+- [ ] CLAUDE.md architecture reference updated if architecture changed
+- [ ] Changelog in GitHub release notes covers all changes
+- [ ] All open issues reviewed and closed if implemented

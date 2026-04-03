@@ -93,6 +93,10 @@ internal/
     encrypter.go        Encrypter interface
     mask.go             Secret masking for display
 
+  history/              Execution history persistence
+    store.go            FileExecutionStore — JSON records, size-capped .log.gz archives
+    archive.go          tar.gz archive read/write (AppendToActiveArchive, ReadFromArchive)
+
   adapters/             Interface adapters
     fs.go               OSFileSystem (os.ReadFile, os.WriteFile)
     log.go              LogWriter (temp dir execution logs)
@@ -140,6 +144,7 @@ dops mcp serve    → MCP server     → tools expose runbooks
 dops open         → web.NewServer  → HTTP + embedded Vue SPA
 dops config       → config store   → get/set/unset/list
 dops catalog      → git clone/pull → config update
+dops history      → FileExecutionStore → list/filter execution records
 dops init         → scaffold ~/.dops with hello-world catalog
 ```
 
@@ -162,7 +167,7 @@ Key flows:
   wizard.SubmitMsg            → App checks risk → confirm or execute
   wizard.SaveFieldMsg         → App persists to vault → SaveFieldResultMsg back
   confirm.ConfirmMsg          → App starts execution
-  executionDoneMsg            → App updates output, clears running state
+  executionDoneMsg            → App updates output, records to history, clears running state
 ```
 
 ### Execution Pipeline

@@ -170,6 +170,25 @@ dops run my-team.hello-world --param greeting="Hello, world!"
 
 ---
 
+## View Execution History
+
+See past runs across TUI, CLI, Web, and MCP:
+
+```sh
+dops history
+```
+
+Filter by runbook or status:
+
+```sh
+dops history --runbook default.hello-world
+dops history --status failed
+```
+
+Or view history in the web UI — click the clock icon in the sidebar header.
+
+---
+
 ## Environment
 
 | Variable | Default | Description |
