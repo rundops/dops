@@ -78,7 +78,7 @@ func shouldSkip(v string) bool {
 // readCache reads the cached result if it's fresh enough.
 // Returns the CheckResult and true if the cache is valid.
 func readCache(path, current string) (CheckResult, bool) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- path is internal cache file (~/.dops/cache.json)
 	if err != nil {
 		return CheckResult{}, false
 	}

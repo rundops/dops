@@ -180,7 +180,7 @@ func cloneRepo(url, targetDir, ref string) error {
 		}
 		cloneArgs = []string{"clone", "--branch", ref, url, targetDir}
 	}
-	gitCmd := exec.Command("git", cloneArgs...) // #nosec G204 -- url is a user-provided git remote
+	gitCmd := exec.Command("git", cloneArgs...) // #nosec G204,G702 -- url is a user-provided git remote, ref validated by isValidGitRef
 	gitCmd.Stdout = os.Stdout
 	gitCmd.Stderr = os.Stderr
 	if err := gitCmd.Run(); err != nil {
@@ -243,7 +243,7 @@ func newCatalogInstallCmd(dopsDir string) *cobra.Command {
 
 			// Validate sub-path stays within the cloned repository.
 			if subPath != "" {
-				validated, err := validateSubPath(targetDir, subPath)
+				validated, err := validateSubPath(targetDir, subPath) // #nosec G703 -- targetDir is tool-constructed, subPath validated below
 				if err != nil {
 					_ = os.RemoveAll(targetDir)
 					return err
