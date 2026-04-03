@@ -233,8 +233,8 @@ func TestSidebar_MouseClickRunbook(t *testing.T) {
 	m.Init()
 
 	// Visible: default/ (0), hello-world (1), rotate-tls (2), local/ (3), drain-node (4)
-	// Tab bar takes 2 rows, so content starts at Y=2. rotate-tls is content row 2 → Y=4.
-	m, cmd := m.Update(tea.MouseClickMsg{X: 5, Y: 4, Button: tea.MouseLeft})
+	// Tab bar takes 1 row, so content starts at Y=1. rotate-tls is content row 2 → Y=3.
+	m, cmd := m.Update(tea.MouseClickMsg{X: 5, Y: 3, Button: tea.MouseLeft})
 
 	if m.Cursor() != 2 {
 		t.Errorf("cursor = %d, want 2", m.Cursor())
@@ -252,15 +252,15 @@ func TestSidebar_MouseClickHeader(t *testing.T) {
 	m := New(testCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
-	// Tab bar takes 2 rows. default/ header is content row 0 → Y=2.
-	m, _ = m.Update(tea.MouseClickMsg{X: 5, Y: 2, Button: tea.MouseLeft})
+	// Tab bar takes 1 row. default/ header is content row 0 → Y=1.
+	m, _ = m.Update(tea.MouseClickMsg{X: 5, Y: 1, Button: tea.MouseLeft})
 
 	if !m.IsCollapsed("default") {
 		t.Error("click on header should collapse catalog")
 	}
 
 	// Click again should expand
-	m, _ = m.Update(tea.MouseClickMsg{X: 5, Y: 2, Button: tea.MouseLeft})
+	m, _ = m.Update(tea.MouseClickMsg{X: 5, Y: 1, Button: tea.MouseLeft})
 
 	if m.IsCollapsed("default") {
 		t.Error("second click should expand catalog")
@@ -271,8 +271,8 @@ func TestSidebar_DoubleClickExecutes(t *testing.T) {
 	m := New(testCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
-	// Tab bar takes 2 rows. hello-world is content row 1 → Y=3.
-	m, cmd := m.Update(tea.MouseClickMsg{X: 5, Y: 3, Button: tea.MouseLeft})
+	// Tab bar takes 1 row. hello-world is content row 1 → Y=2.
+	m, cmd := m.Update(tea.MouseClickMsg{X: 5, Y: 2, Button: tea.MouseLeft})
 	if cmd == nil {
 		t.Fatal("single click should emit selection")
 	}
@@ -281,7 +281,7 @@ func TestSidebar_DoubleClickExecutes(t *testing.T) {
 	}
 
 	// Second click on same Y immediately — double-click executes
-	m, cmd = m.Update(tea.MouseClickMsg{X: 5, Y: 3, Button: tea.MouseLeft})
+	m, cmd = m.Update(tea.MouseClickMsg{X: 5, Y: 2, Button: tea.MouseLeft})
 	if cmd == nil {
 		t.Fatal("double click should emit a command")
 	}
@@ -299,8 +299,8 @@ func TestSidebar_MouseHover(t *testing.T) {
 	m := New(testCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
-	// Tab bar takes 2 rows. hello-world is content row 1 → Y=3.
-	m, _ = m.Update(tea.MouseMotionMsg{X: 5, Y: 3})
+	// Tab bar takes 1 row. hello-world is content row 1 → Y=2.
+	m, _ = m.Update(tea.MouseMotionMsg{X: 5, Y: 2})
 
 	if m.HoverIdx() != 1 {
 		t.Errorf("hoverIdx = %d, want 1", m.HoverIdx())
@@ -317,8 +317,8 @@ func TestSidebar_KeyboardClearsHover(t *testing.T) {
 	m := New(testCatalogs(), 20, testutil.TestStyles())
 	m.Init()
 
-	// Set hover — tab bar takes 2 rows, content row 1 → Y=3
-	m, _ = m.Update(tea.MouseMotionMsg{X: 5, Y: 3})
+	// Set hover — tab bar takes 1 row, content row 1 → Y=2
+	m, _ = m.Update(tea.MouseMotionMsg{X: 5, Y: 2})
 	if m.HoverIdx() != 1 {
 		t.Fatal("hover should be set")
 	}

@@ -108,7 +108,7 @@ func (m Model) tabBarHeight() int {
 	if m.tabLabels() == nil {
 		return 0
 	}
-	return 2 // tab line + separator
+	return 1
 }
 
 func (m Model) mouseToIdx(y int) int {
@@ -456,7 +456,6 @@ func (m Model) View() string {
 	tabBar := m.renderTabBar(0)
 	if tabBar != "" {
 		sb.WriteString(tabBar)
-		sb.WriteString("\n") // separator line
 	}
 
 	for _, line := range visible {
