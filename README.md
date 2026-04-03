@@ -173,6 +173,10 @@ curl -fsSL https://raw.githubusercontent.com/rundops/dops/main/install.sh | sh
 
 Installs the latest binary to `/usr/local/bin`. Set `DOPS_INSTALL_DIR` to change the location.
 
+### Windows
+
+Download the latest `.zip` from the [releases page](https://github.com/rundops/dops/releases/latest) and add `dops.exe` to your PATH.
+
 ### Homebrew
 
 ```bash
