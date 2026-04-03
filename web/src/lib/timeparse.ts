@@ -1,3 +1,5 @@
+import * as chrono from "chrono-node";
+
 /**
  * Parsed time range result.
  * - from=null, to=null means "all time"
@@ -11,179 +13,105 @@ export interface TimeRange {
 
 /**
  * Parse a natural-language time input string into a date range.
+ * Powered by chrono-node for broad format support.
  *
- * Supported formats:
- *
- * Keywords:
- *   "all", "all time"       → no filter
- *   "today"                 → start of today → now
- *   "yesterday"             → start of yesterday → start of today
- *   "last month"            → 30 days ago → now
- *
- * Relative (duration ago → now):
- *   "45m", "45 min", "45 minutes"
- *   "12h", "12 hours", "12 hr"
- *   "10d", "10 days"
- *   "2w", "2 weeks"
- *   "3mo", "3 months"
- *   "last 5 min", "last 2 hours"
- *
- * Fixed (date → end of date):
- *   "Apr 1"                 → Apr 1 00:00 → Apr 1 23:59
- *   "4/1"                   → Apr 1 (current year)
- *   "2026-04-01"            → full ISO date
- *
- * Fixed range (date → date):
- *   "Apr 1 - Apr 2"
- *   "4/1 - 4/2"
- *   "2026-04-01 - 2026-04-03"
- *
- * Growing (date → now):
- *   "since 4/1"
- *   "since yesterday"
- *   "since Apr 1"
+ * Supported formats include:
+ *   "today", "yesterday", "this month", "last month"
+ *   "last 5 minutes", "45m", "12 hours", "2 weeks"
+ *   "since April 4", "since oct. 17", "since yesterday"
+ *   "Apr 1", "April 4", "4/1", "2026-04-01"
+ *   "Apr 1 - Apr 3", "4/1 - 4/3", "2026-04-01 - 2026-04-03"
+ *   "all", "all time"
  */
 export function parseTimeInput(raw: string, now?: Date): TimeRange | null {
   const refNow = now ?? new Date();
-  const s = raw.trim().toLowerCase();
+  const s = raw.trim();
+  const lower = s.toLowerCase();
 
-  if (!s || s === "all" || s === "all time") {
+  if (!lower || lower === "all" || lower === "all time") {
     return { from: null, to: null, label: "All time" };
   }
 
-  // Keywords
-  if (s === "today") {
-    const d = new Date(refNow);
-    d.setHours(0, 0, 0, 0);
-    return { from: d, to: null, label: "Today" };
-  }
-  if (s === "yesterday") {
-    const from = new Date(refNow);
-    from.setDate(from.getDate() - 1);
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(refNow);
-    to.setHours(0, 0, 0, 0);
-    return { from, to, label: "Yesterday" };
-  }
-  if (s === "last month") {
-    return {
-      from: new Date(refNow.getTime() - 30 * 24 * 60 * 60 * 1000),
-      to: null,
-      label: "Last month",
-    };
-  }
-
-  // "since <date>" or "since yesterday"
-  const sinceMatch = s.match(/^since\s+(.+)$/);
+  // "since <expression>" → parse the date part, open-ended to now
+  const sinceMatch = lower.match(/^since\s+(.+)$/);
   if (sinceMatch) {
-    const rest = sinceMatch[1].trim();
-    if (rest === "yesterday") {
-      const d = new Date(refNow);
-      d.setDate(d.getDate() - 1);
-      d.setHours(0, 0, 0, 0);
-      return { from: d, to: null, label: raw.trim() };
+    const parsed = chrono.parseDate(sinceMatch[1], refNow);
+    if (parsed) {
+      return { from: parsed, to: null, label: s };
     }
-    const d = parseDate(rest, refNow);
-    if (d) return { from: d, to: null, label: raw.trim() };
   }
 
-  // Relative: "45m", "12 hours", "last 5 min"
-  const relMatch = s.match(
-    /^(?:last\s+)?(\d+)\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|days?|w|weeks?|mo|months?)$/
+  // Shorthand relative: "45m", "12h", "10d", "2w", "3mo"
+  const shorthand = lower.match(
+    /^(?:last\s+)?(\d+)\s*(s|m|h|d|w|mo)$/
   );
-  if (relMatch) {
-    const n = parseInt(relMatch[1], 10);
-    const unit = relMatch[2];
-    const ms = unitToMs(unit, n);
+  if (shorthand) {
+    const n = parseInt(shorthand[1], 10);
+    const unit = shorthand[2];
+    const ms = shorthandToMs(unit, n);
     if (ms > 0) {
-      return {
-        from: new Date(refNow.getTime() - ms),
-        to: null,
-        label: raw.trim(),
-      };
+      return { from: new Date(refNow.getTime() - ms), to: null, label: s };
     }
   }
 
-  // Fixed range: "Apr 1 - Apr 2", "4/1 - 4/2", "2026-04-01 - 2026-04-03"
-  // Use " - " or " – " (with spaces) to avoid splitting ISO date hyphens.
+  // Range: "Apr 1 - Apr 3", "4/1 - 4/3" (require spaces around separator)
   const rangeSep = s.match(/^(.+?)\s+[-–]\s+(.+)$/);
   if (rangeSep) {
-    const from = parseDate(rangeSep[1].trim(), refNow);
-    const to = parseDate(rangeSep[2].trim(), refNow);
+    const from = chrono.parseDate(rangeSep[1], refNow);
+    const to = chrono.parseDate(rangeSep[2], refNow);
     if (from && to) {
       to.setHours(23, 59, 59, 999);
-      return { from, to, label: raw.trim() };
+      return { from, to, label: s };
     }
   }
 
-  // Single date: "Apr 1", "4/1", "2026-04-01"
-  const d = parseDate(s, refNow);
-  if (d) {
-    const to = new Date(d);
-    to.setHours(23, 59, 59, 999);
-    return { from: d, to, label: raw.trim() };
+  // Let chrono handle everything else: "today", "yesterday", "this month",
+  // "last 5 minutes", "last month", "April 4", "oct. 17", "2026-04-01", etc.
+  const results = chrono.parse(lower, refNow);
+  if (results.length > 0) {
+    const r = results[0];
+    const from = r.start.date();
+
+    // If chrono found an end date, use it as a range
+    if (r.end) {
+      const to = r.end.date();
+      to.setHours(23, 59, 59, 999);
+      return { from, to, label: s };
+    }
+
+    // "this month", "this week" → chrono returns a start; use as growing range
+    // Single date → treat as full day
+    if (isExactDate(r)) {
+      const to = new Date(from);
+      to.setHours(23, 59, 59, 999);
+      return { from, to, label: s };
+    }
+
+    // Relative/growing: "last 5 minutes", "yesterday", etc.
+    return { from, to: null, label: s };
   }
 
   return null;
 }
 
-function unitToMs(unit: string, n: number): number {
-  if (unit.startsWith("mo")) return n * 30 * 24 * 60 * 60 * 1000;
-  if (unit.startsWith("mi") || unit === "m") return n * 60 * 1000;
-  if (unit.startsWith("s")) return n * 1000;
-  if (unit.startsWith("h")) return n * 60 * 60 * 1000;
-  if (unit.startsWith("d")) return n * 24 * 60 * 60 * 1000;
-  if (unit.startsWith("w")) return n * 7 * 24 * 60 * 60 * 1000;
-  return 0;
-}
-
-/**
- * Parse a date string, handling short forms like "Apr 1", "4/1" by
- * adding the reference year when the native parser fails.
- */
-export function parseDate(input: string, refNow?: Date): Date | null {
-  const now = refNow ?? new Date();
-  const s = input.trim();
-  if (!s) return null;
-
-  // ISO format: "2026-04-01" → parse as local midnight (not UTC)
-  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) {
-    const d = new Date(
-      parseInt(isoMatch[1]),
-      parseInt(isoMatch[2]) - 1,
-      parseInt(isoMatch[3])
-    );
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  // M/D format: "4/1" → "4/1/2026"
-  const slash = s.match(/^(\d{1,2})\/(\d{1,2})$/);
-  if (slash) {
-    const d = new Date(now.getFullYear(), parseInt(slash[1]) - 1, parseInt(slash[2]));
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  // M/D/Y format: "4/1/2026"
-  const slashYear = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (slashYear) {
-    const d = new Date(
-      parseInt(slashYear[3]),
-      parseInt(slashYear[1]) - 1,
-      parseInt(slashYear[2])
-    );
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  // Month name patterns: "Apr 1", "March 15", "Apr 1, 2026"
-  const monthMatch = s.match(
-    /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\.?\s+(\d{1,2})(?:[,\s]+(\d{4}))?$/i
+/** Check if chrono parsed an exact date (no time component implied) */
+function isExactDate(result: chrono.ParsedResult): boolean {
+  // If day is certain but hour is not, it's an exact date like "Apr 1"
+  return (
+    result.start.isCertain("day") &&
+    result.start.isCertain("month") &&
+    !result.start.isCertain("hour")
   );
-  if (monthMatch) {
-    const year = monthMatch[3] ? parseInt(monthMatch[3]) : now.getFullYear();
-    const d = new Date(`${monthMatch[1]} ${monthMatch[2]}, ${year}`);
-    return isNaN(d.getTime()) ? null : d;
-  }
+}
 
-  return null;
+function shorthandToMs(unit: string, n: number): number {
+  switch (unit) {
+    case "s": return n * 1000;
+    case "m": return n * 60 * 1000;
+    case "h": return n * 60 * 60 * 1000;
+    case "d": return n * 24 * 60 * 60 * 1000;
+    case "w": return n * 7 * 24 * 60 * 60 * 1000;
+    case "mo": return n * 30 * 24 * 60 * 60 * 1000;
+    default: return 0;
+  }
 }

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "ansi_up": "^6.0.0",
+    "chrono-node": "^2.9.0",
     "vue": "^3.5.0",
     "vue-router": "^4.5.0"
   },
