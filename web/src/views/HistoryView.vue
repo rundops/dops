@@ -11,93 +11,123 @@ const loading = ref(true);
 const search = ref("");
 
 // --- Time range picker ---
-const timePickerOpen = ref(false);
-const timeQuery = ref("");
+const timeOpen = ref(false);
+const timeInput = ref("");
 const timeLabel = ref("All time");
 const timeRange = ref<{ from: Date | null; to: Date | null }>({ from: null, to: null });
-const timePickerEl = ref<HTMLElement | null>(null);
+const timeEl = ref<HTMLElement | null>(null);
 
 const presets = [
-  { label: "Last 2 minutes", ms: 2 * 60 * 1000 },
-  { label: "Last 5 minutes", ms: 5 * 60 * 1000 },
-  { label: "Last 15 minutes", ms: 15 * 60 * 1000 },
-  { label: "Last 1 hour", ms: 60 * 60 * 1000 },
-  { label: "Last 4 hours", ms: 4 * 60 * 60 * 1000 },
-  { label: "Last 1 day", ms: 24 * 60 * 60 * 1000 },
-  { label: "Last 7 days", ms: 7 * 24 * 60 * 60 * 1000 },
-  { label: "Last 30 days", ms: 30 * 24 * 60 * 60 * 1000 },
-  { label: "All time", ms: 0 },
+  { shorthand: "15m", label: "Past 15 Minutes", ms: 15 * 60 * 1000 },
+  { shorthand: "30m", label: "Past 30 Minutes", ms: 30 * 60 * 1000 },
+  { shorthand: "1h", label: "Past 1 Hour", ms: 60 * 60 * 1000 },
+  { shorthand: "4h", label: "Past 4 Hours", ms: 4 * 60 * 60 * 1000 },
+  { shorthand: "1d", label: "Past 1 Day", ms: 24 * 60 * 60 * 1000 },
+  { shorthand: "2d", label: "Past 2 Days", ms: 2 * 24 * 60 * 60 * 1000 },
+  { shorthand: "1w", label: "Past 1 Week", ms: 7 * 24 * 60 * 60 * 1000 },
+  { shorthand: "2w", label: "Past 2 Weeks", ms: 14 * 24 * 60 * 60 * 1000 },
 ];
 
-const filteredPresets = computed(() => {
-  if (!timeQuery.value) return presets;
-  const q = timeQuery.value.toLowerCase();
-  return presets.filter((p) => p.label.toLowerCase().includes(q));
-});
+// Parse free-form time input:
+//   Relative: "45m", "12 hours", "10d", "2 weeks", "last month", "yesterday", "today"
+//   Fixed: "Apr 1", "Apr 1 - Apr 2", "4/1", "4/1 - 4/2"
+//   Growing: "since 4/1"
+function parseTimeInput(raw: string): { from: Date | null; to: Date | null; label: string } | null {
+  const s = raw.trim().toLowerCase();
+  if (!s || s === "all" || s === "all time") {
+    return { from: null, to: null, label: "All time" };
+  }
 
-// Parse custom date input: "2026-04-01 - 2026-04-03" or "2026-04-01"
-function parseCustomRange(input: string): { from: Date; to: Date } | null {
-  const parts = input.split(/\s*[-–]\s*/);
-  if (parts.length === 2) {
-    const from = new Date(parts[0].trim());
-    const to = new Date(parts[1].trim());
+  // "today"
+  if (s === "today") {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    return { from: d, to: null, label: "Today" };
+  }
+  // "yesterday"
+  if (s === "yesterday") {
+    const from = new Date(); from.setDate(from.getDate() - 1); from.setHours(0, 0, 0, 0);
+    const to = new Date(); to.setHours(0, 0, 0, 0);
+    return { from, to, label: "Yesterday" };
+  }
+  // "last month"
+  if (s === "last month") {
+    return { from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), to: null, label: "Last month" };
+  }
+
+  // "since <date>"
+  const sinceMatch = s.match(/^since\s+(.+)$/);
+  if (sinceMatch) {
+    const d = new Date(sinceMatch[1]);
+    if (!isNaN(d.getTime())) return { from: d, to: null, label: raw.trim() };
+  }
+
+  // Relative: "45m", "12 hours", "10d", "2 weeks", "last 5 min"
+  const relMatch = s.match(/^(?:last\s+)?(\d+)\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|days?|w|weeks?|mo|months?)$/);
+  if (relMatch) {
+    const n = parseInt(relMatch[1], 10);
+    const unit = relMatch[2];
+    let ms = 0;
+    if (unit.startsWith("s")) ms = n * 1000;
+    else if (unit.startsWith("mi") || unit === "m") ms = n * 60 * 1000;
+    else if (unit.startsWith("h")) ms = n * 60 * 60 * 1000;
+    else if (unit.startsWith("d")) ms = n * 24 * 60 * 60 * 1000;
+    else if (unit.startsWith("w")) ms = n * 7 * 24 * 60 * 60 * 1000;
+    else if (unit.startsWith("mo")) ms = n * 30 * 24 * 60 * 60 * 1000;
+    if (ms > 0) return { from: new Date(Date.now() - ms), to: null, label: raw.trim() };
+  }
+
+  // Fixed range: "Apr 1 - Apr 2", "4/1 - 4/2", "2026-04-01 - 2026-04-03"
+  const rangeSep = s.match(/^(.+?)\s*[-–]\s*(.+)$/);
+  if (rangeSep) {
+    const from = new Date(rangeSep[1]);
+    const to = new Date(rangeSep[2]);
     if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
       to.setHours(23, 59, 59, 999);
-      return { from, to };
+      return { from, to, label: raw.trim() };
     }
   }
-  if (parts.length === 1) {
-    const d = new Date(parts[0].trim());
-    if (!isNaN(d.getTime())) {
-      const to = new Date(d);
-      to.setHours(23, 59, 59, 999);
-      return { from: d, to };
-    }
+
+  // Single date: "Apr 1", "4/1", "2026-04-01"
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const to = new Date(d); to.setHours(23, 59, 59, 999);
+    return { from: d, to, label: raw.trim() };
   }
+
   return null;
 }
 
 function selectPreset(preset: { label: string; ms: number }) {
+  timeRange.value = { from: new Date(Date.now() - preset.ms), to: null };
   timeLabel.value = preset.label;
-  if (preset.ms === 0) {
-    timeRange.value = { from: null, to: null };
-  } else {
-    timeRange.value = { from: new Date(Date.now() - preset.ms), to: null };
-  }
-  timePickerOpen.value = false;
-  timeQuery.value = "";
+  timeOpen.value = false;
+  timeInput.value = "";
 }
 
-function applyCustomRange() {
-  const parsed = parseCustomRange(timeQuery.value);
+function applyCustom() {
+  const parsed = parseTimeInput(timeInput.value);
   if (parsed) {
-    timeRange.value = parsed;
-    timeLabel.value = timeQuery.value;
-    timePickerOpen.value = false;
-    timeQuery.value = "";
+    timeRange.value = { from: parsed.from, to: parsed.to };
+    timeLabel.value = parsed.label;
+    timeOpen.value = false;
+    timeInput.value = "";
   }
+}
+
+function clearTime() {
+  timeRange.value = { from: null, to: null };
+  timeLabel.value = "All time";
+  timeOpen.value = false;
+  timeInput.value = "";
 }
 
 function onTimeKeydown(e: KeyboardEvent) {
-  if (e.key === "Enter") {
-    // Try custom range first, then first matching preset
-    const parsed = parseCustomRange(timeQuery.value);
-    if (parsed) {
-      applyCustomRange();
-    } else if (filteredPresets.value.length > 0) {
-      selectPreset(filteredPresets.value[0]);
-    }
-  }
-  if (e.key === "Escape") {
-    timePickerOpen.value = false;
-    timeQuery.value = "";
-  }
+  if (e.key === "Enter") applyCustom();
+  if (e.key === "Escape") { timeOpen.value = false; timeInput.value = ""; }
 }
 
 function onClickOutside(e: MouseEvent) {
-  if (timePickerEl.value && !timePickerEl.value.contains(e.target as Node)) {
-    timePickerOpen.value = false;
-  }
+  if (timeEl.value && !timeEl.value.contains(e.target as Node)) timeOpen.value = false;
 }
 
 onMounted(async () => {
@@ -105,16 +135,11 @@ onMounted(async () => {
   loading.value = false;
   document.addEventListener("click", onClickOutside);
 });
-
-onUnmounted(() => {
-  document.removeEventListener("click", onClickOutside);
-});
+onUnmounted(() => { document.removeEventListener("click", onClickOutside); });
 
 // --- Filtering ---
 const filtered = computed(() => {
   let result = records.value;
-
-  // Time range filter
   if (timeRange.value.from) {
     const from = timeRange.value.from.getTime();
     const to = timeRange.value.to ? timeRange.value.to.getTime() : Date.now();
@@ -123,46 +148,34 @@ const filtered = computed(() => {
       return t >= from && t <= to;
     });
   }
-
-  // Text search
   if (search.value) {
     const q = search.value.toLowerCase();
-    result = result.filter(
-      (r) =>
-        r.runbook_id.toLowerCase().includes(q) ||
-        r.runbook_name.toLowerCase().includes(q) ||
-        r.catalog_name.toLowerCase().includes(q) ||
-        r.status.toLowerCase().includes(q) ||
-        r.interface.toLowerCase().includes(q)
+    result = result.filter((r) =>
+      r.runbook_id.toLowerCase().includes(q) ||
+      r.runbook_name.toLowerCase().includes(q) ||
+      r.catalog_name.toLowerCase().includes(q) ||
+      r.status.toLowerCase().includes(q) ||
+      r.interface.toLowerCase().includes(q)
     );
   }
-
   return result;
 });
 
 function statusClass(status: string): string {
   switch (status) {
-    case "success":
-      return "bg-success-muted text-success";
-    case "failed":
-      return "bg-error-muted text-error";
-    case "cancelled":
-      return "bg-warning-muted text-warning";
-    default:
-      return "bg-primary-muted text-primary";
+    case "success": return "bg-success-muted text-success";
+    case "failed": return "bg-error-muted text-error";
+    case "cancelled": return "bg-warning-muted text-warning";
+    default: return "bg-primary-muted text-primary";
   }
 }
 
 function statusIcon(status: string): string {
   switch (status) {
-    case "success":
-      return "✓";
-    case "failed":
-      return "✕";
-    case "cancelled":
-      return "⊘";
-    default:
-      return "●";
+    case "success": return "✓";
+    case "failed": return "✕";
+    case "cancelled": return "⊘";
+    default: return "●";
   }
 }
 
@@ -173,15 +186,12 @@ function formatTime(iso: string): string {
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
-
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-
   return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
+    month: "short", day: "numeric",
     year: now.getFullYear() !== d.getFullYear() ? "numeric" : undefined,
   });
 }
@@ -197,58 +207,103 @@ function formatTime(iso: string): string {
           <span class="text-fg-subtle text-[12px]" v-if="!loading">{{ filtered.length }} runs</span>
         </div>
 
-        <!-- Time range picker -->
-        <div ref="timePickerEl" class="relative">
+        <!-- Time range trigger -->
+        <div ref="timeEl" class="relative">
           <button
-            @click.stop="timePickerOpen = !timePickerOpen"
+            @click.stop="timeOpen = !timeOpen"
             class="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium border border-border rounded-md bg-bg text-fg-muted hover:border-border-active hover:text-fg cursor-pointer transition-colors duration-150"
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle shrink-0">
               <path d="M1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0zM8 0a8 8 0 100 16A8 8 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 00.37.65l2.5 1.5a.75.75 0 00.76-1.3L8.5 7.87V4.75z"/>
             </svg>
-            {{ timeLabel }}
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle ml-0.5">
+            <span class="truncate max-w-[160px]">{{ timeLabel }}</span>
+            <button
+              v-if="timeLabel !== 'All time'"
+              @click.stop="clearTime"
+              class="flex items-center text-fg-subtle hover:text-fg bg-transparent border-none cursor-pointer p-0 ml-0.5 text-[10px]"
+              title="Clear"
+            >✕</button>
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle">
               <path d="M4.427 7.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 7H4.604a.25.25 0 00-.177.427z"/>
             </svg>
           </button>
 
-          <!-- Dropdown -->
+          <!-- Two-panel dropdown -->
           <div
-            v-if="timePickerOpen"
-            class="absolute right-0 top-9 w-[260px] bg-bg-panel border border-border rounded-lg shadow-xl z-50 overflow-hidden"
+            v-if="timeOpen"
+            class="absolute right-0 top-9 w-[520px] bg-bg-panel border border-border rounded-lg shadow-xl z-50 flex overflow-hidden"
           >
-            <!-- Search input -->
-            <div class="p-2 border-b border-border">
+            <!-- Left panel: custom input + examples -->
+            <div class="flex-1 p-4 border-r border-border">
+              <div class="text-[12px] text-fg-muted mb-2.5 font-medium">Type custom times like:</div>
               <input
-                v-model="timeQuery"
+                v-model="timeInput"
                 @keydown="onTimeKeydown"
                 type="text"
-                placeholder="Type a time range..."
-                class="w-full px-2.5 py-1.5 text-[12px] bg-bg border border-border rounded text-fg placeholder-fg-subtle focus:border-border-active focus:outline-none"
+                placeholder="e.g. 45m, last 2 hours, since 4/1..."
+                class="w-full px-2.5 py-2 text-[13px] bg-bg border border-border rounded-md text-fg placeholder-fg-subtle focus:border-border-active focus:outline-none mb-3"
                 autofocus
               />
+
+              <div class="text-[11px] text-fg-subtle mb-1.5 font-medium">Relative</div>
+              <div class="flex flex-wrap gap-1.5 mb-3">
+                <button
+                  v-for="ex in ['45m', '12 hours', '10d', '2 weeks', 'last month', 'yesterday', 'today']"
+                  :key="ex"
+                  @click="timeInput = ex; applyCustom()"
+                  class="px-2 py-0.5 text-[11px] font-mono bg-bg-element border border-border/50 rounded text-fg-muted hover:text-fg hover:border-border-active cursor-pointer transition-colors duration-100"
+                >{{ ex }}</button>
+              </div>
+
+              <div class="text-[11px] text-fg-subtle mb-1.5 font-medium">Fixed</div>
+              <div class="flex flex-wrap gap-1.5 mb-3">
+                <button
+                  v-for="ex in ['Apr 1', 'Apr 1 - Apr 2', '4/1', '4/1 - 4/2']"
+                  :key="ex"
+                  @click="timeInput = ex; applyCustom()"
+                  class="px-2 py-0.5 text-[11px] font-mono bg-bg-element border border-border/50 rounded text-fg-muted hover:text-fg hover:border-border-active cursor-pointer transition-colors duration-100"
+                >{{ ex }}</button>
+              </div>
+
+              <div class="text-[11px] text-fg-subtle mb-1.5 font-medium">Growing</div>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="ex in ['since 4/1', 'since yesterday']"
+                  :key="ex"
+                  @click="timeInput = ex; applyCustom()"
+                  class="px-2 py-0.5 text-[11px] font-mono bg-bg-element border border-border/50 rounded text-fg-muted hover:text-fg hover:border-border-active cursor-pointer transition-colors duration-100"
+                >{{ ex }}</button>
+              </div>
             </div>
 
-            <!-- Presets -->
-            <div class="max-h-[240px] overflow-y-auto py-1">
+            <!-- Right panel: presets -->
+            <div class="w-[200px] py-1 overflow-y-auto">
               <button
-                v-for="preset in filteredPresets"
-                :key="preset.label"
+                v-for="preset in presets"
+                :key="preset.shorthand"
                 @click="selectPreset(preset)"
                 :class="timeLabel === preset.label
                   ? 'bg-primary-muted text-primary'
                   : 'text-fg-muted hover:bg-bg-hover hover:text-fg'"
-                class="flex items-center w-full text-left px-3 py-1.5 text-[12px] cursor-pointer transition-colors duration-100 border-none bg-transparent"
+                class="flex items-center gap-2.5 w-full text-left px-3 py-2 text-[12px] cursor-pointer transition-colors duration-100 border-none bg-transparent"
               >
-                <span class="w-4 text-center mr-2" v-if="timeLabel === preset.label">✓</span>
-                <span class="w-4 mr-2" v-else></span>
-                {{ preset.label }}
+                <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">
+                  {{ preset.shorthand }}
+                </span>
+                <span>{{ preset.label }}</span>
               </button>
-            </div>
-
-            <!-- Custom hint -->
-            <div v-if="timeQuery && !filteredPresets.length" class="px-3 py-2 text-[11px] text-fg-subtle border-t border-border">
-              Try: <span class="font-mono">2026-04-01 - 2026-04-03</span>
+              <div class="border-t border-border mt-1 pt-1">
+                <button
+                  @click="clearTime"
+                  :class="timeLabel === 'All time'
+                    ? 'bg-primary-muted text-primary'
+                    : 'text-fg-muted hover:bg-bg-hover hover:text-fg'"
+                  class="flex items-center gap-2.5 w-full text-left px-3 py-2 text-[12px] cursor-pointer transition-colors duration-100 border-none bg-transparent"
+                >
+                  <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">∞</span>
+                  <span>All Time</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -256,10 +311,7 @@ function formatTime(iso: string): string {
 
       <!-- Search -->
       <div class="relative">
-        <svg
-          class="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none"
-          width="14" height="14" viewBox="0 0 16 16" fill="currentColor"
-        >
+        <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle pointer-events-none" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
           <path fill-rule="evenodd" d="M11.5 7a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z"/>
         </svg>
         <input
@@ -273,15 +325,11 @@ function formatTime(iso: string): string {
 
     <!-- Content -->
     <div class="flex-1 overflow-y-auto">
-      <div v-if="loading" class="flex items-center justify-center h-32 text-fg-muted text-[13px]">
-        Loading...
-      </div>
-
+      <div v-if="loading" class="flex items-center justify-center h-32 text-fg-muted text-[13px]">Loading...</div>
       <div v-else-if="filtered.length === 0" class="flex flex-col items-center justify-center h-32 text-fg-subtle text-[13px]">
         <span v-if="search || timeRange.from">No results matching your filters</span>
         <span v-else>No executions yet. Run a runbook to see history here.</span>
       </div>
-
       <div v-else class="divide-y divide-border/40">
         <div
           v-for="rec in filtered"
@@ -291,17 +339,11 @@ function formatTime(iso: string): string {
         >
           <div class="flex items-center justify-between mb-1">
             <div class="flex items-center gap-2.5 min-w-0">
-              <span
-                :class="statusClass(rec.status)"
-                class="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full shrink-0"
-              >
-                {{ statusIcon(rec.status) }}
-              </span>
+              <span :class="statusClass(rec.status)" class="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full shrink-0">{{ statusIcon(rec.status) }}</span>
               <span class="font-mono text-[13px] text-fg truncate">{{ rec.runbook_id }}</span>
             </div>
             <span class="text-[11px] text-fg-subtle whitespace-nowrap ml-3">{{ formatTime(rec.start_time) }}</span>
           </div>
-
           <div class="flex items-center gap-2 ml-[30px] text-[11px]">
             <span class="font-mono text-fg-muted">{{ rec.duration || "–" }}</span>
             <span class="text-fg-subtle">·</span>
