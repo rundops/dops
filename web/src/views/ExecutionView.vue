@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { streamExecution, cancelExecution } from "../lib/api";
 import { AnsiUp } from "ansi_up";
 
 const props = defineProps<{ id: string }>();
 const router = useRouter();
+const route = useRoute();
 
 const lines = ref<string[]>([]);
 const status = ref<"running" | "success" | "error">("running");
@@ -27,11 +28,8 @@ const duration = computed(() => {
 
 const isComplete = computed(() => status.value !== "running");
 
-// Extract runbook name from execution ID (best-effort)
 const runbookName = computed(() => {
-  // The execution ID may contain the runbook name; extract if possible
-  const parts = props.id.split("-");
-  return parts.length > 1 ? parts.slice(0, -1).join("-") : props.id;
+  return (route.query.name as string) || props.id;
 });
 
 function scrollToBottom() {

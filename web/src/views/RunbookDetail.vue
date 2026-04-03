@@ -93,7 +93,7 @@ async function execute() {
   error.value = "";
   try {
     const execId = await executeRunbook(runbook.value.id, params.value);
-    router.push(`/execute/${execId}`);
+    router.push({ path: `/execute/${execId}`, query: { name: runbook.value.name } });
   } catch (e) {
     error.value = String(e);
     toast.error(String(e));
