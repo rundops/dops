@@ -1,18 +1,22 @@
 # dops-cli — Feature TODO
 
-## v0.11.0 — MCP Completeness + Web UI Polish
+## v0.12.0 — Execution History
 
-**Spec:** [specs/VERSION_0_11_0.md](../specs/VERSION_0_11_0.md)
-**Branch:** `feature/v0.11.0`
+**Spec:** [specs/VERSION_0_12_0.md](../specs/VERSION_0_12_0.md)
+**Plan:** [plans/2026-04-03-execution-history.md](2026-04-03-execution-history.md)
+**Branch:** `feature/v0.12.0`
 
-- [x] MCP tool schema defaults (pass resolved vars to `RunbookToInputSchema`)
-- [x] MCP execution progress notifications (wire `OnProgress` callback)
-- [x] MCP create-runbook prompt scaffolding (dynamic parameter templates)
-- [ ] ~~Catalog switcher tab bar~~ (reverted — UX needs rethinking)
-- [x] MCP skills — injectable context for AI agents (skill.md + MCP prompts)
-- [x] Web UI: execution view — remove duplicate status, modernize header
+- [ ] Execution history + audit trail ([#55](https://github.com/rundops/dops/issues/55))
 
 ## Completed
+
+### v0.11.0 — MCP Completeness + Web UI Polish
+- [x] MCP tool schema defaults
+- [x] MCP execution progress notifications
+- [x] MCP create-runbook prompt scaffolding
+- [x] MCP skills — injectable context for AI agents
+- [x] Web UI: execution view redesign
+- ~~Catalog switcher tab bar~~ (reverted)
 
 ### 2026-03-23 — Output Pane Refinement
 - [x] ANSI handling with charmbracelet/x/ansi

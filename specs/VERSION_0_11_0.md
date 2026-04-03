@@ -13,7 +13,7 @@ header.
 
 ### 1. MCP Tool Schema Defaults
 
-**Status:** TODO
+**Status:** DONE
 
 Populate pre-filled parameter defaults in MCP tool schemas so AI clients
 see saved values before invoking a tool.
@@ -41,7 +41,7 @@ fields appear in the JSON Schema output.
 
 ### 2. MCP Execution Progress Notifications
 
-**Status:** TODO
+**Status:** DONE
 
 Wire real-time progress notifications during MCP tool execution so AI
 clients receive streaming updates instead of silent execution followed by a
@@ -70,7 +70,7 @@ include line count and a truncated tail of recent output.
 
 ### 3. MCP Create-Runbook Prompt Scaffolding
 
-**Status:** TODO
+**Status:** DONE
 
 Replace placeholder TODOs in the `create-runbook` MCP prompt templates with
 dynamic parameter scaffolding based on the runbook's declared parameters.
@@ -102,7 +102,7 @@ descriptive placeholder that references the parameter variables.
 
 ### 4. Catalog Switcher (Tab Bar)
 
-**Status:** IN PROGRESS
+**Status:** REVERTED
 
 Add a tab bar above the sidebar that lets users switch between catalogs,
 showing only the active catalog's runbooks. Inspired by television CLI's
@@ -148,7 +148,7 @@ collapsible tree. No concept of "active catalog."
 
 ### 5. MCP Skills — Injectable Context for AI Agents
 
-**Status:** TODO
+**Status:** DONE
 
 Add skills as a new content type alongside runbooks. A skill is a markdown
 file that provides domain knowledge to AI agents via MCP prompts. Where a
@@ -247,7 +247,7 @@ Skills are exposed as MCP prompts:
 
 ### Fix 1. Execution View — Remove Duplicate Status, Modernize Header
 
-**Status:** TODO
+**Status:** DONE
 
 The `ExecutionView.vue` component shows the status pill ("Completed" /
 "Failed") in both the header bar and a footer bar that appears on
