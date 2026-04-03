@@ -70,22 +70,22 @@ to the next.
 
 ### Phase 2: Integration — TUI + CLI (4 files)
 
-- [ ] **2.1** Add `ExecutionStore` to `cmd/deps.go` — `appDeps` struct
+- [x] **2.1** Add `ExecutionStore` to `cmd/deps.go` — `appDeps` struct
   - Create `FileExecutionStore` in `loadDeps()`
   - Pass history dir as `filepath.Join(dopsDir, "history")`
 
-- [ ] **2.2** Wire TUI execution recording — `internal/tui/exec.go`
+- [x] **2.2** Wire TUI execution recording — `internal/tui/exec.go`
   - In `startExecution()`: create `ExecutionRecord` (status=running)
   - In `executionDoneMsg` handler: call `Complete()`, `Record()`
   - Pass `ExecutionStore` via `AppDeps`
   - Mask secret params before recording
 
-- [ ] **2.3** Wire CLI execution recording — `cmd/run.go`
+- [x] **2.3** Wire CLI execution recording — `cmd/run.go`
   - After `executeScript()`: create record, complete, record
   - Load `ExecutionStore` in run command setup
   - Mask secret params before recording
 
-- [ ] **2.4** Add `dops history` command — `cmd/history.go`
+- [x] **2.4** Add `dops history` command — `cmd/history.go`
   - `dops history` — list last 20 executions (table format)
   - `dops history --runbook <id>` — filter by runbook
   - `dops history --status failed` — filter by status

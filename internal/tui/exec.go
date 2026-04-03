@@ -42,6 +42,25 @@ func (m App) startExecution(rb domain.Runbook, cat domain.Catalog, params map[st
 	env := buildEnv(params)
 	logPath := m.createLogFile(cat.Name, rb.Name)
 
+	// Start execution record.
+	rec := domain.NewExecutionRecord(rb.ID, rb.Name, cat.Name, domain.ExecTUI)
+	rec.Parameters = make(map[string]string, len(params))
+	for k, v := range params {
+		rec.Parameters[k] = v
+	}
+	// Mask secret params before storing.
+	var secretNames []string
+	for _, p := range rb.Parameters {
+		if p.Secret {
+			secretNames = append(secretNames, p.Name)
+		}
+	}
+	rec.MaskSecrets(secretNames)
+	rec.LogPath = logPath
+	m.execRecord = rec
+	m.execLineCount = 0
+	m.execLastLine = ""
+
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancelExec = cancel
 	m.execRunning = true

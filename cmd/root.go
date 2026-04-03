@@ -38,6 +38,7 @@ func newRootCmd(dopsDir string) *cobra.Command {
 	root.AddCommand(newCatalogCmd(dopsDir))
 	root.AddCommand(newMCPCmd(dopsDir))
 	root.AddCommand(newOpenCmd(dopsDir))
+	root.AddCommand(newHistoryCmd(dopsDir))
 
 	// Styled help for all commands.
 	root.SetHelpFunc(cli.HelpFunc)

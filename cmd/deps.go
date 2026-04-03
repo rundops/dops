@@ -9,6 +9,7 @@ import (
 	"dops/internal/catalog"
 	"dops/internal/config"
 	"dops/internal/domain"
+	"dops/internal/history"
 	"dops/internal/theme"
 	"dops/internal/vault"
 
@@ -27,6 +28,7 @@ type appDeps struct {
 	IsDark      bool
 	Loader      *catalog.DiskCatalogLoader
 	Catalogs    []catalog.CatalogWithRunbooks
+	History     history.ExecutionStore
 }
 
 // loadDeps performs the common bootstrap sequence: load config, vault, theme,
@@ -75,6 +77,10 @@ func loadDeps(dopsDir string) (*appDeps, error) {
 		return nil, fmt.Errorf("load catalogs: %w", err)
 	}
 
+	// Execution history store.
+	historyDir := filepath.Join(dopsDir, "history")
+	historyStore := history.NewFileStore(historyDir, 500)
+
 	return &appDeps{
 		FS:          fs,
 		Store:       store,
@@ -86,5 +92,6 @@ func loadDeps(dopsDir string) (*appDeps, error) {
 		IsDark:      isDark,
 		Loader:      loader,
 		Catalogs:    catalogs,
+		History:     historyStore,
 	}, nil
 }

@@ -11,6 +11,7 @@ import (
 	"dops/internal/config"
 	"dops/internal/domain"
 	"dops/internal/executor"
+	"dops/internal/history"
 	"dops/internal/vars"
 	"dops/internal/vault"
 
@@ -104,7 +105,10 @@ func newRunCmd(dopsDir string) *cobra.Command {
 				filepath.Join(catPath, rb.Name, "runbook.yaml"),
 			), rb.Script)
 
-			return executeScript(cmd, scriptPath, resolved, cat.Name, rb.Name)
+			historyDir := filepath.Join(dopsDir, "history")
+			historyStore := history.NewFileStore(historyDir, 500)
+
+			return executeScript(cmd, scriptPath, resolved, rb, cat, historyStore)
 		},
 	}
 
@@ -181,18 +185,38 @@ func saveInputs(p saveInputsParams) error {
 	return p.Vault.Save(&p.Cfg.Vars)
 }
 
-func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string, _, _ string) error {
+func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string, rb *domain.Runbook, cat *domain.Catalog, historyStore history.ExecutionStore) error {
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
+	// Start execution record.
+	rec := domain.NewExecutionRecord(rb.ID, rb.Name, cat.Name, domain.ExecCLI)
+	rec.Parameters = make(map[string]string, len(env))
+	for k, v := range env {
+		rec.Parameters[k] = v
+	}
+	var secretNames []string
+	for _, p := range rb.Parameters {
+		if p.Secret {
+			secretNames = append(secretNames, strings.ToUpper(p.Name))
+		}
+	}
+	rec.MaskSecrets(secretNames)
 
 	runner := executor.NewScriptRunner()
 	lines, errs := runner.Run(ctx, scriptPath, env)
 
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
+	lineCount := 0
+	lastLine := ""
 	for line := range lines {
+		lineCount++
+		if text := strings.TrimSpace(line.Text); text != "" {
+			lastLine = text
+		}
 		if line.IsStderr {
 			fmt.Fprintln(stderr, line.Text)
 		} else {
@@ -200,9 +224,18 @@ func executeScript(cmd *cobra.Command, scriptPath string, env map[string]string,
 		}
 	}
 
+	exitCode := 0
 	if err := <-errs; err != nil {
-		return fmt.Errorf("script failed: %w", err)
+		exitCode = 1
 	}
 
+	rec.Complete(exitCode, lineCount, lastLine)
+	if historyStore != nil {
+		_ = historyStore.Record(rec)
+	}
+
+	if exitCode != 0 {
+		return fmt.Errorf("script failed")
+	}
 	return nil
 }

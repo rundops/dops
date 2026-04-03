@@ -11,6 +11,7 @@ import (
 	"dops/internal/catalog"
 	"dops/internal/config"
 	"dops/internal/domain"
+	"dops/internal/history"
 	"dops/internal/executor"
 	"dops/internal/theme"
 	"dops/internal/tui/confirm"
@@ -167,9 +168,10 @@ type AppDeps struct {
 	AltScreen  bool
 	DryRun     bool
 	ProgramRef *ProgramRef
-	Version    string       // current build version for update checks
-	DopsDir    string       // ~/.dops directory for cache files
-	Vault      domain.VaultStore // encrypted parameter storage
+	Version    string                // current build version for update checks
+	DopsDir    string                // ~/.dops directory for cache files
+	Vault      domain.VaultStore    // encrypted parameter storage
+	History    history.ExecutionStore // execution history recording
 }
 
 type copiedFlashMsg struct{}
@@ -195,7 +197,10 @@ type App struct {
 	focus            focusTarget
 	cancelExec       context.CancelFunc
 	execRunning      bool
-	updateAvailable  string // non-empty if a newer version exists (e.g. "0.2.0")
+	execRecord       *domain.ExecutionRecord // current execution being recorded
+	execLineCount    int                      // output line count for current execution
+	execLastLine     string                   // last non-empty output line
+	updateAvailable  string                   // non-empty if a newer version exists (e.g. "0.2.0")
 }
 
 func NewApp(catalogs []catalog.CatalogWithRunbooks, styles *theme.Styles) App {
@@ -344,10 +349,24 @@ func (m App) handleAppMessage(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 		m.execRunning = false
 		m.cancelExec = nil
 		m.output, _ = m.output.Update(output.ExecutionDoneMsg{LogPath: msg.LogPath, Err: msg.Err})
+		// Record execution to history.
+		if m.execRecord != nil && m.deps.History != nil {
+			exitCode := 0
+			if msg.Err != nil {
+				exitCode = 1
+			}
+			m.execRecord.Complete(exitCode, m.execLineCount, m.execLastLine)
+			_ = m.deps.History.Record(m.execRecord)
+			m.execRecord = nil
+		}
 		return m, nil, true
 
 	case output.OutputLineMsg:
 		m.output, _ = m.output.Update(msg)
+		m.execLineCount++
+		if text := strings.TrimSpace(msg.Text); text != "" {
+			m.execLastLine = text
+		}
 		return m, nil, true
 
 	case output.ExecutionDoneMsg:
