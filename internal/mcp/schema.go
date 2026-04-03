@@ -111,6 +111,11 @@ func paramToSchemaProperty(p domain.Parameter, resolved map[string]string) map[s
 		prop["default"] = p.Default
 	}
 
+	// Set default from resolved saved value (vault).
+	if val, ok := resolved[p.Name]; ok && val != "" {
+		prop["default"] = val
+	}
+
 	return prop
 }
 

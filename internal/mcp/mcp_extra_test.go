@@ -331,6 +331,54 @@ func TestRunbookToInputSchema_ResolvedParamOptional(t *testing.T) {
 	}
 }
 
+func TestRunbookToInputSchema_ResolvedValueAsDefault(t *testing.T) {
+	rb := domain.Runbook{
+		ID: "test.rb",
+		Parameters: []domain.Parameter{
+			{Name: "region", Type: domain.ParamString, Required: true},
+			{Name: "count", Type: domain.ParamInteger},
+		},
+	}
+
+	resolved := map[string]string{"region": "us-east-1", "count": "3"}
+	schema, _ := RunbookToInputSchema(rb, resolved)
+	var parsed map[string]any
+	json.Unmarshal(schema, &parsed)
+
+	props := parsed["properties"].(map[string]any)
+
+	// region should have default from resolved value
+	regionProp := props["region"].(map[string]any)
+	if regionProp["default"] != "us-east-1" {
+		t.Errorf("region default = %v, want us-east-1", regionProp["default"])
+	}
+
+	// count should have default from resolved value
+	countProp := props["count"].(map[string]any)
+	if countProp["default"] != "3" {
+		t.Errorf("count default = %v, want 3", countProp["default"])
+	}
+}
+
+func TestRunbookToInputSchema_NoResolvedVars_NoExtraDefaults(t *testing.T) {
+	rb := domain.Runbook{
+		ID: "test.rb",
+		Parameters: []domain.Parameter{
+			{Name: "region", Type: domain.ParamString, Required: true},
+		},
+	}
+
+	schema, _ := RunbookToInputSchema(rb, nil)
+	var parsed map[string]any
+	json.Unmarshal(schema, &parsed)
+
+	props := parsed["properties"].(map[string]any)
+	regionProp := props["region"].(map[string]any)
+	if _, hasDefault := regionProp["default"]; hasDefault {
+		t.Error("param without resolved value should not have default")
+	}
+}
+
 func TestRunbookToInputSchema_HighRiskConfirmation(t *testing.T) {
 	rb := domain.Runbook{
 		ID:        "infra.deploy",

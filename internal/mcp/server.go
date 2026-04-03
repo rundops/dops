@@ -13,6 +13,7 @@ import (
 	catpkg "dops/internal/catalog"
 	"dops/internal/domain"
 	"dops/internal/executor"
+	"dops/internal/vars"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -71,7 +72,8 @@ func (s *Server) registerTools(maxRisk domain.RiskLevel) {
 				continue
 			}
 
-			resolved := make(map[string]string) // TODO: pass resolved vars
+			resolver := vars.NewDefaultResolver()
+			resolved := resolver.Resolve(s.cfg, cat.Name, rb.Name, rb.Parameters)
 			schema, err := RunbookToInputSchema(rb, resolved)
 			if err != nil {
 				continue // skip runbook with unparseable schema
