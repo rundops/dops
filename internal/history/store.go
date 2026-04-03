@@ -93,7 +93,9 @@ func (s *FileExecutionStore) maintain() {
 	s.enforceSize()
 }
 
-// expireOld deletes records and logs older than expireAfter days.
+// expireOld deletes only compressed logs that haven't been modified in
+// expireAfter days. Uncompressed logs are left alone — they'll get
+// compressed first by compressOld, then expired on a future pass.
 func (s *FileExecutionStore) expireOld() {
 	cutoff := time.Now().AddDate(0, 0, -s.expireAfter)
 
@@ -107,7 +109,15 @@ func (s *FileExecutionStore) expireOld() {
 		if err != nil {
 			continue
 		}
-		if rec.StartTime.Before(cutoff) {
+		// Only expire compressed logs past the cutoff.
+		if rec.LogPath == "" || !strings.HasSuffix(rec.LogPath, ".gz") {
+			continue
+		}
+		info, err := os.Stat(rec.LogPath)
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
 			s.removeLog(rec)
 			_ = os.Remove(filepath.Join(s.dir, f))
 		}
