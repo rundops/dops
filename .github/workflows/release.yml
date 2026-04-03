@@ -27,13 +27,7 @@ jobs:
           node-version: 22
 
       - name: Build web UI
-        run: |
-          make web
-          if [ -n "$(git status --porcelain internal/web/dist/)" ]; then
-            git add -f internal/web/dist/
-            git -c user.name="github-actions" -c user.email="actions@github.com" commit -m "Build web dist [skip ci]"
-            git tag -f "${{ github.ref_name }}"
-          fi
+        run: make web
 
       - uses: sigstore/cosign-installer@v3
 
