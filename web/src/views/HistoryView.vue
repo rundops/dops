@@ -14,9 +14,8 @@ const search = ref("");
 // --- Time range picker ---
 const timeOpen = ref(false);
 const showMore = ref(false);
-const timeInput = ref("");
-const timeLabel = ref("Live · Past 15 Minutes");
 const timeLive = ref(true);
+const activePreset = ref("15m");
 const timeRange = ref<{ from: Date | null; to: Date | null }>({
   from: new Date(Date.now() - 15 * 60 * 1000),
   to: null,
@@ -24,7 +23,7 @@ const timeRange = ref<{ from: Date | null; to: Date | null }>({
 const timeEl = ref<HTMLElement | null>(null);
 
 const presets = [
-  { shorthand: "15m", label: "Past 15 Minutes", ms: 15 * 60 * 1000 },
+  { shorthand: "15m", label: "15 Minutes", ms: 15 * 60 * 1000 },
   { shorthand: "30m", label: "Past 30 Minutes", ms: 30 * 60 * 1000 },
   { shorthand: "1h", label: "Past 1 Hour", ms: 60 * 60 * 1000 },
   { shorthand: "4h", label: "Past 4 Hours", ms: 4 * 60 * 60 * 1000 },
@@ -34,52 +33,57 @@ const presets = [
   { shorthand: "2w", label: "Past 2 Weeks", ms: 14 * 24 * 60 * 60 * 1000 },
 ];
 
-const resolvedTimeRange = computed(() => {
-  const fmt = (d: Date) =>
-    d.toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+function fmtDate(d: Date): string {
+  return d.toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
+}
+
+// The editable input in the dropdown — shows resolved range
+const rangeInputValue = ref(computeRangeDisplay());
+
+function computeRangeDisplay(): string {
+  const from = timeRange.value.from;
+  const to = timeRange.value.to ?? new Date();
+  if (!from) return "";
+  return `${fmtDate(from)} – ${fmtDate(to)}`;
+}
+
+// Button label
+const timeLabel = computed(() => {
+  if (timeLive.value) return "Live · " + fmtDate(timeRange.value.from ?? new Date()) + " – " + fmtDate(new Date());
   const from = timeRange.value.from;
   const to = timeRange.value.to ?? new Date();
   if (!from) return "All time";
-  return `${fmt(from)} – ${fmt(to)}`;
+  return `${fmtDate(from)} – ${fmtDate(to)}`;
 });
 
-function selectPreset(preset: { label: string; ms: number }) {
-  timeRange.value = { from: new Date(Date.now() - preset.ms), to: null };
-  timeLive.value = true;
-  timeLabel.value = "Live · " + preset.label;
+function selectPreset(preset: { shorthand: string; label: string; ms: number }) {
+  const from = new Date(Date.now() - preset.ms);
+  timeRange.value = { from, to: null };
+  timeLive.value = preset.shorthand === "15m";
+  activePreset.value = preset.shorthand;
+  rangeInputValue.value = computeRangeDisplay();
   timeOpen.value = false;
-  timeInput.value = "";
+  showMore.value = false;
 }
 
-function applyCustom(override?: string) {
-  const input = override ?? timeInput.value;
+function applyFromInput(override?: string) {
+  const input = override ?? rangeInputValue.value;
   const parsed = parseTimeInput(input);
   if (parsed) {
     timeRange.value = { from: parsed.from, to: parsed.to };
-    // Live if open-ended (to=null, from is relative)
-    timeLive.value = parsed.to === null;
-    timeLabel.value = timeLive.value ? "Live · " + parsed.label : parsed.label;
+    timeLive.value = false;
+    activePreset.value = "";
+    rangeInputValue.value = computeRangeDisplay();
     timeOpen.value = false;
-    timeInput.value = "";
+    showMore.value = false;
   }
 }
 
-function clearTime() {
-  timeRange.value = { from: new Date(Date.now() - 15 * 60 * 1000), to: null };
-  timeLive.value = true;
-  timeLabel.value = "Live · Past 15 Minutes";
-  timeOpen.value = false;
-  timeInput.value = "";
-}
-
-function onTimeKeydown(e: KeyboardEvent) {
-  if (e.key === "Enter") applyCustom();
-  if (e.key === "Escape") { timeOpen.value = false; timeInput.value = ""; }
+function onRangeKeydown(e: KeyboardEvent) {
+  if (e.key === "Enter") applyFromInput();
+  if (e.key === "Escape") { timeOpen.value = false; showMore.value = false; }
 }
 
 function onClickOutside(e: MouseEvent) {
@@ -175,20 +179,10 @@ function formatTime(iso: string): string {
               : 'border-border bg-bg text-fg-muted hover:border-border-active hover:text-fg'"
             class="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium border rounded-md cursor-pointer transition-colors duration-150"
           >
-            <svg v-if="timeLive" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="shrink-0">
-              <path d="M8 4a4 4 0 100 8 4 4 0 000-8z"/>
-            </svg>
-            <svg v-else width="14" height="14" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle shrink-0">
-              <path d="M1.5 8a6.5 6.5 0 1113 0 6.5 6.5 0 01-13 0zM8 0a8 8 0 100 16A8 8 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v3.5a.75.75 0 00.37.65l2.5 1.5a.75.75 0 00.76-1.3L8.5 7.87V4.75z"/>
-            </svg>
-            <span class="truncate max-w-[160px]">{{ timeLabel }}</span>
-            <button
-              v-if="timeLabel !== 'All time'"
-              @click.stop="clearTime"
-              class="flex items-center text-fg-subtle hover:text-fg bg-transparent border-none cursor-pointer p-0 ml-0.5 text-[10px]"
-              title="Clear"
-            >✕</button>
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" class="text-fg-subtle">
+            <span v-if="timeLive" class="font-bold text-[10px] bg-success text-white px-1.5 py-0.5 rounded shrink-0">LIVE</span>
+            <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded shrink-0" v-else>{{ activePreset || '···' }}</span>
+            <span class="truncate max-w-[220px]">{{ timeLabel }}</span>
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" class="shrink-0 ml-0.5">
               <path d="M4.427 7.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 7H4.604a.25.25 0 00-.177.427z"/>
             </svg>
           </button>
@@ -197,61 +191,54 @@ function formatTime(iso: string): string {
           <div
             v-if="timeOpen"
             class="absolute right-0 top-9 bg-bg-panel border border-border rounded-lg shadow-xl z-50 overflow-hidden"
-            :class="showMore ? 'w-[520px] flex' : 'w-[260px]'"
+            :class="showMore ? 'w-[520px] flex' : 'w-[280px]'"
           >
             <!-- Custom panel (only when "More" is clicked) -->
             <div v-if="showMore" class="flex-1 p-4 border-r border-border">
               <div class="text-[12px] text-fg-muted mb-2.5 font-medium">Type custom times like:</div>
-              <input
-                v-model="timeInput"
-                @keydown="onTimeKeydown"
-                type="text"
-                placeholder="e.g. 45m, last 2 hours, since 4/1..."
-                class="w-full px-2.5 py-2 text-[13px] bg-bg border border-border rounded-md text-fg placeholder-fg-subtle focus:border-border-active focus:outline-none mb-3"
-                autofocus
-              />
-
               <div class="text-[11px] text-fg-subtle mb-1.5 font-medium">Relative</div>
               <div class="flex flex-wrap gap-1.5 mb-3">
                 <button
-                  v-for="ex in ['45m', '12 hours', '10d', '2 weeks', 'last month', 'yesterday', 'today']"
+                  v-for="ex in ['45m', '12 hours', '10d', '2 weeks', 'last month', 'yesterday', 'today', 'this month']"
                   :key="ex"
-                  @click="applyCustom(ex)"
+                  @click="applyFromInput(ex)"
                   class="px-2 py-0.5 text-[11px] font-mono bg-bg-element border border-border/50 rounded text-fg-muted hover:text-fg hover:border-border-active cursor-pointer transition-colors duration-100"
                 >{{ ex }}</button>
               </div>
-
               <div class="text-[11px] text-fg-subtle mb-1.5 font-medium">Fixed</div>
               <div class="flex flex-wrap gap-1.5 mb-3">
                 <button
                   v-for="ex in ['Apr 1', 'Apr 1 - Apr 2', '4/1', '4/1 - 4/2']"
                   :key="ex"
-                  @click="applyCustom(ex)"
+                  @click="applyFromInput(ex)"
                   class="px-2 py-0.5 text-[11px] font-mono bg-bg-element border border-border/50 rounded text-fg-muted hover:text-fg hover:border-border-active cursor-pointer transition-colors duration-100"
                 >{{ ex }}</button>
               </div>
-
               <div class="text-[11px] text-fg-subtle mb-1.5 font-medium">Growing</div>
               <div class="flex flex-wrap gap-1.5">
                 <button
-                  v-for="ex in ['since 4/1', 'since yesterday']"
+                  v-for="ex in ['since 4/1', 'since yesterday', 'since April 1']"
                   :key="ex"
-                  @click="applyCustom(ex)"
+                  @click="applyFromInput(ex)"
                   class="px-2 py-0.5 text-[11px] font-mono bg-bg-element border border-border/50 rounded text-fg-muted hover:text-fg hover:border-border-active cursor-pointer transition-colors duration-100"
                 >{{ ex }}</button>
               </div>
             </div>
 
-            <!-- Main panel: timestamp bar + presets -->
-            <div :class="showMore ? 'w-[220px]' : 'w-full'">
-              <!-- Resolved timestamp bar -->
+            <!-- Main panel -->
+            <div :class="showMore ? 'w-[240px]' : 'w-full'">
+              <!-- Editable timestamp input -->
               <div class="px-3 py-2 border-b border-border">
-                <div
-                  class="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[11px] font-mono"
-                  :class="timeLive ? 'bg-success-muted text-success' : 'bg-bg-element text-fg-muted'"
-                >
-                  <span v-if="timeLive" class="font-bold text-[10px]">LIVE</span>
-                  <span class="truncate">{{ resolvedTimeRange }}</span>
+                <div class="flex items-center gap-1.5">
+                  <span v-if="timeLive" class="font-bold text-[10px] bg-success text-white px-1.5 py-0.5 rounded shrink-0">LIVE</span>
+                  <input
+                    v-model="rangeInputValue"
+                    @keydown="onRangeKeydown"
+                    type="text"
+                    placeholder="Type a time range..."
+                    class="flex-1 px-2 py-1 text-[11px] font-mono bg-bg border border-border rounded text-fg placeholder-fg-subtle focus:border-border-active focus:outline-none"
+                    :class="timeLive ? 'bg-success-muted text-success border-success/30' : ''"
+                  />
                 </div>
               </div>
 
@@ -261,12 +248,16 @@ function formatTime(iso: string): string {
                   v-for="preset in presets"
                   :key="preset.shorthand"
                   @click="selectPreset(preset)"
-                  :class="timeLabel.includes(preset.label)
-                    ? 'bg-primary-muted text-primary'
-                    : 'text-fg-muted hover:bg-bg-hover hover:text-fg'"
                   class="flex items-center gap-2.5 w-full text-left px-3 py-2 text-[12px] cursor-pointer transition-colors duration-100 border-none bg-transparent"
+                  :class="activePreset === preset.shorthand
+                    ? (timeLive ? 'bg-success-muted text-success' : 'bg-primary-muted text-primary')
+                    : 'text-fg-muted hover:bg-bg-hover hover:text-fg'"
                 >
-                  <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">
+                  <span
+                    v-if="timeLive && activePreset === preset.shorthand"
+                    class="font-bold text-[10px] bg-success text-white px-1.5 py-0.5 rounded w-[32px] text-center shrink-0"
+                  >LIVE</span>
+                  <span v-else class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded text-fg-subtle w-[32px] text-center shrink-0">
                     {{ preset.shorthand }}
                   </span>
                   <span>{{ preset.label }}</span>
