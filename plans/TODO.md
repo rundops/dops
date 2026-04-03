@@ -7,6 +7,7 @@
 **Branch:** `feature/v0.12.0`
 
 - [ ] Execution history + audit trail ([#55](https://github.com/rundops/dops/issues/55))
+- [ ] Log rotation: daily archives + monthly bundles ([#64](https://github.com/rundops/dops/issues/64))
 
 ## Completed
 
