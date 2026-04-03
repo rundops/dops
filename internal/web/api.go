@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"sort"
@@ -402,18 +401,11 @@ func (a *api) handleGetHistoryLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if rec.LogPath == "" {
+	lines, available := history.ReadLog(rec.LogPath)
+	if !available {
 		writeJSON(w, http.StatusOK, map[string]any{"lines": []string{}, "available": false})
 		return
 	}
-
-	data, err := os.ReadFile(rec.LogPath) // #nosec G304 -- path from internal history record
-	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"lines": []string{}, "available": false})
-		return
-	}
-
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 	writeJSON(w, http.StatusOK, map[string]any{"lines": lines, "available": true})
 }
 
