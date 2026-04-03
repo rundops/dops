@@ -4,11 +4,16 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 )
+
+const maxArchiveBytes int64 = 10 * 1024 * 1024 // 10MB
 
 // archiveEntry holds a single entry read from a tar.gz archive.
 type archiveEntry struct {
@@ -16,35 +21,19 @@ type archiveEntry struct {
 	data []byte
 }
 
-// AppendToArchive adds an entry to a tar.gz archive. If the archive doesn't
-// exist, it creates a new one. If it exists, it reads all entries, adds the
-// new one, and writes a new archive atomically (temp file + rename).
-func AppendToArchive(archivePath, entryName string, content []byte) error {
-	if err := os.MkdirAll(filepath.Dir(archivePath), 0o755); err != nil {
-		return fmt.Errorf("create archive dir: %w", err)
+// AppendToActiveArchive finds or creates the active .log.gz archive (< 10MB)
+// and appends the entry. Returns the archive path and entry name.
+func AppendToActiveArchive(logsDir, entryName string, content []byte) (archivePath string, err error) {
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		return "", fmt.Errorf("create logs dir: %w", err)
 	}
 
-	// Read existing entries if archive exists.
-	var entries []archiveEntry
-	if _, err := os.Stat(archivePath); err == nil {
-		existing, err := readAllEntries(archivePath)
-		if err != nil {
-			return fmt.Errorf("read existing archive: %w", err)
-		}
-		entries = existing
+	archivePath = findActiveArchive(logsDir)
+	if archivePath == "" {
+		archivePath = filepath.Join(logsDir, generateArchiveID()+".log.gz")
 	}
 
-	// Add the new entry.
-	entries = append(entries, archiveEntry{name: entryName, data: content})
-
-	// Write atomically: temp file → rename.
-	tmpPath := archivePath + ".tmp"
-	if err := writeArchive(tmpPath, entries); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("write archive: %w", err)
-	}
-
-	return os.Rename(tmpPath, archivePath)
+	return archivePath, appendToArchive(archivePath, entryName, content)
 }
 
 // ReadFromArchive reads a single entry from a tar.gz archive by name.
@@ -80,6 +69,65 @@ func ReadFromArchive(archivePath, entryName string) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("entry %q not found in archive", entryName)
+}
+
+// findActiveArchive returns the newest .log.gz under maxArchiveBytes, or "".
+func findActiveArchive(dir string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+
+	var archives []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".log.gz") {
+			archives = append(archives, e.Name())
+		}
+	}
+	if len(archives) == 0 {
+		return ""
+	}
+
+	// Sort by mod time, newest first.
+	sort.Slice(archives, func(i, j int) bool {
+		infoI, _ := os.Stat(filepath.Join(dir, archives[i]))
+		infoJ, _ := os.Stat(filepath.Join(dir, archives[j]))
+		if infoI == nil || infoJ == nil {
+			return false
+		}
+		return infoI.ModTime().After(infoJ.ModTime())
+	})
+
+	// Return newest if under size limit.
+	newest := filepath.Join(dir, archives[0])
+	info, err := os.Stat(newest)
+	if err != nil || info.Size() >= maxArchiveBytes {
+		return ""
+	}
+	return newest
+}
+
+func appendToArchive(archivePath, entryName string, content []byte) error {
+	// Read existing entries if archive exists.
+	var entries []archiveEntry
+	if _, err := os.Stat(archivePath); err == nil {
+		existing, err := readAllEntries(archivePath)
+		if err != nil {
+			return fmt.Errorf("read existing archive: %w", err)
+		}
+		entries = existing
+	}
+
+	entries = append(entries, archiveEntry{name: entryName, data: content})
+
+	// Write atomically.
+	tmpPath := archivePath + ".tmp"
+	if err := writeArchive(tmpPath, entries); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("write archive: %w", err)
+	}
+
+	return os.Rename(tmpPath, archivePath)
 }
 
 func readAllEntries(archivePath string) ([]archiveEntry, error) {
@@ -142,4 +190,13 @@ func writeArchive(path string, entries []archiveEntry) error {
 	}
 
 	return os.WriteFile(path, buf.Bytes(), 0o644)
+}
+
+func generateArchiveID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

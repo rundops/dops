@@ -7,14 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"dops/internal/domain"
-)
-
-const (
-	defaultMaxBytes  int64 = 50 * 1024 * 1024 // 50MB size cap
-	defaultExpireDays      = 90                // days before archive deletion
 )
 
 // ListOpts controls filtering and pagination for List.
@@ -35,31 +29,20 @@ type ExecutionStore interface {
 }
 
 // FileExecutionStore stores execution records as JSON files and logs
-// in daily tar.gz archives.
+// in size-capped .log.gz archives.
 //
-// Lifecycle:
-//   - On completion: log lines written to today's {date}.tar.gz as {uuid}.log entry
-//   - After 90 days: archive deleted (unmodified for 90 days)
-//   - Size cap: oldest archives deleted if total exceeds 50MB
+// Each execution's output is appended to the active archive (< 10MB).
+// When the active archive reaches 10MB, a new one is created.
 type FileExecutionStore struct {
-	dir        string
-	maxBytes   int64
-	expireDays int
+	dir string
 }
 
 // NewFileStore creates a store backed by the given directory.
-func NewFileStore(dir string, maxBytes int64) *FileExecutionStore {
-	if maxBytes <= 0 {
-		maxBytes = defaultMaxBytes
-	}
-	return &FileExecutionStore{
-		dir:        dir,
-		maxBytes:   maxBytes,
-		expireDays: defaultExpireDays,
-	}
+func NewFileStore(dir string, _ int64) *FileExecutionStore {
+	return &FileExecutionStore{dir: dir}
 }
 
-// Record writes an execution record to disk and runs maintenance.
+// Record writes an execution record to disk.
 func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return fmt.Errorf("create history dir: %w", err)
@@ -76,11 +59,10 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 		return fmt.Errorf("write record: %w", err)
 	}
 
-	s.maintain()
 	return nil
 }
 
-// ArchiveLog writes execution log lines into today's daily tar.gz archive
+// ArchiveLog writes execution log lines into the active .log.gz archive
 // and updates the record's LogPath.
 func (s *FileExecutionStore) ArchiveLog(record *domain.ExecutionRecord, lines []string) error {
 	if len(lines) == 0 {
@@ -88,16 +70,11 @@ func (s *FileExecutionStore) ArchiveLog(record *domain.ExecutionRecord, lines []
 	}
 
 	logsDir := filepath.Join(s.dir, "logs")
-	if err := os.MkdirAll(logsDir, 0o755); err != nil {
-		return fmt.Errorf("create logs dir: %w", err)
-	}
-
-	archiveName := record.StartTime.Format("2006-01-02") + ".tar.gz"
-	archivePath := filepath.Join(logsDir, archiveName)
 	entryName := record.ID + ".log"
-
 	content := []byte(strings.Join(lines, "\n") + "\n")
-	if err := AppendToArchive(archivePath, entryName, content); err != nil {
+
+	archivePath, err := AppendToActiveArchive(logsDir, entryName, content)
+	if err != nil {
 		return fmt.Errorf("archive log: %w", err)
 	}
 
@@ -106,14 +83,13 @@ func (s *FileExecutionStore) ArchiveLog(record *domain.ExecutionRecord, lines []
 }
 
 // ReadLog reads a log, transparently handling:
-//   - Archive paths: "path/to/archive.tar.gz#entry.log"
+//   - Archive paths: "path/to/archive.log.gz#entry.log"
 //   - Plain files: "path/to/file.log" (backward compat)
 func ReadLog(path string) ([]string, bool) {
 	if path == "" {
 		return nil, false
 	}
 
-	// Archive path: split on #
 	if idx := strings.Index(path, "#"); idx > 0 {
 		archivePath := path[:idx]
 		entryName := path[idx+1:]
@@ -128,7 +104,7 @@ func ReadLog(path string) ([]string, bool) {
 		return strings.Split(content, "\n"), true
 	}
 
-	// Plain file fallback (backward compat with old per-file logs).
+	// Plain file fallback.
 	data, err := os.ReadFile(path) // #nosec G304 -- path from internal history record
 	if err != nil {
 		return nil, false
@@ -138,94 +114,6 @@ func ReadLog(path string) ([]string, bool) {
 		return []string{}, true
 	}
 	return strings.Split(content, "\n"), true
-}
-
-// --- Maintenance ---
-
-func (s *FileExecutionStore) maintain() {
-	s.expireOld()
-	s.enforceSize()
-}
-
-// expireOld deletes .tar.gz archives unmodified for > expireDays.
-func (s *FileExecutionStore) expireOld() {
-	logsDir := filepath.Join(s.dir, "logs")
-	entries, err := os.ReadDir(logsDir)
-	if err != nil {
-		return
-	}
-
-	cutoff := time.Now().AddDate(0, 0, -s.expireDays)
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".tar.gz") {
-			continue
-		}
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-		if info.ModTime().Before(cutoff) {
-			_ = os.Remove(filepath.Join(logsDir, e.Name()))
-		}
-	}
-
-	// Also clean up old per-file log directories (backward compat migration).
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		info, err := e.Info()
-		if err != nil {
-			continue
-		}
-		if info.ModTime().Before(cutoff) {
-			_ = os.RemoveAll(filepath.Join(logsDir, e.Name()))
-		}
-	}
-
-	// Expire old JSON records whose logs are gone.
-	files, err := s.listFiles()
-	if err != nil {
-		return
-	}
-	for _, f := range files {
-		rec, err := s.loadRecord(f)
-		if err != nil {
-			continue
-		}
-		if rec.StartTime.Before(cutoff) {
-			_ = os.Remove(filepath.Join(s.dir, f))
-		}
-	}
-}
-
-// enforceSize deletes oldest archives and records until under maxBytes.
-func (s *FileExecutionStore) enforceSize() {
-	if dirSize(s.dir) <= s.maxBytes {
-		return
-	}
-
-	// Delete oldest archives first.
-	logsDir := filepath.Join(s.dir, "logs")
-	archives := listArchives(logsDir)
-	for _, name := range archives {
-		if dirSize(s.dir) <= s.maxBytes {
-			break
-		}
-		_ = os.Remove(filepath.Join(logsDir, name))
-	}
-
-	// Then oldest records if still over.
-	files, err := s.listFiles()
-	if err != nil {
-		return
-	}
-	for _, f := range files {
-		if dirSize(s.dir) <= s.maxBytes {
-			break
-		}
-		_ = os.Remove(filepath.Join(s.dir, f))
-	}
 }
 
 // --- Query methods ---
@@ -341,33 +229,6 @@ func (s *FileExecutionStore) loadRecord(filename string) (*domain.ExecutionRecor
 		return nil, err
 	}
 	return &rec, nil
-}
-
-func listArchives(dir string) []string {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-	var archives []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".tar.gz") {
-			archives = append(archives, e.Name())
-		}
-	}
-	sort.Strings(archives) // oldest first (date prefix)
-	return archives
-}
-
-func dirSize(dir string) int64 {
-	var total int64
-	_ = filepath.Walk(dir, func(_ string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		total += info.Size()
-		return nil
-	})
-	return total
 }
 
 var _ ExecutionStore = (*FileExecutionStore)(nil)
