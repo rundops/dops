@@ -25,6 +25,11 @@ const router = createRouter({
       component: () => import("./views/HistoryView.vue"),
     },
     {
+      path: "/history/:id",
+      component: () => import("./views/HistoryDetailView.vue"),
+      props: true,
+    },
+    {
       path: "/:pathMatch(.*)*",
       redirect: "/",
     },

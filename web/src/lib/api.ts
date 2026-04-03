@@ -70,6 +70,21 @@ export async function fetchHistory(opts?: {
   return res.json();
 }
 
+export async function fetchHistoryRecord(id: string): Promise<ExecutionRecord> {
+  const res = await fetch(`${BASE}/history/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error(`Record not found: ${id}`);
+  return res.json();
+}
+
+export async function fetchHistoryLog(id: string): Promise<{
+  lines: string[];
+  available: boolean;
+}> {
+  const res = await fetch(`${BASE}/history/${encodeURIComponent(id)}/log`);
+  if (!res.ok) return { lines: [], available: false };
+  return res.json();
+}
+
 export async function fetchTheme(): Promise<{
   name: string;
   colors: Record<string, string>;

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sort"
@@ -42,6 +43,7 @@ func (a *api) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/theme", a.handleSetTheme)
 	mux.HandleFunc("GET /api/history", a.handleListHistory)
 	mux.HandleFunc("GET /api/history/{id}", a.handleGetHistory)
+	mux.HandleFunc("GET /api/history/{id}/log", a.handleGetHistoryLog)
 }
 
 // --- Catalog & Runbook Endpoints ---
@@ -385,6 +387,34 @@ func (a *api) handleListHistory(w http.ResponseWriter, r *http.Request) {
 		records = []*domain.ExecutionRecord{}
 	}
 	writeJSON(w, http.StatusOK, records)
+}
+
+func (a *api) handleGetHistoryLog(w http.ResponseWriter, r *http.Request) {
+	if a.deps.History == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "history not available"})
+		return
+	}
+
+	id := r.PathValue("id")
+	rec, err := a.deps.History.Get(id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		return
+	}
+
+	if rec.LogPath == "" {
+		writeJSON(w, http.StatusOK, map[string]any{"lines": []string{}, "available": false})
+		return
+	}
+
+	data, err := os.ReadFile(rec.LogPath) // #nosec G304 -- path from internal history record
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"lines": []string{}, "available": false})
+		return
+	}
+
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	writeJSON(w, http.StatusOK, map[string]any{"lines": lines, "available": true})
 }
 
 func (a *api) handleGetHistory(w http.ResponseWriter, r *http.Request) {

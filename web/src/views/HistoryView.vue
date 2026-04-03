@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
 import { fetchHistory } from "../lib/api";
 import type { ExecutionRecord } from "../lib/types";
+
+const router = useRouter();
 
 const records = ref<ExecutionRecord[]>([]);
 const loading = ref(true);
@@ -98,7 +101,8 @@ function interfaceBadge(iface: string): string {
           <tr
             v-for="rec in filtered"
             :key="rec.id"
-            class="border-b border-border/50 hover:bg-bg-hover transition-colors duration-100"
+            @click="router.push(`/history/${rec.id}`)"
+            class="border-b border-border/50 hover:bg-bg-hover transition-colors duration-100 cursor-pointer"
           >
             <td class="px-5 py-2.5 font-mono text-fg-muted whitespace-nowrap">{{ formatTime(rec.start_time) }}</td>
             <td class="px-3 py-2.5">
