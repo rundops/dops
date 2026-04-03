@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from "vue";
+import { ref, onMounted, computed, onUnmounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { fetchHistory } from "../lib/api";
 import { parseTimeInput } from "../lib/timeparse";
@@ -21,6 +21,7 @@ const timeRange = ref<{ from: Date | null; to: Date | null }>({
   to: null,
 });
 const timeEl = ref<HTMLElement | null>(null);
+const timeInputEl = ref<HTMLInputElement | null>(null);
 
 const presets = [
   { shorthand: "15m", label: "15 Minutes", ms: 15 * 60 * 1000 },
@@ -79,6 +80,15 @@ function applyFromInput(override?: string) {
     timeOpen.value = false;
     showMore.value = false;
   }
+}
+
+function openTimePicker() {
+  rangeInputValue.value = computeRangeDisplay();
+  timeOpen.value = true;
+  nextTick(() => {
+    timeInputEl.value?.focus();
+    timeInputEl.value?.select();
+  });
 }
 
 function onRangeKeydown(e: KeyboardEvent) {
@@ -170,10 +180,12 @@ function formatTime(iso: string): string {
           <span class="text-fg-subtle text-[12px]" v-if="!loading">{{ filtered.length }} runs</span>
         </div>
 
-        <!-- Time range trigger -->
+        <!-- Time range: button when closed, input when open -->
         <div ref="timeEl" class="relative">
+          <!-- Closed: button showing current range -->
           <button
-            @click.stop="timeOpen = !timeOpen"
+            v-if="!timeOpen"
+            @click.stop="openTimePicker"
             :class="timeLive
               ? 'border-success/40 bg-success-muted text-success hover:border-success'
               : 'border-border bg-bg text-fg-muted hover:border-border-active hover:text-fg'"
@@ -181,13 +193,29 @@ function formatTime(iso: string): string {
           >
             <span v-if="timeLive" class="font-bold text-[10px] bg-success text-white px-1.5 py-0.5 rounded shrink-0">LIVE</span>
             <span class="font-mono text-[10px] px-1.5 py-0.5 bg-bg-element rounded shrink-0" v-else>{{ activePreset || '···' }}</span>
-            <span class="truncate max-w-[220px]">{{ timeLabel }}</span>
+            <span class="truncate max-w-[220px] font-mono text-[11px]">{{ timeLabel }}</span>
             <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" class="shrink-0 ml-0.5">
               <path d="M4.427 7.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 7H4.604a.25.25 0 00-.177.427z"/>
             </svg>
           </button>
 
-          <!-- Dropdown -->
+          <!-- Open: editable input replacing the button -->
+          <div v-else class="flex items-center gap-1.5">
+            <span v-if="timeLive" class="font-bold text-[10px] bg-success text-white px-1.5 py-0.5 rounded shrink-0">LIVE</span>
+            <input
+              ref="timeInputEl"
+              v-model="rangeInputValue"
+              @keydown="onRangeKeydown"
+              type="text"
+              placeholder="last 5 min, since April 1, 4/1 - 4/3..."
+              class="w-[280px] px-3 py-1.5 text-[12px] font-mono border rounded-md focus:outline-none transition-colors duration-150"
+              :class="timeLive
+                ? 'border-success/40 bg-success-muted text-success'
+                : 'border-border-active bg-bg text-fg'"
+            />
+          </div>
+
+          <!-- Dropdown: presets + More -->
           <div
             v-if="timeOpen"
             class="absolute right-0 top-9 bg-bg-panel border border-border rounded-lg shadow-xl z-50 overflow-hidden"
@@ -225,24 +253,8 @@ function formatTime(iso: string): string {
               </div>
             </div>
 
-            <!-- Main panel -->
+            <!-- Preset list -->
             <div :class="showMore ? 'w-[240px]' : 'w-full'">
-              <!-- Editable timestamp input -->
-              <div class="px-3 py-2 border-b border-border">
-                <div class="flex items-center gap-1.5">
-                  <span v-if="timeLive" class="font-bold text-[10px] bg-success text-white px-1.5 py-0.5 rounded shrink-0">LIVE</span>
-                  <input
-                    v-model="rangeInputValue"
-                    @keydown="onRangeKeydown"
-                    type="text"
-                    placeholder="Type a time range..."
-                    class="flex-1 px-2 py-1 text-[11px] font-mono bg-bg border border-border rounded text-fg placeholder-fg-subtle focus:border-border-active focus:outline-none"
-                    :class="timeLive ? 'bg-success-muted text-success border-success/30' : ''"
-                  />
-                </div>
-              </div>
-
-              <!-- Presets -->
               <div class="py-1 overflow-y-auto max-h-[320px]">
                 <button
                   v-for="preset in presets"
@@ -263,8 +275,6 @@ function formatTime(iso: string): string {
                   <span>{{ preset.label }}</span>
                 </button>
               </div>
-
-              <!-- More button -->
               <div class="border-t border-border">
                 <button
                   @click.stop="showMore = !showMore"
