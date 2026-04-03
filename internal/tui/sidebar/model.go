@@ -104,9 +104,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) tabBarHeight() int {
+	if m.tabLabels() == nil {
+		return 0
+	}
+	return 2 // tab line + separator
+}
+
 func (m Model) mouseToIdx(y int) int {
-	// Y is content-relative (0 = first item row), translated by the app
-	return y + m.offset
+	// Y is content-relative (0 = first row of sidebar), translated by the app.
+	// Subtract tab bar height since those rows aren't in the entry list.
+	return y - m.tabBarHeight() + m.offset
 }
 
 func (m Model) handleClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
@@ -421,18 +429,13 @@ func (m Model) View() string {
 	lines := m.buildLines(vis)
 
 	// Reserve rows for tab bar and filter bar
-	tabBarHeight := 0
-	if m.tabLabels() != nil {
-		tabBarHeight = 2 // tab line + separator
-	}
-
 	filterHeight := 0
 	if m.searching || m.searchQuery != "" {
 		filterHeight = 2 // blank separator + filter line
 	}
 
 	// Scrolling
-	visibleLines := m.height - filterHeight - tabBarHeight
+	visibleLines := m.height - filterHeight - m.tabBarHeight()
 	if visibleLines <= 0 {
 		visibleLines = 1
 	}
