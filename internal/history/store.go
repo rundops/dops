@@ -70,8 +70,9 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 	return nil
 }
 
-// persistLog copies a log file from a temporary directory to ~/.dops/history/logs/
-// and updates the record's LogPath. No-op if LogPath is empty or already persistent.
+// persistLog moves a log file from a temporary directory to ~/.dops/history/logs/
+// using the execution ID as filename (no runbook names in the cache).
+// Deletes the temp file after copying. No-op if LogPath is empty or already persistent.
 func (s *FileExecutionStore) persistLog(record *domain.ExecutionRecord) {
 	if record.LogPath == "" {
 		return
@@ -86,13 +87,14 @@ func (s *FileExecutionStore) persistLog(record *domain.ExecutionRecord) {
 		return
 	}
 
-	destName := fmt.Sprintf("%s.log", record.ID)
-	destPath := filepath.Join(logsDir, destName)
+	destPath := filepath.Join(logsDir, record.ID+".log")
 
 	if err := copyFile(record.LogPath, destPath); err != nil {
 		return // best-effort — keep original path
 	}
 
+	// Remove temp file now that we have a persistent copy.
+	_ = os.Remove(record.LogPath)
 	record.LogPath = destPath
 }
 
