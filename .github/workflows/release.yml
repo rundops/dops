@@ -27,7 +27,10 @@ jobs:
           node-version: 22
 
       - name: Build web UI
-        run: make web && git checkout -- internal/web/dist/.gitkeep
+        run: |
+          make web
+          git add -f internal/web/dist/
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -m "Build web dist [skip ci]" --allow-empty
 
       - uses: sigstore/cosign-installer@v3
 
