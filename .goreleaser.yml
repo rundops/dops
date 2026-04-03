@@ -57,3 +57,13 @@ brews:
       bin.install "dops"
     test: |
       system "#{bin}/dops", "version"
+
+scoops:
+  - name: dops
+    repository:
+      owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+      name: scoop-bucket
+      token: "{{ .Env.GITHUB_TOKEN }}"
+    homepage: "https://github.com/{{ .Env.GITHUB_REPOSITORY }}"
+    description: Developer Operations TUI — browse, parameterize, and execute runbooks from the terminal
+    license: MIT

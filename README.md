@@ -175,7 +175,12 @@ Installs the latest binary to `/usr/local/bin`. Set `DOPS_INSTALL_DIR` to change
 
 ### Windows
 
-Download the latest `.zip` from the [releases page](https://github.com/rundops/dops/releases/latest) and add `dops.exe` to your PATH.
+```bash
+scoop bucket add rundops https://github.com/rundops/scoop-bucket.git
+scoop install dops
+```
+
+Or download the latest `.zip` from the [releases page](https://github.com/rundops/dops/releases/latest) and add `dops.exe` to your PATH.
 
 ### Homebrew
 
