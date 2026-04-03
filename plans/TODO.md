@@ -6,8 +6,7 @@
 **Plan:** [plans/2026-04-03-execution-history.md](2026-04-03-execution-history.md)
 **Branch:** `feature/v0.12.0`
 
-- [ ] Execution history + audit trail ([#55](https://github.com/rundops/dops/issues/55))
-- [ ] Log rotation: daily archives + monthly bundles ([#64](https://github.com/rundops/dops/issues/64))
+- [x] Execution history + audit trail ([#55](https://github.com/rundops/dops/issues/55))
 
 ## Completed
 

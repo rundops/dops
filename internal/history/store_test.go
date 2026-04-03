@@ -19,7 +19,7 @@ func newTestRecord(rbID, catalog, name string, status domain.ExecStatus, exitCod
 
 func TestFileStore_RecordAndGet(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	rec := domain.NewExecutionRecord("default.hello", "hello", "default", domain.ExecCLI)
 	rec.Parameters = map[string]string{"greeting": "hi"}
@@ -49,7 +49,7 @@ func TestFileStore_RecordAndGet(t *testing.T) {
 
 func TestFileStore_Get_NotFound(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	_, err := store.Get("nonexistent")
 	if err == nil {
@@ -59,7 +59,7 @@ func TestFileStore_Get_NotFound(t *testing.T) {
 
 func TestFileStore_List_NewestFirst(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	// Create records with different timestamps.
 	r1 := domain.NewExecutionRecord("default.first", "first", "default", domain.ExecCLI)
@@ -89,7 +89,7 @@ func TestFileStore_List_NewestFirst(t *testing.T) {
 
 func TestFileStore_List_FilterByRunbook(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	r1 := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
 	r2 := newTestRecord("infra.deploy", "infra", "deploy", domain.ExecSuccess, 0)
@@ -107,7 +107,7 @@ func TestFileStore_List_FilterByRunbook(t *testing.T) {
 
 func TestFileStore_List_FilterByStatus(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	r1 := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
 	r2 := newTestRecord("default.fail", "default", "fail", domain.ExecFailed, 1)
@@ -125,7 +125,7 @@ func TestFileStore_List_FilterByStatus(t *testing.T) {
 
 func TestFileStore_List_LimitAndOffset(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	for i := 0; i < 5; i++ {
 		r := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
@@ -154,7 +154,7 @@ func TestFileStore_List_LimitAndOffset(t *testing.T) {
 
 func TestFileStore_Retention(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 3) // max 3 records
+	store := NewFileStore(dir, 1024) // 1KB cap — forces eviction
 
 	for i := 0; i < 5; i++ {
 		r := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
@@ -162,7 +162,7 @@ func TestFileStore_Retention(t *testing.T) {
 		store.Record(r)
 	}
 
-	// Should have at most 3 files
+	// Size cap should have evicted some — fewer than 5 records remain.
 	entries, _ := os.ReadDir(dir)
 	jsonCount := 0
 	for _, e := range entries {
@@ -170,14 +170,14 @@ func TestFileStore_Retention(t *testing.T) {
 			jsonCount++
 		}
 	}
-	if jsonCount > 3 {
-		t.Errorf("expected max 3 records, got %d", jsonCount)
+	if jsonCount >= 5 {
+		t.Errorf("expected eviction to reduce records below 5, got %d", jsonCount)
 	}
 }
 
 func TestFileStore_Delete(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	rec := newTestRecord("default.hello", "default", "hello", domain.ExecSuccess, 0)
 	store.Record(rec)
@@ -194,7 +194,7 @@ func TestFileStore_Delete(t *testing.T) {
 
 func TestFileStore_Delete_NotFound(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	err := store.Delete("nonexistent")
 	if err == nil {
@@ -204,7 +204,7 @@ func TestFileStore_Delete_NotFound(t *testing.T) {
 
 func TestFileStore_List_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
-	store := NewFileStore(dir, 100)
+	store := NewFileStore(dir, 0)
 
 	records, err := store.List(ListOpts{Limit: 10})
 	if err != nil {

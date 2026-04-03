@@ -107,7 +107,7 @@ func newRunCmd(dopsDir string) *cobra.Command {
 			), rb.Script)
 
 			historyDir := filepath.Join(dopsDir, "history")
-			historyStore := history.NewFileStore(historyDir, 500)
+			historyStore := history.NewFileStore(historyDir, 0)
 
 			return executeScript(cmd, scriptPath, resolved, rb, cat, historyStore)
 		},

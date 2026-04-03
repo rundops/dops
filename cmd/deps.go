@@ -79,7 +79,7 @@ func loadDeps(dopsDir string) (*appDeps, error) {
 
 	// Execution history store.
 	historyDir := filepath.Join(dopsDir, "history")
-	historyStore := history.NewFileStore(historyDir, 500)
+	historyStore := history.NewFileStore(historyDir, 0)
 
 	return &appDeps{
 		FS:          fs,

@@ -47,7 +47,7 @@ func newMCPServeCmd(dopsDir string) *cobra.Command {
 			}
 
 			historyDir := filepath.Join(dopsDir, "history")
-			historyStore := history.NewFileStore(historyDir, 500)
+			historyStore := history.NewFileStore(historyDir, 0)
 
 			runner := executor.NewScriptRunner()
 			srv := mcp.NewServer(mcp.ServerConfig{

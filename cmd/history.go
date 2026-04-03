@@ -22,7 +22,7 @@ func newHistoryCmd(dopsDir string) *cobra.Command {
 		Long:  "List recent runbook executions with status, duration, and exit code.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			historyDir := filepath.Join(dopsDir, "history")
-			store := history.NewFileStore(historyDir, 500)
+			store := history.NewFileStore(historyDir, 0)
 
 			opts := history.ListOpts{
 				RunbookID: runbookID,

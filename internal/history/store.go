@@ -1,7 +1,6 @@
 package history
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,13 +8,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"dops/internal/domain"
 )
 
-const defaultMaxRecords = 500
-const defaultArchiveAfterDays = 7
+const defaultMaxBytes int64 = 50 * 1024 * 1024 // 50MB
 
 // ListOpts controls filtering and pagination for List.
 type ListOpts struct {
@@ -34,40 +31,27 @@ type ExecutionStore interface {
 }
 
 // FileExecutionStore stores execution records as JSON files.
+// Evicts oldest records when total directory size exceeds maxBytes.
 type FileExecutionStore struct {
-	dir             string
-	maxRecords      int
-	archiveAfterDays int
+	dir      string
+	maxBytes int64
 }
 
 // NewFileStore creates a store backed by the given directory.
-func NewFileStore(dir string, maxRecords int) *FileExecutionStore {
-	if maxRecords <= 0 {
-		maxRecords = defaultMaxRecords
+// maxBytes controls the size cap; 0 uses the default (50MB).
+func NewFileStore(dir string, maxBytes int64) *FileExecutionStore {
+	if maxBytes <= 0 {
+		maxBytes = defaultMaxBytes
 	}
-	return &FileExecutionStore{
-		dir:              dir,
-		maxRecords:       maxRecords,
-		archiveAfterDays: defaultArchiveAfterDays,
-	}
+	return &FileExecutionStore{dir: dir, maxBytes: maxBytes}
 }
 
-// SetArchiveDays configures how many days before logs are compressed.
-func (s *FileExecutionStore) SetArchiveDays(days int) {
-	if days > 0 {
-		s.archiveAfterDays = days
-	}
-}
-
-// Record writes an execution record to disk and enforces retention.
-// If the record has a log file in a temporary directory, it is copied
-// to the persistent logs/ subdirectory so it survives temp cleanup.
+// Record writes an execution record to disk and enforces the size cap.
 func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return fmt.Errorf("create history dir: %w", err)
 	}
 
-	// Copy log file to persistent storage if it's in a temp dir.
 	s.persistLog(record)
 
 	data, err := json.MarshalIndent(record, "", "  ")
@@ -81,153 +65,8 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 		return fmt.Errorf("write record: %w", err)
 	}
 
-	s.enforceRetention()
-	s.archiveOldLogs()
+	s.enforceSize()
 	return nil
-}
-
-// archiveOldLogs compresses log files older than archiveAfterDays.
-func (s *FileExecutionStore) archiveOldLogs() {
-	cutoff := time.Now().AddDate(0, 0, -s.archiveAfterDays)
-
-	files, err := s.listFiles()
-	if err != nil {
-		return
-	}
-
-	for _, f := range files {
-		rec, err := s.loadRecord(f)
-		if err != nil || rec.LogPath == "" {
-			continue
-		}
-		// Skip already compressed.
-		if strings.HasSuffix(rec.LogPath, ".gz") {
-			continue
-		}
-		// Skip recent.
-		if rec.StartTime.After(cutoff) {
-			continue
-		}
-		// Compress the log file.
-		gzPath := rec.LogPath + ".gz"
-		if err := compressFile(rec.LogPath, gzPath); err != nil {
-			continue
-		}
-		_ = os.Remove(rec.LogPath)
-
-		// Update the record's log path.
-		rec.LogPath = gzPath
-		data, err := json.MarshalIndent(rec, "", "  ")
-		if err != nil {
-			continue
-		}
-		_ = os.WriteFile(filepath.Join(s.dir, f), data, 0o644)
-	}
-}
-
-// persistLog moves a log file from a temporary directory to ~/.dops/history/logs/
-// using the execution ID as filename (no runbook names in the cache).
-// Deletes the temp file after copying. No-op if LogPath is empty or already persistent.
-func (s *FileExecutionStore) persistLog(record *domain.ExecutionRecord) {
-	if record.LogPath == "" {
-		return
-	}
-	// Skip if already under our directory.
-	if strings.HasPrefix(record.LogPath, s.dir) {
-		return
-	}
-
-	logsDir := filepath.Join(s.dir, "logs")
-	if err := os.MkdirAll(logsDir, 0o755); err != nil {
-		return
-	}
-
-	execDir := filepath.Join(logsDir, record.ID)
-	if err := os.MkdirAll(execDir, 0o755); err != nil {
-		return
-	}
-	destPath := filepath.Join(execDir, record.StartTime.Format("2006-01-02T15-04-05")+".log")
-
-	if err := copyFile(record.LogPath, destPath); err != nil {
-		return // best-effort — keep original path
-	}
-
-	// Remove temp file now that we have a persistent copy.
-	_ = os.Remove(record.LogPath)
-	record.LogPath = destPath
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src) // #nosec G304 -- src is internal log path
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, in)
-	return err
-}
-
-func compressFile(src, dst string) error {
-	in, err := os.Open(src) // #nosec G304 -- src is internal log path from execution
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	gz := gzip.NewWriter(out)
-	if _, err := io.Copy(gz, in); err != nil {
-		gz.Close()
-		return err
-	}
-	return gz.Close()
-}
-
-// ReadLog reads a log file, transparently decompressing .gz files.
-// Returns the lines and true if the file was available.
-func ReadLog(path string) ([]string, bool) {
-	if path == "" {
-		return nil, false
-	}
-
-	f, err := os.Open(path) // #nosec G304 -- path from internal history record
-	if err != nil {
-		return nil, false
-	}
-	defer f.Close()
-
-	var reader io.Reader = f
-	if strings.HasSuffix(path, ".gz") {
-		gz, err := gzip.NewReader(f)
-		if err != nil {
-			return nil, false
-		}
-		defer gz.Close()
-		reader = gz
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, false
-	}
-
-	content := strings.TrimRight(string(data), "\n")
-	if content == "" {
-		return []string{}, true
-	}
-	return strings.Split(content, "\n"), true
 }
 
 // Get retrieves a single execution record by ID.
@@ -259,7 +98,7 @@ func (s *FileExecutionStore) List(opts ListOpts) ([]*domain.ExecutionRecord, err
 		return nil, err
 	}
 
-	// Files are sorted oldest-first by name; reverse for newest-first.
+	// Reverse for newest-first (files are sorted oldest-first by name).
 	for i, j := 0, len(files)-1; i < j; i, j = i+1, j-1 {
 		files[i], files[j] = files[j], files[i]
 	}
@@ -272,7 +111,6 @@ func (s *FileExecutionStore) List(opts ListOpts) ([]*domain.ExecutionRecord, err
 			continue
 		}
 
-		// Apply filters.
 		if opts.RunbookID != "" && rec.RunbookID != opts.RunbookID {
 			continue
 		}
@@ -280,7 +118,6 @@ func (s *FileExecutionStore) List(opts ListOpts) ([]*domain.ExecutionRecord, err
 			continue
 		}
 
-		// Apply offset.
 		if skipped < opts.Offset {
 			skipped++
 			continue
@@ -288,7 +125,6 @@ func (s *FileExecutionStore) List(opts ListOpts) ([]*domain.ExecutionRecord, err
 
 		records = append(records, rec)
 
-		// Apply limit.
 		limit := opts.Limit
 		if limit <= 0 {
 			limit = 50
@@ -301,7 +137,7 @@ func (s *FileExecutionStore) List(opts ListOpts) ([]*domain.ExecutionRecord, err
 	return records, nil
 }
 
-// Delete removes an execution record by ID.
+// Delete removes an execution record and its log by ID.
 func (s *FileExecutionStore) Delete(id string) error {
 	files, err := s.listFiles()
 	if err != nil {
@@ -314,15 +150,108 @@ func (s *FileExecutionStore) Delete(id string) error {
 			continue
 		}
 		if rec.ID == id {
+			s.removeLog(rec)
 			return os.Remove(filepath.Join(s.dir, f))
 		}
 	}
 	return fmt.Errorf("execution %q not found", id)
 }
 
+// --- Log persistence ---
+
+// persistLog moves a log file from a temporary directory to persistent storage.
+// Logs stored as {uuid}/datetime.log under the logs/ subdirectory.
+func (s *FileExecutionStore) persistLog(record *domain.ExecutionRecord) {
+	if record.LogPath == "" {
+		return
+	}
+	if strings.HasPrefix(record.LogPath, s.dir) {
+		return
+	}
+
+	execDir := filepath.Join(s.dir, "logs", record.ID)
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
+		return
+	}
+	destPath := filepath.Join(execDir, record.StartTime.Format("2006-01-02T15-04-05")+".log")
+
+	if err := copyFile(record.LogPath, destPath); err != nil {
+		return
+	}
+
+	_ = os.Remove(record.LogPath)
+	record.LogPath = destPath
+}
+
+func (s *FileExecutionStore) removeLog(rec *domain.ExecutionRecord) {
+	if rec.LogPath != "" && strings.HasPrefix(rec.LogPath, s.dir) {
+		_ = os.RemoveAll(filepath.Dir(rec.LogPath))
+	}
+}
+
+// ReadLog reads a log file. Returns the lines and true if available.
+func ReadLog(path string) ([]string, bool) {
+	if path == "" {
+		return nil, false
+	}
+
+	data, err := os.ReadFile(path) // #nosec G304 -- path from internal history record
+	if err != nil {
+		return nil, false
+	}
+
+	content := strings.TrimRight(string(data), "\n")
+	if content == "" {
+		return []string{}, true
+	}
+	return strings.Split(content, "\n"), true
+}
+
+// --- Size-based eviction ---
+
+// enforceSize deletes oldest records (and their logs) until total
+// directory size is under maxBytes.
+func (s *FileExecutionStore) enforceSize() {
+	size := dirSize(s.dir)
+	if size <= s.maxBytes {
+		return
+	}
+
+	files, err := s.listFiles()
+	if err != nil {
+		return
+	}
+
+	// Delete oldest first until under budget.
+	for _, f := range files {
+		if dirSize(s.dir) <= s.maxBytes {
+			break
+		}
+		rec, err := s.loadRecord(f)
+		if err == nil {
+			s.removeLog(rec)
+		}
+		_ = os.Remove(filepath.Join(s.dir, f))
+	}
+}
+
+// dirSize returns the total size in bytes of all files under dir (recursive).
+func dirSize(dir string) int64 {
+	var total int64
+	_ = filepath.Walk(dir, func(_ string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		total += info.Size()
+		return nil
+	})
+	return total
+}
+
+// --- Helpers ---
+
 func (s *FileExecutionStore) filename(r *domain.ExecutionRecord) string {
 	ts := r.StartTime.Format("2006-01-02T15-04-05.000")
-	// Sanitize runbook ID for filename.
 	rbID := strings.ReplaceAll(r.RunbookID, "/", "-")
 	return fmt.Sprintf("%s-%s-%s.json", ts, rbID, r.ID)
 }
@@ -340,7 +269,7 @@ func (s *FileExecutionStore) listFiles() ([]string, error) {
 		}
 		files = append(files, e.Name())
 	}
-	sort.Strings(files) // lexicographic = chronological (timestamp prefix)
+	sort.Strings(files)
 	return files, nil
 }
 
@@ -356,21 +285,21 @@ func (s *FileExecutionStore) loadRecord(filename string) (*domain.ExecutionRecor
 	return &rec, nil
 }
 
-func (s *FileExecutionStore) enforceRetention() {
-	files, err := s.listFiles()
-	if err != nil || len(files) <= s.maxRecords {
-		return
+func copyFile(src, dst string) error {
+	in, err := os.Open(src) // #nosec G304 -- src is internal log path
+	if err != nil {
+		return err
 	}
+	defer in.Close()
 
-	// Delete oldest files (sorted oldest-first) and their log files.
-	excess := len(files) - s.maxRecords
-	for i := 0; i < excess; i++ {
-		rec, err := s.loadRecord(files[i])
-		if err == nil && rec.LogPath != "" && strings.HasPrefix(rec.LogPath, s.dir) {
-			_ = os.RemoveAll(filepath.Dir(rec.LogPath)) // remove UUID directory + log
-		}
-		_ = os.Remove(filepath.Join(s.dir, files[i]))
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
 	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
 }
 
 var _ ExecutionStore = (*FileExecutionStore)(nil)
