@@ -384,13 +384,11 @@ func (m Model) View() string {
 		sb.WriteString(line + "\n")
 	}
 
-	// Pad remaining lines to push filter bar to bottom (only when filter is active)
-	if m.searching || m.searchQuery != "" {
-		renderedLines := len(visible)
-		for renderedLines < visibleLines {
-			sb.WriteString("\n")
-			renderedLines++
-		}
+	// Pad remaining lines to push filter to bottom
+	renderedLines := len(visible)
+	for renderedLines < visibleLines {
+		sb.WriteString("\n")
+		renderedLines++
 	}
 
 	if m.searching || m.searchQuery != "" {
