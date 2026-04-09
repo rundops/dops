@@ -44,7 +44,7 @@ func NewFileStore(dir string, _ int64) *FileExecutionStore {
 
 // Record writes an execution record to disk.
 func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
-	if err := os.MkdirAll(s.dir, 0o755); err != nil {
+	if err := os.MkdirAll(s.dir, 0o750); err != nil {
 		return fmt.Errorf("create history dir: %w", err)
 	}
 
@@ -55,7 +55,7 @@ func (s *FileExecutionStore) Record(record *domain.ExecutionRecord) error {
 
 	filename := s.filename(record)
 	path := filepath.Join(s.dir, filename)
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write record: %w", err)
 	}
 
@@ -220,7 +220,9 @@ func (s *FileExecutionStore) listFiles() ([]string, error) {
 }
 
 func (s *FileExecutionStore) loadRecord(filename string) (*domain.ExecutionRecord, error) {
-	data, err := os.ReadFile(filepath.Join(s.dir, filename))
+	// filename comes from listRecordFilenames which reads s.dir via os.ReadDir
+	// and filters to *.json entries; strip any path component defensively.
+	data, err := os.ReadFile(filepath.Join(s.dir, filepath.Base(filename))) // #nosec G304 -- constrained to s.dir
 	if err != nil {
 		return nil, err
 	}

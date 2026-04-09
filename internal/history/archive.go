@@ -24,7 +24,7 @@ type archiveEntry struct {
 // AppendToActiveArchive finds or creates the active .log.gz archive (< 10MB)
 // and appends the entry. Returns the archive path and entry name.
 func AppendToActiveArchive(logsDir, entryName string, content []byte) (archivePath string, err error) {
-	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+	if err := os.MkdirAll(logsDir, 0o750); err != nil {
 		return "", fmt.Errorf("create logs dir: %w", err)
 	}
 
@@ -189,7 +189,7 @@ func writeArchive(path string, entries []archiveEntry) error {
 		return err
 	}
 
-	return os.WriteFile(path, buf.Bytes(), 0o644)
+	return os.WriteFile(path, buf.Bytes(), 0o600)
 }
 
 func generateArchiveID() string {
