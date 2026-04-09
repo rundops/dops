@@ -177,6 +177,12 @@ Installs the latest binary to `/usr/local/bin`. Set `DOPS_INSTALL_DIR` to change
 
 ### Windows
 
+```powershell
+winget install RunDops.dops
+```
+
+Or via Scoop:
+
 ```bash
 scoop bucket add rundops https://github.com/rundops/scoop-bucket.git
 scoop install dops
