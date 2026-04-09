@@ -18,6 +18,12 @@ Downloads the latest binary for your platform and installs to `/usr/local/bin`. 
 DOPS_INSTALL_DIR=~/.local/bin curl -fsSL https://raw.githubusercontent.com/rundops/dops/main/install.sh | sh
 ```
 
+### Windows (winget)
+
+```powershell
+winget install RunDops.dops
+```
+
 ### Windows (Scoop)
 
 ```sh
